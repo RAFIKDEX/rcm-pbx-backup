@@ -1,0 +1,72 @@
+; ================================
+; RCM GUI - Auto Generated
+; ================================
+
+[globals]
+RECORD_5003=noo
+VM_5003=Off
+RING_5003=10
+RECORD_5001=noo
+VM_5001=Off
+RING_5001=5
+RECORD_5555=noo
+VM_5555=Off
+RING_5555=60
+RECORD_4321=noo
+VM_4321=Off
+RING_4321=60
+
+RECORD_10000=noo
+VM_10000=Off
+
+RECORD_5000=noo
+VM_5000=Off
+
+RECORD_555=noo
+VM_555=On
+
+RECORD_3001=noo
+VM_3001=Off
+
+RECORD_2121=all
+VM_2121=Off
+
+; BEGIN RCM QUEUE GUI GLOBALS
+QUEUE_7772=7772
+QUEUE_7441=7441
+QUEUE_7008=7008
+; END RCM QUEUE GUI GLOBALS
+RECORD_5858=noo
+VM_5858=Off
+
+RECORD_9999=noo
+VM_9999=Off
+
+RECORD_5004=noo
+VM_5004=Off
+
+RECORD_5002=noo
+VM_5002=Off
+
+[internal]
+exten => 5003,1,Goto(dexter,${EXTEN},1)
+exten => 5001,1,Goto(dexter,${EXTEN},1)
+exten => 5555,1,Goto(dexter,${EXTEN},1)
+exten => 4321,1,Goto(dexter,${EXTEN},1)
+exten => 10000,1,Goto(dexter,${EXTEN},1)
+exten => 5000,1,Goto(dexter,${EXTEN},1)
+exten => 555,1,Goto(dexter,${EXTEN},1)
+exten => 3001,1,Goto(dexter,${EXTEN},1)
+exten => 2121,1,Goto(dexter,${EXTEN},1)
+
+; BEGIN RCM QUEUE GUI INTERNAL
+; END RCM QUEUE GUI INTERNAL
+exten => 5858,1,Goto(dexter,${EXTEN},1)
+exten => 9999,1,Goto(dexter,${EXTEN},1)
+exten => 5004,1,Goto(dexter,${EXTEN},1)
+exten => 5002,1,Goto(dexter,${EXTEN},1)
+
+[test-context-123]
+exten => 9999,1,Hangup()
+;////////////////////////////////////////////////////////////////////////////////////////////////////////
+

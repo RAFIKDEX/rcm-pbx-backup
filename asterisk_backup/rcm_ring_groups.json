@@ -1,0 +1,20 @@
+{
+    "groups": [
+        {
+            "id": "6400",
+            "name": "support",
+            "strategy": "ringall",
+            "timeout": 20,
+            "per_try": 10,
+            "failover": "hangup",
+            "failover_type": "hangup",
+            "failover_value": "hangup",
+            "members": [
+                "5001",
+                "5002",
+                "2121"
+            ],
+            "pre_ring_announcement": "prompt_atmky2k8"
+        }
+    ]
+}

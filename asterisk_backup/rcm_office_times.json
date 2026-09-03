@@ -1,0 +1,21 @@
+{
+    "office_times": [
+        {
+            "id": "morning_shift_id",
+            "name": "Morning Shift",
+            "days": [
+                "sunday",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday"
+            ],
+            "ranges": [
+                {
+                    "start": "09:00",
+                    "end": "17:00"
+                }
+            ]
+        }
+    ]
+}

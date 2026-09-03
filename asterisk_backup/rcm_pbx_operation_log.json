@@ -1,0 +1,46 @@
+{
+    "logs": [
+        {
+            "timestamp": "2026-09-02 13:31:00",
+            "username": "admin",
+            "user": "admin",
+            "module": "Extension",
+            "ip_address": "127.0.0.1",
+            "ip": "127.0.0.1",
+            "action": "Extension Updated",
+            "status": "success",
+            "result": "Success",
+            "message": "Extensions=6100; Mode=bulk",
+            "details": "Extensions=6100; Mode=bulk",
+            "changes": []
+        },
+        {
+            "timestamp": "2026-09-02 13:09:10",
+            "username": "admin",
+            "user": "admin",
+            "module": "Extension",
+            "ip_address": "127.0.0.1",
+            "ip": "127.0.0.1",
+            "action": "Extension Updated",
+            "status": "success",
+            "result": "Success",
+            "message": "Extensions=6100; Mode=bulk",
+            "details": "Extensions=6100; Mode=bulk",
+            "changes": []
+        },
+        {
+            "timestamp": "2026-09-02 13:01:29",
+            "username": "admin",
+            "user": "admin",
+            "module": "Extension",
+            "ip_address": "127.0.0.1",
+            "ip": "127.0.0.1",
+            "action": "Extension Updated",
+            "status": "success",
+            "result": "Success",
+            "message": "Extensions=6100; Mode=bulk",
+            "details": "Extensions=6100; Mode=bulk",
+            "changes": []
+        }
+    ]
+}

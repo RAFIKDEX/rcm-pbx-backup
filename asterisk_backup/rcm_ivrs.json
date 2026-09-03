@@ -1,0 +1,67 @@
+{
+    "ivrs": [
+        {
+            "num": "7001",
+            "name": "main menu",
+            "prompt_id": "prompt_97kjrsaj",
+            "timeout": 10,
+            "loops": 3,
+            "fail_mode": "hangup",
+            "fail_ext": "hangup",
+            "mappings": [
+                {
+                    "key": "1",
+                    "dest": "7001",
+                    "dest_type": "ivr"
+                },
+                {
+                    "key": "2",
+                    "dest": "6501",
+                    "dest_type": "queue"
+                }
+            ],
+            "ultra_numbers": [
+                {
+                    "number": "753",
+                    "dest": "2121",
+                    "dest_type": "extension"
+                }
+            ],
+            "dial_extension": true,
+            "replace_display_name": true,
+            "auto_record": false,
+            "digit_timeout": 3,
+            "response_timeout_prompt": "prompt_7mddtvcq",
+            "invalid_input_prompt": "prompt_t8p0kwks",
+            "direct_dial": 0,
+            "announce_position": 0
+        },
+        {
+            "num": "7002",
+            "name": "test_valid",
+            "prompt_id": "prompt_97kjrsaj",
+            "timeout": 10,
+            "loops": 3,
+            "fail_mode": "hangup",
+            "fail_ext": "hangup",
+            "mappings": [
+                {
+                    "key": "1",
+                    "dest": "5001",
+                    "dest_type": "extension"
+                },
+                {
+                    "key": "2",
+                    "dest": "6500",
+                    "dest_type": "queue"
+                }
+            ],
+            "digit_timeout": 3,
+            "response_timeout_prompt": "prompt_7mddtvcq",
+            "invalid_input_prompt": "prompt_t8p0kwks",
+            "ultra_numbers": [],
+            "direct_dial": 0,
+            "announce_position": 0
+        }
+    ]
+}

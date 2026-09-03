@@ -1,0 +1,86 @@
+{
+    "inbound_routes": [
+        {
+            "id": "d75f7485",
+            "name": "in_ucm",
+            "enabled": true,
+            "trunks": [
+                "ucm1"
+            ],
+            "did_patterns": [
+                "_X."
+            ],
+            "cid_pattern": "",
+            "auto_record": false,
+            "enable_dial_trunk": false,
+            "default_dest_type": "ivr",
+            "default_dest_val": "7001",
+            "default_strip": 0,
+            "default_prepend": "",
+            "rules": [],
+            "dial_trunk_permission_ext": ""
+        },
+        {
+            "id": "main_route_id",
+            "name": "Main Route",
+            "enabled": true,
+            "trunks": [
+                "GSM"
+            ],
+            "did_patterns": [
+                "23226054"
+            ],
+            "cid_pattern": "_01X.",
+            "auto_record": true,
+            "enable_dial_trunk": true,
+            "default_dest_type": "extension",
+            "default_dest_val": "2121",
+            "default_strip": 0,
+            "default_prepend": "",
+            "rules": [
+                {
+                    "time_condition": "office",
+                    "office_profile": "",
+                    "holiday_profile": "",
+                    "custom_days": [],
+                    "custom_start": "09:00",
+                    "custom_end": "17:00",
+                    "dest_type": "extension",
+                    "dest_val": "2121",
+                    "strip": 0,
+                    "prepend": ""
+                },
+                {
+                    "time_condition": "holiday",
+                    "office_profile": "",
+                    "holiday_profile": "ramadan_holiday_id",
+                    "custom_days": [],
+                    "custom_start": "09:00",
+                    "custom_end": "17:00",
+                    "dest_type": "announcement",
+                    "dest_val": "8001",
+                    "strip": 0,
+                    "prepend": ""
+                }
+            ]
+        },
+        {
+            "id": "ebcda846",
+            "name": "se",
+            "enabled": true,
+            "trunks": [
+                "6666"
+            ],
+            "did_patterns": [],
+            "cid_pattern": "",
+            "auto_record": false,
+            "enable_dial_trunk": false,
+            "dial_trunk_permission_ext": "",
+            "default_dest_type": "extension",
+            "default_dest_val": "6002",
+            "default_strip": 0,
+            "default_prepend": "",
+            "rules": []
+        }
+    ]
+}

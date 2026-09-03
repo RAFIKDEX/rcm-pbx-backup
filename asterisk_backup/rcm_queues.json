@@ -1,0 +1,86 @@
+{
+    "queues": [
+        {
+            "queue_number": "6500",
+            "name": "support q",
+            "strategy": "roundrobin",
+            "music_on_hold": "default",
+            "ring_time": 10,
+            "retry_time": 2,
+            "wrapup_time": 5,
+            "max_queue_length": 0,
+            "max_wait_time": 5000,
+            "dial_in_empty_queue": "no",
+            "leave_when_empty": "no",
+            "enable_welcome_prompt": "off",
+            "custom_prompt": "",
+            "destination_type": "hangup",
+            "destination_value": "hangup",
+            "static_agents": [
+                "5001",
+                "5002",
+                "5003"
+            ],
+            "report_hold_time": "off",
+            "replace_display_name": "on",
+            "display_name_value": "support q",
+            "skip_busy_agent": "on",
+            "auto_fill": "off",
+            "disabled_agents": [],
+            "servicelevel": 40,
+            "auto_record": "on",
+            "survey_id": "",
+            "survey_callback_exten": "2121",
+            "supervisors": [
+                "2121"
+            ],
+            "script": "HI",
+            "breaks": [
+                {
+                    "reason": "breakfast"
+                },
+                {
+                    "reason": "lunsh"
+                },
+                {
+                    "reason": "balla"
+                }
+            ],
+            "total_break_time": 5
+        },
+        {
+            "queue_number": "6501",
+            "name": "sales",
+            "strategy": "random",
+            "music_on_hold": "ggk",
+            "ring_time": 10,
+            "retry_time": 2,
+            "wrapup_time": 5,
+            "max_queue_length": 10,
+            "max_wait_time": 0,
+            "dial_in_empty_queue": "yes",
+            "leave_when_empty": "no",
+            "enable_welcome_prompt": "off",
+            "custom_prompt": "",
+            "destination_type": "hangup",
+            "destination_value": "hangup",
+            "static_agents": [
+                "6001"
+            ],
+            "report_hold_time": "off",
+            "replace_display_name": "off",
+            "display_name_value": "",
+            "skip_busy_agent": "on",
+            "auto_fill": "off",
+            "servicelevel": 30,
+            "disabled_agents": [],
+            "auto_record": "off",
+            "survey_id": "",
+            "survey_callback_exten": "",
+            "supervisors": [],
+            "script": "",
+            "total_break_time": 5,
+            "breaks": []
+        }
+    ]
+}

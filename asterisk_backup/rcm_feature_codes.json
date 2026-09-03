@@ -1,0 +1,1 @@
+{"vm": "*97", "fwd_busy_on": "*58", "fwd_busy_off": "*59", "fwd_noans_on": "*60", "fwd_noans_off": "*61", "fwd_unavail_on": "*62", "fwd_unavail_off": "*63", "fwd_always_on": "*64", "fwd_always_off": "*65", "dnd_on": "*37", "dnd_off": "*38", "pickup": "*8", "directed_pickup": "**", "recording": "*1"}

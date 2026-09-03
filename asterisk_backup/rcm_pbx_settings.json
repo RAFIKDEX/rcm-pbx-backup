@@ -1,0 +1,35 @@
+{
+    "extension_defaults": {
+        "dtmf_mode": "rfc4733",
+        "blind_transfer_timeout": 3,
+        "ring_time": 60,
+        "moh_class": "default",
+        "video_support": true,
+        "featuredigittimeout": 1000,
+        "atxfernoanswertimeout": 15
+    },
+    "sip_settings": {
+        "udp_port": 5060,
+        "tcp_port": 5080,
+        "tls_port": 5061,
+        "rtp_start": 10000,
+        "rtp_end": 20000,
+        "user_agent": "Asterisk PBX RCM",
+        "endpoint_identifier_order": [
+            "request_uri",
+            "header",
+            "auth_username",
+            "username",
+            "ip"
+        ],
+        "stunaddr": "stun.l.google.com:19302",
+        "icesupport": 1,
+        "rtpchecksums": 1,
+        "keep_alive_interval": 90,
+        "max_forwards": 70
+    },
+    "global_settings": {
+        "max_concurrent_calls": 100,
+        "maxload": 4.5
+    }
+}

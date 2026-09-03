@@ -1,0 +1,25 @@
+{
+    "announcements": [
+        {
+            "num": "8000",
+            "name": "test",
+            "prompt_id": "prompt_repair_1",
+            "dest_type": "hangup",
+            "dest_val": ""
+        },
+        {
+            "num": "8001",
+            "name": "test",
+            "prompt_id": "prompt_o7upnn57",
+            "dest_type": "hangup",
+            "dest_val": ""
+        },
+        {
+            "num": "8005",
+            "name": "test",
+            "prompt_id": "prompt_o7upnn57",
+            "dest_type": "extension",
+            "dest_val": "2121"
+        }
+    ]
+}

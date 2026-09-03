@@ -1,0 +1,72 @@
+{
+    "prompts": [
+        {
+            "id": "prompt_o7upnn57",
+            "name": "tst",
+            "type": "announcement",
+            "path": "/var/lib/asterisk/sounds/en/rcm/media/tst.wav",
+            "created_at": "2026-06-15T08:30:00.820735"
+        },
+        {
+            "id": "prompt_97kjrsaj",
+            "name": "welcome2",
+            "type": "ivr",
+            "path": "/var/lib/asterisk/sounds/en/rcm/media/welcome2.wav",
+            "created_at": "2026-06-21T09:46:31.198388"
+        },
+        {
+            "id": "prompt_0obln7mq",
+            "name": "jfjj",
+            "type": "ivr",
+            "path": "/var/lib/asterisk/sounds/en/rcm/media/jfjj.wav",
+            "created_at": "2026-06-24T11:05:48.324516"
+        },
+        {
+            "id": "prompt_repair_1",
+            "name": "test_welcome_announcement",
+            "type": "announcement",
+            "path": "/var/lib/asterisk/sounds/en/rcm/media/test_welcome_announcement.wav",
+            "created_at": "2026-07-13T16:06:46.958385"
+        },
+        {
+            "id": "prompt_atmky2k8",
+            "name": "yyyy",
+            "type": "general",
+            "path": "/var/lib/asterisk/sounds/en/rcm/media/yyyy.wav",
+            "created_at": "2026-07-13T17:27:36.141281"
+        },
+        {
+            "id": "prompt_7mddtvcq",
+            "name": "Sorry_you_didnt_press_any_key",
+            "type": "system",
+            "path": "/var/lib/asterisk/sounds/en/rcm/media/Sorry_you_didnt_press_any_key.wav",
+            "created_at": "2026-07-15T13:17:15.448929",
+            "protected": true,
+            "default_system_key": "response_timeout"
+        },
+        {
+            "id": "prompt_t8p0kwks",
+            "name": "Sorry_you_pressed_an_invalid_key",
+            "type": "system",
+            "path": "/var/lib/asterisk/sounds/en/rcm/media/Sorry_you_pressed_an_invalid_key.wav",
+            "created_at": "2026-07-15T13:19:55.799623",
+            "protected": true,
+            "default_system_key": "invalid_input"
+        },
+        {
+            "id": "prompt_hwf065ws",
+            "name": "q1",
+            "type": "survey",
+            "path": "/var/lib/asterisk/sounds/en/rcm/media/q1.wav",
+            "created_at": "2026-08-09T11:06:15.483635"
+        }
+    ],
+    "moh_classes": [
+        {
+            "name": "ggk",
+            "mode": "sortalpha",
+            "dir": "/var/lib/asterisk/moh/rcm/ggk",
+            "created_at": "2026-06-16T13:39:23.973216"
+        }
+    ]
+}

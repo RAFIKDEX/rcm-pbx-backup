@@ -1,0 +1,8 @@
+{
+    "mode": "automatic",
+    "ntp_server": "pool.ntp.org",
+    "timezone": "Africa/Cairo",
+    "date": "2026-07-22",
+    "time": "16:11",
+    "ntp_server_enabled": true
+}

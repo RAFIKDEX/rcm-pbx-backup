@@ -1,0 +1,54 @@
+{
+    "routes": [
+        {
+            "name": "UCM",
+            "description": "",
+            "context": "rcm-out-UCM",
+            "enabled": true,
+            "prefix": "",
+            "match_pattern": "131",
+            "strip": 0,
+            "prepend": "",
+            "pin": "",
+            "record": false,
+            "timeout": 30,
+            "time_limit_sec": 0,
+            "trunks": [
+                "6666"
+            ],
+            "permission_type": "whitelist",
+            "allowed_extensions": [],
+            "allowed_ring_groups": [],
+            "patterns": [
+                "131"
+            ],
+            "priority": 1
+        },
+        {
+            "name": "out_mobile",
+            "description": "",
+            "context": "rcm-out-out_mobile",
+            "enabled": true,
+            "prefix": "",
+            "match_pattern": "01X.",
+            "strip": 0,
+            "prepend": "",
+            "pin": "",
+            "record": false,
+            "timeout": 10,
+            "time_limit_sec": 50,
+            "trunks": [
+                "GSM"
+            ],
+            "permission_type": "ring_group",
+            "allowed_extensions": [],
+            "allowed_ring_groups": [
+                "6400"
+            ],
+            "patterns": [
+                "_01X."
+            ],
+            "priority": 2
+        }
+    ]
+}

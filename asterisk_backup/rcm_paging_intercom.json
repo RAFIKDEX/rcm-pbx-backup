@@ -1,0 +1,55 @@
+{
+    "items": [
+        {
+            "id": "3698",
+            "name": "test",
+            "welcome_prompt": "prompt_97kjrsaj",
+            "legacy_prompt_path": "rcm/media/general/para",
+            "allowed_callers": [
+                "2121"
+            ],
+            "description": "",
+            "duplex": 0,
+            "members": [
+                "5001"
+            ],
+            "enabled": true
+        },
+        {
+            "id": "258",
+            "name": "rrrr",
+            "welcome_prompt": "",
+            "legacy_prompt_path": "rcm/media/general/para",
+            "allowed_callers": [
+                "555",
+                "2121"
+            ],
+            "description": "Restored from active Asterisk paging dialplan",
+            "duplex": 1,
+            "members": [
+                "2121",
+                "555"
+            ],
+            "enabled": true
+        },
+        {
+            "id": "9632",
+            "name": "ttttooo",
+            "welcome_prompt": "",
+            "legacy_prompt_path": "",
+            "allowed_callers": [
+                "555",
+                "2121",
+                "6363"
+            ],
+            "description": "Restored from active Asterisk paging dialplan",
+            "duplex": 0,
+            "members": [
+                "555",
+                "2121",
+                "5001"
+            ],
+            "enabled": true
+        }
+    ]
+}

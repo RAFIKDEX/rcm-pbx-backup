@@ -1,0 +1,382 @@
+[globals]
+RECORD_2222=oo  
+RECORD_2121=out     
+RECORD_2233=in
+RECORD_2211=in
+RECORD_2002=out
+RECORD_2001=in
+RECORD_2200=oo
+VM_2222=off
+VM_2121=off
+VM_2233=off
+VM_2211=on
+VM_2002=on
+VM_2001=off
+VM_2200=on
+
+dex=1
+test=1
+PIN=1327
+QUEUE_7000=support
+;===========================================================================
+
+;===========================================================================
+[internal]
+exten => 2222,1,Goto(dexter,${EXTEN},1)
+exten => 2121,1,Goto(dexter,${EXTEN},1)
+exten => 2233,1,Goto(dexter,${EXTEN},1)
+exten => 2211,1,Goto(dexter,${EXTEN},1) 
+exten => 2200,1,Goto(dexter,${EXTEN},1)
+exten => 2001,1,Goto(dexter,${EXTEN},1)
+exten => 2002,1,Goto(dexter,${EXTEN},1)
+
+exten => 3000,1,Goto(dexter,3000,1)
+exten => 7000,1,Goto(queue,7000,1)
+;include => ivr
+;include => out-gsm
+;include => out-pri
+include => code
+;include => out-all
+;include => queue
+
+
+
+;===================================================
+
+
+[dexter]
+exten => _X.,1,Set(CALLFILENAME=${EXTEN}-${CALLERID(num)}-${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
+  same => n,Set(UNAVAIL_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'extension_unavailable' or p.get('id') == 'extension_unavailable'), 'is-curntly-unavail') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'is-curntly-unavail', end='')"})
+  same => n,Set(BUSY_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'extension_busy' or p.get('id') == 'extension_busy'), 'busy') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'busy', end='')"})
+  same => n,Set(NOANS_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'no_answer' or p.get('id') == 'no_answer' or p.get('name') == 'no-answer' or p.get('id') == 'no-answer'), 'number-not-answering') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'number-not-answering', end='')"})
+ 
+  same => n,GoToIf($["${RECORD_${CALLERID(num)}}" = "out"]?recording,${EXTEN},1)
+  same => n,GoToIf($["${RECORD_${EXTEN}}" = "out"]?recording,${EXTEN},1)
+  same => n,GoToIf($["${RECORD_${EXTEN}}" = "in"]?recording,${EXTEN},1)
+  same => n,GotoIf($[ "${RECORD_${CALLERID(num)}}" = "all" | "${RECORD_${EXTEN}}" = "all" ]?recording,${EXTEN},1)
+  
+  ; Check Forward Always
+  same => n,Set(FWD_ALWAYS=${DB(FORWARD/ALWAYS/${EXTEN})})
+  same => n,GotoIf($["${FWD_ALWAYS}" != ""]?forward_always)
+
+  same => n,GoToIf($["${DB(DND/${EXTEN})}" = "on" ]?dnd_handling)
+  
+  ; Case B: DND is off. Check device state:
+  same => n,GotoIf($[ "${PJSIP_DIAL_CONTACTS(${EXTEN})}" = "" ]?check_fm_unavail)
+  same => n,Set(DEVSTATE=${DEVICE_STATE(PJSIP/${EXTEN})})
+  same => n,GotoIf($[ "${DEVSTATE}" = "INUSE" | "${DEVSTATE}" = "BUSY" | "${DEVSTATE}" = "RINGING" | "${DEVSTATE}" = "RINGINUSE" | "${DEVSTATE}" = "ONHOLD" ]?check_fm_busy)
+  
+  ; Available: Dial normally (T/t for Transfer, X/x/W/w for automixmon/automon recording toggle *1)
+  same => n,Set(RT=${IF($["${RING_${EXTEN}}"=""]?60:${RING_${EXTEN}})})
+  same => n,Dial(${PJSIP_DIAL_CONTACTS(${EXTEN})},${RT},TtHhXxWw)
+  same => n,FollowMe(${EXTEN},d)
+  
+  ; Check Dial Status post-dial:
+  same => n,GotoIf($["${DIALSTATUS}" = "BUSY"]?play_busy)
+  same => n,GotoIf($["${DIALSTATUS}" = "CHANUNAVAIL" | "${DIALSTATUS}" = "CONGESTION"]?goto_unavail)
+  same => n,GotoIf($["${DIALSTATUS}" = "NOANSWER"]?no_answer_handling)
+  same => n,Hangup()
+  same => n(check_fm_unavail),FollowMe(${EXTEN},d)
+  same => n,Goto(goto_unavail)
+  same => n(check_fm_busy),FollowMe(${EXTEN},d)
+  same => n,Goto(play_busy)
+ 
+  ; Forward Always destination
+  same => n(forward_always),Goto(from-internal-${EXTEN},${FWD_ALWAYS},1)
+
+  ; DND handling
+  same => n(dnd_handling),GotoIf($["${TOLOWER(${VM_${EXTEN}})}" = "on"]?vm,${EXTEN},1)
+  same => n,GotoIf($[ "${PJSIP_DIAL_CONTACTS(${EXTEN})}" = "" ]?goto_unavail)
+  same => n,Goto(play_busy)
+  
+  ; Play busy recording (checks Forward Busy first)
+  same => n(play_busy),Set(FWD_BUSY=${DB(FORWARD/BUSY/${EXTEN})})
+  same => n,GotoIf($["${FWD_BUSY}" != ""]?forward_busy)
+  same => n,Playback(${BUSY_MSG})
+  same => n,Hangup()
+
+  ; Forward Busy destination
+  same => n(forward_busy),Goto(from-internal-${EXTEN},${FWD_BUSY},1)
+  
+  ; Play unavailable recording / Check Forward/Voicemail
+  same => n(goto_unavail),Goto(unavail-fallback,${EXTEN},1)
+  
+  ; No Answer handling
+  same => n(no_answer_handling),GotoIf($["${TOLOWER(${VM_${EXTEN}})}" = "on"]?vm,${EXTEN},1)
+  same => n,Goto(forward-noanswer,${EXTEN},1)
+
+
+exten => 3000,1,Answer()
+;same => n,SayDigits(${EXTEN})
+same => n,playback(de-activated)
+;same => n,playback(pbx-invalid) this is invalid extention 
+ same => n,playback(is-curntly-unavail,noanswer) 
+;same => n,playback()
+same => n,GoTo(internal,2222,1)
+
+;==========================QUEUE===================================
+
+
+[queue]
+exten => 7000,1,Answer()
+;same => n,Playback(RAFIK_Queuee)
+same => n,Set(CALLERID(name)= SUPPORT)
+same => n,Queue(support,tT,,,20)
+same => n,Playback(vm-nobodyavail)     ;dectnation if no one answer
+same => n,Hangup()
+
+
+;========================OUT PRI==========================
+[out-pri]
+exten => _02X.,1,Set(CALLFILENAME=${EXTEN}-${CALLERID(num)}-${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
+  same => n,MixMonitor(/var/spool/asterisk/monitor/${CALLFILENAME}.wav,b)
+  same => n,Dial(PJSIP/${EXTEN}@feg4301,60,Tt)
+  same => n,Hangup()
+
+;===================================================
+[out-gsm]
+exten => _01X.,1,Set(CALLFILENAME=${EXTEN}-${CALLERID(num)}-${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
+  same => n,MixMonitor(/var/spool/asterisk/monitor/${CALLFILENAME}.wav,b)
+  same => n,Dial(PJSIP/${EXTEN}@fgx4508,60,Tt)
+  same => n,Hangup()
+;==================================================
+[out-all]
+exten => _X.,1,Set(CALLFILENAME=${EXTEN}-${CALLERID(num)}-${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
+ same => n,Authenticate(1327)
+ ;same => n,Authenticate(${PIN})
+ same => n,MixMonitor(/var/spool/asterisk/monitor/${CALLFILENAME}.wav,b)
+ same => n,Dial(PJSIP/${EXTEN}@fgx4508,60,Tt) 
+ same => n,Dial(PJSIP/${EXTEN}@feg4301,60,Tt) 
+ same => n,Hangup()
+
+
+;===================================================
+[recording]
+exten => _X.,1,set(dex=$[${dex} + 1])
+  same => n,GotoIf($[${dex} > 2]?tit) 
+  same => n,MixMonitor(/var/spool/asterisk/monitor/${CALLFILENAME}.wav,b)
+  same => n(tit),Set(UNAVAIL_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'extension_unavailable' or p.get('id') == 'extension_unavailable'), 'is-curntly-unavail') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'is-curntly-unavail', end='')"})
+  same => n,Set(BUSY_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'extension_busy' or p.get('id') == 'extension_busy'), 'busy') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'busy', end='')"})
+  same => n,Set(NOANS_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'no_answer' or p.get('id') == 'no_answer' or p.get('name') == 'no-answer' or p.get('id') == 'no-answer'), 'number-not-answering') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'number-not-answering', end='')"})
+  
+  same => n,GoToIf($["${DB(DND/${EXTEN})}" = "on" ]?dnd_handling)
+  
+  ; Case B: DND is off. Check device state:
+  same => n,GotoIf($[ "${PJSIP_DIAL_CONTACTS(${EXTEN})}" = "" ]?check_fm_unavail_rec)
+  same => n,Set(DEVSTATE=${DEVICE_STATE(PJSIP/${EXTEN})})
+  same => n,GotoIf($[ "${DEVSTATE}" = "INUSE" | "${DEVSTATE}" = "BUSY" | "${DEVSTATE}" = "RINGING" | "${DEVSTATE}" = "RINGINUSE" | "${DEVSTATE}" = "ONHOLD" ]?check_fm_busy_rec)
+  
+  ; Available: Dial normally
+  same => n,Set(RT=${IF($["${RING_${EXTEN}}"=""]?60:${RING_${EXTEN}})})
+  same => n,Dial(${PJSIP_DIAL_CONTACTS(${EXTEN})},${RT},TtHh)
+  same => n,FollowMe(${EXTEN},d)
+  
+  ; Check Dial Status post-dial:
+  same => n,GotoIf($["${DIALSTATUS}" = "BUSY"]?play_busy)
+  same => n,GotoIf($["${DIALSTATUS}" = "CHANUNAVAIL" | "${DIALSTATUS}" = "CONGESTION"]?play_unavail)
+  same => n,GotoIf($["${DIALSTATUS}" = "NOANSWER"]?no_answer_handling)
+  same => n,Hangup()
+  same => n(check_fm_unavail_rec),FollowMe(${EXTEN},d)
+  same => n,Goto(play_unavail)
+  same => n(check_fm_busy_rec),FollowMe(${EXTEN},d)
+  same => n,Goto(play_busy)
+
+  ; DND handling
+  same => n(dnd_handling),GotoIf($["${TOLOWER(${VM_${EXTEN}})}" = "on"]?vm,${EXTEN},1)
+  same => n,GotoIf($[ "${PJSIP_DIAL_CONTACTS(${EXTEN})}" = "" ]?play_unavail)
+  same => n,Goto(play_busy)
+  
+  ; Play busy recording
+  same => n(play_busy),Playback(${BUSY_MSG})
+  same => n,Hangup()
+  
+  ; Play unavailable recording
+  same => n(play_unavail),Playback(${UNAVAIL_MSG})
+  same => n,Hangup()
+  
+  ; No Answer handling
+  same => n(no_answer_handling),GotoIf($["${TOLOWER(${VM_${EXTEN}})}" = "on"]?vm,${EXTEN},1)
+  same => n,Goto(forward-noanswer,${EXTEN},1)
+
+
+;==================================================
+[vm]
+exten => _X.,1,Progress()
+same => n,Voicemail(${EXTEN}@default,b)
+same => n,Hangup()
+
+;==================================================
+[busy]
+exten => _X.,1,Progress()
+same => n,SayDigits(${EXTEN})
+same => n,Playback(busy,noanswer)
+same => n,Hangup()
+;==================================================
+
+[noanswer]
+exten => _X.,1,Progress()
+same => n,SayDigits(${EXTEN})
+same => n,playback(number-not-answering,noanswer)
+same => n,playback(please-try-again-later,noanswer)
+same => n,Hangup()
+
+;===============================================
+[unavailable]
+exten => _X.,1,Progress()
+same => n,SayDigits(${EXTEN})
+same => n,playback(is-curntly-unavail,noanswer)
+same => n,Hangup()
+
+;==================================================
+:[forward-busy]
+;exten => _X.,1,GotoIf($["${DB(FORWARD/BUSY/${EXTEN})}" = ""]?busy,${EXTEN},1)
+;same => n,Goto(internal,${DB(FORWARD/BUSY/${EXTEN})},1)
+;[forward-busy]
+;exten => _X.,1,Set(FWD_NUM_B=${ODBC_FEATURE_GET(${EXTEN},FWD_BUSY)})
+; same => n,GotoIf($["${FWD_NUM_B}"=""]?busy,${EXTEN},1)
+ ;same => n,Goto(internal,${FWD_NUM_B},1)
+
+;[forward-busy]
+;exten => _X.,1,NoOp(Check FWD_BUSY for ${EXTEN})
+; same => n,Set(FWD_NUM_test=${SYSTEM(mysql -N -u dexter -padmin asteriskcdr -e "SELECT value FROM feature_actions WHERE ext='${EXTEN}' AND feature='FWD_BUSY' LIMIT 1" 2>/dev/null)})
+ ;same => n,GotoIf($["${FWD_NUM_test}"=""]?busy,${EXTEN},1)
+ ;same => n,Goto(internal,${FWD_NUM_test},1)
+[forward-busy]
+exten => _X.,1,Set(FWD_NUM_B=${DB(FORWARD/BUSY/${EXTEN})})
+ same => n,GotoIf($["${FWD_NUM_B}"=""]?busy,${EXTEN},1)
+ same => n,Goto(from-internal-${EXTEN},${FWD_NUM_B},1)
+
+
+
+;==================================================
+
+;[forward-noanswer]
+;exten => _X.,1,GotoIf($["${DB(FORWARD/NOANSWER/${EXTEN})}" = ""]?noanswer,${EXTEN},1)
+;same => n,Goto(internal,${DB(FORWARD/NOANSWER/${EXTEN})},1)
+
+;[forward-noanswer]
+;exten => _X.,1,Set(FWD_NUM_N=${ODBC_FEATURE_GET(${EXTEN},FWD_NOANSWER)})
+ ;same => n,GotoIf($["${FWD_NUM_N}"=""]?noanswer,${EXTEN},1)
+ ;same => n,Goto(internal,${FWD_NUM_N},1)
+[forward-noanswer]
+exten => _X.,1,Set(FWD_NUM_N=${DB(FORWARD/NOANSWER/${EXTEN})})
+ same => n,GotoIf($["${FWD_NUM_N}"=""]?noanswer,${EXTEN},1)
+ same => n,Goto(from-internal-${EXTEN},${FWD_NUM_N},1)
+
+
+;==================================================
+
+;[forward-unavail]
+;exten => _X.,1,GotoIf($["${DB(FORWARD/UNAVAIL/${EXTEN})}" = ""]?unavailable,${EXTEN},1)
+;same => n,Goto(internal,${DB(FORWARD/UNAVAIL/${EXTEN})},1)
+
+;[forward-unavail]
+;exten => _X.,1,Set(FWD_NUM_U=${ODBC_FEATURE_GET(${EXTEN},FWD_UNAVAIL)})
+ ;same => n,GotoIf($["${FWD_NUM_U}"=""]?unavailable,${EXTEN},1)
+ ;same => n,Goto(internal,${FWD_NUM_U},1)
+[forward-unavail]
+exten => _X.,1,Set(FWD_NUM_u=${DB(FORWARD/UNAVAIL/${EXTEN})})
+ same => n,GotoIf($["${FWD_NUM_u}"=""]?hangup_call)
+ same => n,Goto(from-internal-${EXTEN},${FWD_NUM_u},1)
+ same => n(hangup_call),Hangup()
+[unavail-fallback]
+exten => _X.,1,NoOp(Extension ${EXTEN} is unavailable)
+ same => n,Set(FWD_UNAVAIL=${DB(FORWARD/UNAVAIL/${EXTEN})})
+ same => n,GotoIf($["${FWD_UNAVAIL}" != ""]?forward_unavail)
+ same => n,Set(UNAVAIL_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'extension_unavailable' or p.get('id') == 'extension_unavailable'), 'is-curntly-unavail') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'is-curntly-unavail', end='')"})
+ same => n,Playback(${UNAVAIL_MSG})
+ same => n,GotoIf($["${TOLOWER(${VM_${EXTEN}})}" = "on"]?vm,${EXTEN},1)
+ same => n,Hangup()
+ same => n(forward_unavail),Goto(from-internal-${EXTEN},${FWD_UNAVAIL},1)
+
+
+;=================================================
+[ivr]
+exten =>7000,1,GoTo(ivr-menu,7000,1)
+exten =>7001,1,GoTo(ivr-menu2,7001,1)
+
+;===================================================
+[ivr-menu]
+exten => 7000,1,Answer()
+ same => n,Mset(test=1,cuc=1)
+ same => n(hamo),Background(CUC-Welcome_new)
+ same => n,WaitExten(3)
+exten => 1,1,GoTo(internal,2222,1)
+exten => 2,1,Goto(internal,7001,1)
+
+exten => i,1,Set(test=$[${test} + 1])
+ same => n,GotoIf($[${test} < 4]?7000,hamo)
+ same => n,Playback(goodbye)
+ same => n,Hangup() 
+exten => t,1,Set(cuc=$[${cuc} + 1])
+ same => n,GotoIf($[${cuc} < 4]?7000,hamo)
+ same => n,Playback(goodbye)  
+ same => n,Hangup()
+;==================================================
+[ivr-menu2]
+exten => 7001,1,Answer()
+ same => n,Background(CUC-Welcome_new)
+ same => n,WaitExten(3)
+exten => 1,1,GoTo(internal,2222,1)
+exten => 2,1,Goto(internal,3000,1)
+
+;===================================================
+[from-pri]
+exten => _X.,1,Goto(inbound-route-start,${EXTEN},1)
+exten => _+X.,1,Goto(inbound-route-start,${EXTEN},1)
+exten => _*X.,1,Goto(inbound-route-start,${EXTEN},1)
+exten => s,1,Goto(inbound-route-start,s,1)
+exten => i,1,Goto(inbound-route-start,i,1)
+exten => t,1,Goto(inbound-route-start,t,1)
+exten => h,1,Goto(inbound-route-start,h,1)
+
+[code]
+; Legacy code context commented out
+
+[from-trunk]
+exten => _X.,1,Goto(inbound-route-start,${EXTEN},1)
+exten => _+X.,1,Goto(inbound-route-start,${EXTEN},1)
+exten => _*X.,1,Goto(inbound-route-start,${EXTEN},1)
+exten => s,1,Goto(inbound-route-start,s,1)
+exten => i,1,Goto(inbound-route-start,i,1)
+exten => t,1,Goto(inbound-route-start,t,1)
+exten => h,1,Goto(inbound-route-start,h,1)
+
+[rcm-internal-destinations]
+include => rcm-ring-groups
+include => rcm-announcement-routes
+include => rcm-paging-intercom
+include => speed-dials
+include => rcm-feature-codes
+include => rcm-conferences
+
+[rcm-no-permission]
+exten => _X.,1,Set(NOPerm_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'no_permission' or p.get('id') == 'no_permission' or p.get('name') == 'no-permission' or p.get('id') == 'no-permission'), 'pbx-invalid') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'pbx-invalid', end='')"})
+ same => n,Playback(${NOPerm_MSG})
+ same => n,Hangup()
+
+exten => _+X.,1,Set(NOPerm_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'no_permission' or p.get('id') == 'no_permission' or p.get('name') == 'no-permission' or p.get('id') == 'no-permission'), 'pbx-invalid') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'pbx-invalid', end='')"})
+ same => n,Playback(${NOPerm_MSG})
+ same => n,Hangup()
+
+exten => _*X.,1,Set(NOPerm_MSG=${SHELL(python3 -c "print(next((p['path'].split('/sounds/')[-1].split('.')[0] for p in __import__('json').load(open('/etc/asterisk/rcm_media_center.json')).get('prompts', []) if p.get('name') == 'no_permission' or p.get('id') == 'no_permission' or p.get('name') == 'no-permission' or p.get('id') == 'no-permission'), 'pbx-invalid') if __import__('os').path.exists('/etc/asterisk/rcm_media_center.json') else 'pbx-invalid', end='')"})
+ same => n,Playback(${NOPerm_MSG})
+ same => n,Hangup()
+
+[rcm-simulation]
+exten => caller_wait,1,NoOp(Starting caller leg simulation)
+ same => n,Answer()
+ same => n,Wait(15)
+ same => n,Hangup()
+
+exten => agent_answer,1,NoOp(Starting agent answer simulation)
+ same => n,Answer()
+ same => n,Wait(10)
+ same => n,Hangup()
+
+; --- Moved dynamic includes to the end ---
+#include extensions_gui.conf
+#include context_exten.conf
+#include extensions.context.conf
+#include rcm_outbound_routes.conf
+#include rcm_ring_groups.conf
