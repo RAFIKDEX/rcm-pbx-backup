@@ -1,0 +1,1480 @@
+{% extends 'base.html' %}
+
+{% block title %}User Management - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    /* Modern UI/UX Variables & Design Tokens */
+    :root {
+        --um-primary: #00adb5;
+        --um-primary-glow: rgba(0, 173, 181, 0.25);
+        --um-accent: #38bdf8;
+        --um-bg-card: rgba(15, 23, 42, 0.78);
+        --um-bg-header: rgba(30, 41, 59, 0.65);
+        --um-border: rgba(255, 255, 255, 0.08);
+        --um-border-hover: rgba(56, 189, 248, 0.4);
+        --um-text-muted: #94a3b8;
+    }
+
+    .um-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        animation: fadeInPage 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeInPage {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Top Hero Toolbar */
+    .um-toolbar {
+        background: var(--um-bg-card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--um-border);
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .um-toolbar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--um-primary), #3b82f6);
+    }
+
+    .um-title {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .um-title h1 {
+        margin: 0;
+        color: var(--text-main);
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .um-title h1 i {
+        color: var(--um-primary);
+        filter: drop-shadow(0 0 8px var(--um-primary-glow));
+    }
+
+    .um-title p {
+        margin: 0;
+        color: var(--um-text-muted);
+        font-size: 0.92rem;
+    }
+
+    .um-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    /* Stat Cards Grid */
+    .um-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+
+    .um-stat {
+        background: var(--um-bg-card);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--um-border);
+        border-radius: 12px;
+        padding: 1.1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    }
+
+    .um-stat:hover {
+        transform: translateY(-3px);
+        border-color: var(--um-border-hover);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .um-stat-info span {
+        display: block;
+        color: var(--um-text-muted);
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    .um-stat-info strong {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--text-main);
+        font-size: 1.65rem;
+        font-weight: 850;
+        line-height: 1.1;
+    }
+
+    .um-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+    }
+
+    .um-stat-icon.total { background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
+    .um-stat-icon.enabled { background: rgba(16, 185, 129, 0.14); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); }
+    .um-stat-icon.disabled { background: rgba(239, 68, 68, 0.14); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); }
+    .um-stat-icon.admin { background: rgba(245, 158, 11, 0.14); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); }
+
+    /* Main Table Panel */
+    .um-panel {
+        background: var(--um-bg-card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--um-border);
+        border-radius: 14px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+    }
+
+    .um-filters {
+        padding: 1.15rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        background: var(--bg-dark);
+        border-bottom: 1px solid var(--um-border);
+    }
+
+    .um-search {
+        min-width: 280px;
+        flex: 1;
+    }
+
+    .um-control {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        border-radius: 8px;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.9rem;
+        min-height: 40px;
+        transition: all 0.2s ease;
+    }
+
+    .um-control:focus {
+        outline: none;
+        border-color: var(--um-primary);
+        box-shadow: 0 0 0 3px var(--um-primary-glow);
+        background: var(--bg-dark);
+    }
+
+    .um-control option {
+        background: var(--bg-dark);
+        color: var(--text-main);
+    }
+
+    /* Floating Bulk Bar */
+    .um-bulk {
+        display: none;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        padding: 0.85rem 1.5rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        background: linear-gradient(90deg, rgba(8, 47, 73, 0.95), rgba(14, 116, 144, 0.95));
+        border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        animation: slideDownBulk 0.25s ease-out;
+    }
+
+    @keyframes slideDownBulk {
+        from { transform: translateY(-100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .um-bulk strong {
+        color: var(--text-main);
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .um-bulk strong::before {
+        content: '';
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #38bdf8;
+        box-shadow: 0 0 8px #38bdf8;
+    }
+
+    /* Table Styling */
+    .um-table-wrap {
+        overflow-x: auto;
+    }
+
+    .um-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 950px;
+    }
+
+    .um-table th {
+        text-align: left;
+        color: var(--um-text-muted);
+        font-size: 0.76rem;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        padding: 0.95rem 1.25rem;
+        background: var(--bg-dark);
+        border-bottom: 1px solid var(--um-border);
+    }
+
+    .um-table td {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        color: #e2e8f0;
+        vertical-align: middle;
+        transition: background 0.15s ease;
+    }
+
+    .um-table tr:hover td {
+        background: rgba(56, 189, 248, 0.055);
+    }
+
+    /* User Profile Cell */
+    .um-user {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .um-avatar-wrap {
+        position: relative;
+    }
+
+    .um-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: var(--text-main);
+        font-weight: 800;
+        font-size: 1rem;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        text-transform: uppercase;
+    }
+
+    .um-avatar.super-admin {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .um-status-dot {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #0f172a;
+    }
+
+    .um-status-dot.enabled { background: #10b981; box-shadow: 0 0 6px #10b981; }
+    .um-status-dot.disabled { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+
+    .um-main {
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 0.96rem;
+    }
+
+    .um-sub {
+        color: var(--um-text-muted);
+        font-size: 0.78rem;
+        margin-top: 0.15rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    /* Badges */
+    .um-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.76rem;
+        font-weight: 750;
+        letter-spacing: 0.3px;
+        border: 1px solid transparent;
+        text-transform: capitalize;
+    }
+
+    .um-badge.enabled { color: #86efac; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); }
+    .um-badge.disabled { color: #fca5a5; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35); }
+    .um-badge.role-badge { color: #38bdf8; background: rgba(56, 189, 248, 0.14); border-color: rgba(56, 189, 248, 0.3); }
+    .um-badge.role-admin { color: #fde68a; background: rgba(245, 158, 11, 0.16); border-color: rgba(245, 158, 11, 0.35); }
+
+    /* Action Buttons Row */
+    .um-row-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .um-icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: var(--panel-dark);
+        color: #cbd5e1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        font-size: 0.9rem;
+    }
+
+    .um-icon-btn:hover:not([disabled]) {
+        border-color: var(--um-accent);
+        color: var(--text-main);
+        background: rgba(56, 189, 248, 0.18);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(56, 189, 248, 0.2);
+    }
+
+    .um-icon-btn.danger:hover:not([disabled]) {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.2);
+        color: #fee2e2;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);
+    }
+
+    .um-icon-btn.good:hover:not([disabled]) {
+        border-color: #10b981;
+        background: rgba(16, 185, 129, 0.2);
+        color: #d1fae5;
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+    }
+
+    .um-icon-btn.warn:hover:not([disabled]) {
+        border-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.2);
+        color: #fef3c7;
+        box-shadow: 0 4px 10px rgba(245, 158, 11, 0.25);
+    }
+
+    .um-icon-btn[disabled] {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .um-footer {
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        background: var(--bg-dark);
+        border-top: 1px solid var(--um-border);
+    }
+
+    /* Modals System */
+    .um-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10040;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-dark);
+        backdrop-filter: blur(8px);
+        padding: 1rem;
+        animation: fadeInModal 0.2s ease-out;
+    }
+
+    @keyframes fadeInModal {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .um-modal-card {
+        width: min(640px, 96vw);
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.7);
+        animation: scaleUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes scaleUpModal {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .um-modal-card > form {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .um-modal-head, .um-modal-foot {
+        padding: 1.15rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border-bottom: 1px solid var(--um-border);
+        background: var(--panel-dark);
+        flex: 0 0 auto;
+    }
+
+    .um-modal-foot {
+        border-top: 1px solid var(--um-border);
+        border-bottom: 0;
+        justify-content: flex-end;
+        background: var(--bg-dark);
+    }
+
+    .um-modal-body {
+        padding: 1.5rem;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .um-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.1rem;
+    }
+
+    .um-field label {
+        display: block;
+        color: var(--text-main);
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+    }
+
+    /* Input Group with Eye/Copy Button */
+    .um-input-group {
+        display: flex;
+        position: relative;
+    }
+
+    .um-input-group .um-control {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        flex: 1;
+    }
+
+    .um-input-group .um-btn-addon {
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-left: 0;
+        color: #cbd5e1;
+        padding: 0 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .um-input-group .um-btn-addon:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+
+    .um-input-group .um-btn-addon:hover {
+        background: rgba(56, 189, 248, 0.2);
+        color: var(--text-main);
+    }
+
+    /* Password Strength Meter */
+    .pw-strength-container {
+        margin-top: 0.45rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .pw-strength-bar {
+        flex: 1;
+        height: 5px;
+        background: var(--border-color);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .pw-strength-fill {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease, background 0.3s ease;
+        border-radius: 999px;
+    }
+
+    .pw-strength-text {
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--um-text-muted);
+        min-width: 50px;
+        text-align: right;
+    }
+
+    /* Alerts and Feedback */
+    .um-alert {
+        display: none;
+        padding: 0.9rem 1rem;
+        margin-bottom: 1.1rem;
+        color: #fecaca;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-radius: 10px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    /* Activity Stream Cards */
+    .activity-item {
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.65rem;
+        transition: transform 0.15s ease;
+    }
+
+    .activity-item:hover {
+        transform: translateX(4px);
+        border-color: rgba(56, 189, 248, 0.3);
+    }
+
+    .activity-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .activity-action {
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .activity-meta {
+        color: var(--um-text-muted);
+        font-size: 0.78rem;
+    }
+
+    .activity-details {
+        color: #cbd5e1;
+        font-size: 0.86rem;
+        line-height: 1.4;
+    }
+
+    @media (max-width: 800px) {
+        .um-stats, .um-grid { grid-template-columns: 1fr; }
+        .um-toolbar { align-items: stretch; }
+    }
+</style>
+
+<div class="um-page">
+    <div class="um-toolbar">
+        <div class="um-title">
+            <h1><i class="fa-solid fa-users-gear"></i> User Management</h1>
+            <p>Manage PBX user accounts, roles, credentials, and access statuses with enterprise control.</p>
+        </div>
+        <div class="um-actions">
+            {% if can_view('users') %}
+            <a class="btn btn-secondary" href="{{ url_for('users_export_csv', search=search, status=status, privilege_id=privilege_id) }}" title="Export filtered users list to CSV">
+                <i class="fa-solid fa-file-export"></i> Export CSV
+            </a>
+            {% endif %}
+            {% if can_create('users') %}
+            <button type="button" class="btn btn-secondary" onclick="openModal('importUsersModal')" title="Import users from CSV file">
+                <i class="fa-solid fa-file-import"></i> Import CSV
+            </button>
+            <button type="button" id="addUserBtn" class="btn btn-info" style="box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);" title="Create a new user account">
+                <i class="fa-solid fa-user-plus"></i> Add User
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="um-stats">
+        <div class="um-stat">
+            <div class="um-stat-info">
+                <span>Total Users</span>
+                <strong>{{ total }}</strong>
+            </div>
+            <div class="um-stat-icon total"><i class="fa-solid fa-users"></i></div>
+        </div>
+        <div class="um-stat">
+            <div class="um-stat-info">
+                <span>Enabled</span>
+                <strong>{{ user_stats.enabled }}</strong>
+            </div>
+            <div class="um-stat-icon enabled"><i class="fa-solid fa-user-check"></i></div>
+        </div>
+        <div class="um-stat">
+            <div class="um-stat-info">
+                <span>Disabled</span>
+                <strong>{{ user_stats.disabled }}</strong>
+            </div>
+            <div class="um-stat-icon disabled"><i class="fa-solid fa-user-slash"></i></div>
+        </div>
+        <div class="um-stat">
+            <div class="um-stat-info">
+                <span>Admin Roles</span>
+                <strong>{{ user_stats.admins }}</strong>
+            </div>
+            <div class="um-stat-icon admin"><i class="fa-solid fa-user-shield"></i></div>
+        </div>
+    </div>
+
+    <div class="um-panel">
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('users_list') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+
+        <div id="bulkActionsBar" class="um-bulk">
+            <strong><span id="bulkSelectedCount" aria-live="polite">0</span> users selected</strong>
+            <div class="um-actions">
+                {% if has_permission('users', 'enable') %}
+                <button class="btn btn-secondary btn-sm" type="button" onclick="submitBulkToggle('enable')" title="Enable selected accounts"><i class="fa-solid fa-user-check"></i> Enable</button>
+                {% endif %}
+                {% if has_permission('users', 'disable') %}
+                <button class="btn btn-secondary btn-sm" type="button" onclick="submitBulkToggle('disable')" title="Disable selected accounts"><i class="fa-solid fa-user-slash"></i> Disable</button>
+                {% endif %}
+                {% if has_permission('users', 'assign_privilege') %}
+                <button class="btn btn-secondary btn-sm" type="button" onclick="openBulkAssignRoleModal()" title="Assign privilege to selected accounts"><i class="fa-solid fa-shield-halved"></i> Assign Role</button>
+                {% endif %}
+                {% if can_delete('users') %}
+                <button class="btn btn-danger btn-sm" type="button" onclick="confirmBulkDeleteUsers()" title="Delete selected accounts"><i class="fa-solid fa-trash"></i> Delete</button>
+                {% endif %}
+                <button class="btn btn-secondary btn-sm" type="button" onclick="deselectAllUsers()" title="Deselect all"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+
+        <div class="um-table-wrap">
+            <table class="um-table" id="usersTable">
+                <thead>
+                    <tr>
+                        <th style="width:46px;"><input id="selectAllUsersCb" type="checkbox" onclick="toggleSelectAllUsers(this)" title="Select all rows"></th>
+                        <th>User Account</th>
+                        <th>Email Address</th>
+                        <th>Privilege Role</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Options</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr class="user-row">
+                        <td>
+                            {% if u.system_key != 'super_admin' and u.username != session.get('username') %}
+                            <input class="user-select-cb" type="checkbox" value="{{ u.id }}" onclick="updateUsersBulkBar()">
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="um-user">
+                                <div class="um-avatar-wrap">
+                                    <span class="um-avatar {% if u.system_key == 'super_admin' %}super-admin{% endif %}">{{ u.username[:2]|upper }}</span>
+                                    <span class="um-status-dot {{ u.status or 'enabled' }}" title="Status: {{ (u.status or 'enabled')|title }}"></span>
+                                </div>
+                                <div>
+                                    <div class="um-main">{{ u.username }}</div>
+                                    <div class="um-sub">
+                                        <span>ID #{{ u.id }}</span>
+                                        {% if u.system_key == 'super_admin' %}
+                                        <span style="color:#fbbf24;"><i class="fa-solid fa-lock"></i> Protected</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if u.email %}
+                            <a href="mailto:{{ u.email }}" style="color: #cbd5e1; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-regular fa-envelope" style="color: var(--um-primary);"></i> {{ u.email }}
+                            </a>
+                            {% else %}
+                            <span style="color: var(--um-text-muted);">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="um-badge {% if u.legacy_role == 'admin' or u.system_key == 'super_admin' %}role-admin{% else %}role-badge{% endif %}">
+                                <i class="fa-solid {% if u.legacy_role == 'admin' or u.system_key == 'super_admin' %}fa-user-shield{% else %}fa-id-badge{% endif %}"></i>
+                                {{ u.privilege_name or 'Custom Role' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="um-badge {{ u.status or 'enabled' }}">
+                                <i class="fa-solid {% if u.status == 'disabled' %}fa-circle-xmark{% else %}fa-circle-check{% endif %}"></i>
+                                {{ (u.status or 'enabled')|title }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="um-row-actions" style="justify-content: flex-end;">
+                                {% if can_view('users') %}
+                                <button class="um-icon-btn" type="button" title="View Activity History" onclick="openUserActivityModal('{{ u.username|e }}')"><i class="fa-solid fa-list-check"></i></button>
+                                {% endif %}
+                                {% if can_edit('users') %}
+                                <button class="um-icon-btn user-edit-btn" type="button" title="Edit User Account" data-user-id="{{ u.id }}" data-username="{{ u.username|e }}" data-email="{{ (u.email or '')|e }}" data-privilege-id="{{ u.privilege_id or '' }}" data-status="{{ u.status or 'enabled' }}"><i class="fa-solid fa-pen-to-square"></i></button>
+                                {% endif %}
+                                {% if has_permission('users', 'change_password') %}
+                                <button class="um-icon-btn warn" type="button" title="Reset Password" onclick="openResetPasswordModal({{ u.id }}, '{{ u.username|e }}')"><i class="fa-solid fa-key"></i></button>
+                                {% endif %}
+                                {% if can_edit('users') %}
+                                <button class="um-icon-btn" type="button" title="Revoke Active Sessions" onclick="confirmRevokeSession({{ u.id }}, '{{ u.username|e }}')"><i class="fa-solid fa-right-from-bracket"></i></button>
+                                {% endif %}
+                                {% if u.system_key != 'super_admin' and u.username != session.get('username') %}
+                                    {% if has_permission('users', 'enable') or has_permission('users', 'disable') %}
+                                    <form method="POST" action="{{ url_for('user_toggle', user_id=u.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="um-icon-btn {% if (u.status or 'enabled') == 'enabled' %}danger{% else %}good{% endif %}" type="submit" title="{% if (u.status or 'enabled') == 'enabled' %}Disable Account{% else %}Enable Account{% endif %}" onclick="return confirm('Change status for {{ u.username|e }}?')"><i class="fa-solid {% if (u.status or 'enabled') == 'enabled' %}fa-user-slash{% else %}fa-user-check{% endif %}"></i></button>
+                                    </form>
+                                    {% endif %}
+                                    {% if can_delete('users') %}
+                                    <button class="um-icon-btn danger" type="button" title="Delete Account" onclick="confirmDeleteUser({{ u.id }}, '{{ u.username|e }}')"><i class="fa-solid fa-trash"></i></button>
+                                    {% endif %}
+                                {% else %}
+                                <button class="um-icon-btn" type="button" disabled title="Protected System Account or Self"><i class="fa-solid fa-lock"></i></button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align:center; padding: 3.5rem 1rem; color: var(--um-text-muted);">
+                            <div style="font-size: 2.2rem; margin-bottom: 0.5rem; color: rgba(255,255,255,0.2);"><i class="fa-solid fa-user-slash"></i></div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1;">No users found</div>
+                            <p style="margin-top: 0.25rem; font-size: 0.88rem;">Try adjusting your search criteria or filters.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="um-footer">
+            <span style="color:var(--um-text-muted); font-size: 0.88rem;">
+                Page {{ page }} of {{ total_pages }} &bull; Total {{ total }} users
+            </span>
+            <div class="um-actions">
+                {% if page > 1 %}
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('users_list', page=page-1, search=search, status=status, privilege_id=privilege_id, per_page=per_page) }}"><i class="fa-solid fa-chevron-left"></i> Previous</a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('users_list', page=page+1, search=search, status=status, privilege_id=privilege_id, per_page=per_page) }}">Next <i class="fa-solid fa-chevron-right"></i></a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if can_create('users') or can_edit('users') %}
+<div id="userModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+    <div class="um-modal-card">
+        <form id="userForm" method="POST" action="{{ url_for('user_add') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="um-modal-head">
+                <div>
+                    <h2 id="userModalTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Add User</h2>
+                    <div id="userModalSubtitle" class="um-sub">Create or modify user credentials and access permissions.</div>
+                </div>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('userModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="modal_user_id" value="">
+                <div id="modal_validation_alert" class="um-alert" style="display: none;"><i class="fa-solid fa-triangle-exclamation"></i> <span id="modal_validation_msg"></span></div>
+                
+                <div class="um-grid">
+                    <div class="um-field">
+                        <label for="modal_username">User Name *</label>
+                        <input class="um-control" style="width:100%;" name="username" id="modal_username" placeholder="e.g. jdoe" required>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_email">Email Address *</label>
+                        <input class="um-control" style="width:100%;" type="email" name="email" id="modal_email" placeholder="e.g. jdoe@company.com" required>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_password">Password <span id="password_required_star">*</span></label>
+                        <div class="um-input-group">
+                            <input class="um-control" type="password" name="password" id="modal_password" autocomplete="new-password" placeholder="Enter or generate password" oninput="checkPasswordStrength('modal_password', 'pw_strength_bar_1', 'pw_strength_text_1')">
+                            <button type="button" class="um-btn-addon" onclick="togglePasswordVisibility('modal_password', this)" title="Show/Hide Password"><i class="fa-solid fa-eye"></i></button>
+                            <button type="button" class="um-btn-addon" onclick="copyToClipboardInput('modal_password')" title="Copy Password"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        <div class="pw-strength-container">
+                            <div class="pw-strength-bar"><div id="pw_strength_bar_1" class="pw-strength-fill"></div></div>
+                            <span id="pw_strength_text_1" class="pw-strength-text">-</span>
+                        </div>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_confirm_password">Confirm Password <span id="confirm_password_required_star">*</span></label>
+                        <div class="um-input-group">
+                            <input class="um-control" type="password" name="confirm_password" id="modal_confirm_password" autocomplete="new-password" placeholder="Confirm password">
+                            <button type="button" class="um-btn-addon" onclick="togglePasswordVisibility('modal_confirm_password', this)" title="Show/Hide Password"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_privilege_id">Privilege Role *</label>
+                        <select class="um-control" style="width:100%;" name="privilege_id" id="modal_privilege_id" required>
+                            <option value="">Select Privilege Role</option>
+                            {% for p in privileges %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_status">Account Status</label>
+                        <select class="um-control" style="width:100%;" name="status" id="modal_status">
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--um-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                    <button class="btn btn-secondary" type="button" onclick="generateAndShowPassword()"><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--um-primary);"></i> Generate Secure Password</button>
+                    <span style="font-size: 0.8rem; color: var(--um-text-muted);">Generates strong 14-char mixed credentials.</span>
+                </div>
+            </div>
+            <div class="um-modal-foot">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">Cancel</button>
+                <button type="submit" id="userModalSubmitBtn" class="btn btn-info" style="box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);">Save User</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if has_permission('users', 'change_password') %}
+<div id="resetPasswordModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="resetPasswordTitle">
+    <div class="um-modal-card">
+        <form id="resetPasswordForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="um-modal-head">
+                <div>
+                    <h2 id="resetPasswordTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Change Password</h2>
+                    <div class="um-sub">Reset credentials for <strong id="reset_password_username" style="color: var(--text-main);"></strong></div>
+                </div>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('resetPasswordModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="um-grid">
+                    <div class="um-field">
+                        <label>New Password *</label>
+                        <div class="um-input-group">
+                            <input class="um-control" type="password" name="password" id="new_user_password" placeholder="Enter new password" required oninput="checkPasswordStrength('new_user_password', 'pw_strength_bar_2', 'pw_strength_text_2')">
+                            <button type="button" class="um-btn-addon" onclick="togglePasswordVisibility('new_user_password', this)" title="Show/Hide Password"><i class="fa-solid fa-eye"></i></button>
+                            <button type="button" class="um-btn-addon" onclick="copyToClipboardInput('new_user_password')" title="Copy Password"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        <div class="pw-strength-container">
+                            <div class="pw-strength-bar"><div id="pw_strength_bar_2" class="pw-strength-fill"></div></div>
+                            <span id="pw_strength_text_2" class="pw-strength-text">-</span>
+                        </div>
+                    </div>
+                    <div class="um-field">
+                        <label>Confirm New Password *</label>
+                        <div class="um-input-group">
+                            <input class="um-control" type="password" name="confirm_password" id="new_user_confirm_password" placeholder="Confirm new password" required>
+                            <button type="button" class="um-btn-addon" onclick="togglePasswordVisibility('new_user_confirm_password', this)" title="Show/Hide Password"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--um-border);">
+                    <button class="btn btn-secondary" type="button" onclick="generateResetPassword()"><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--um-primary);"></i> Generate Secure Password</button>
+                </div>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('resetPasswordModal')">Cancel</button>
+                <button class="btn btn-info" type="submit" style="box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);">Update Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if can_delete('users') %}
+<div id="deleteUserModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="deleteUserTitle">
+    <div class="um-modal-card" style="width: min(480px, 94vw);">
+        <form id="deleteUserForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="um-modal-head">
+                <h2 id="deleteUserTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;"><i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i> Delete User</h2>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('deleteUserModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p style="color: #cbd5e1; font-size: 0.96rem; line-height: 1.5;">Are you sure you want to permanently delete user account <strong id="delete_username_display" style="color: var(--text-main);"></strong>?</p>
+                <p style="color: #fca5a5; font-size: 0.85rem; margin-top: 0.5rem; background: rgba(239,68,68,0.12); padding: 0.7rem; border-radius: 8px; border: 1px solid rgba(239,68,68,0.25);">
+                    <i class="fa-solid fa-circle-exclamation"></i> This action will remove the user, terminate active sessions, and revoke credentials immediately. This cannot be undone.
+                </p>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('deleteUserModal')">Cancel</button>
+                <button class="btn btn-danger" type="submit">Delete Permanently</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if can_create('users') %}
+<div id="importUsersModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="importUsersTitle">
+    <div class="um-modal-card" style="width: min(520px, 94vw);">
+        <form method="POST" action="{{ url_for('users_import_csv') }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="um-modal-head">
+                <div>
+                    <h2 id="importUsersTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Import Users CSV</h2>
+                    <div class="um-sub">Bulk import accounts from a formatted CSV file.</div>
+                </div>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('importUsersModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="um-field">
+                    <label>Select CSV File *</label>
+                    <input class="um-control" style="width:100%; padding: 0.5rem;" type="file" name="csv_file" accept=".csv" required>
+                </div>
+                <div class="um-field" style="margin-top:1rem;">
+                    <label>Default Privilege Role *</label>
+                    <select class="um-control" style="width:100%;" name="default_privilege_id" required>
+                        {% for p in privileges %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div style="margin-top: 1.1rem; padding: 0.8rem; background: var(--panel-dark); border-radius: 8px; border: 1px solid var(--um-border);">
+                    <strong style="color: var(--text-main); font-size: 0.85rem; display:block; margin-bottom: 0.3rem;"><i class="fa-solid fa-circle-info" style="color:var(--um-primary);"></i> CSV Structure Requirement:</strong>
+                    <p class="um-sub" style="margin:0;">Expected headers: <code style="color:#38bdf8;">Username, Password, Email</code>. Accounts with existing usernames will be skipped.</p>
+                </div>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('importUsersModal')">Cancel</button>
+                <button class="btn btn-info" type="submit"><i class="fa-solid fa-upload"></i> Import Accounts</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div id="userActivityModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="userActivityTitle">
+    <div class="um-modal-card" style="width: min(720px, 96vw);">
+        <div class="um-modal-head">
+            <div>
+                <h2 id="userActivityTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--um-primary);"></i> Audit Trail: <span id="activity_username_header" style="color:#38bdf8;"></span></h2>
+                <div class="um-sub">Recent operations and system events recorded for this user.</div>
+            </div>
+            <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('userActivityModal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="activity_logs_content" class="um-modal-body" style="max-height: 60vh;"></div>
+        <div class="um-modal-foot">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('userActivityModal')">Close</button>
+        </div>
+    </div>
+</div>
+
+{% if has_permission('users', 'assign_privilege') %}
+<div id="bulkAssignRoleModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="bulkAssignTitle">
+    <div class="um-modal-card" style="width: min(460px, 94vw);">
+        <form method="POST" action="{{ url_for('users_bulk_assign_role') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="um-modal-head">
+                <h2 id="bulkAssignTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Bulk Assign Privilege Role</h2>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('bulkAssignRoleModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div id="bulkAssignRoleInputs"></div>
+                <div class="um-field">
+                    <label>Select Target Privilege Role *</label>
+                    <select class="um-control" style="width:100%;" name="privilege_id" required>
+                        <option value="">Select Role...</option>
+                        {% for p in privileges %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <p class="um-sub" style="margin-top: 0.75rem;">Selected accounts will immediately be updated with the chosen access permissions.</p>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('bulkAssignRoleModal')">Cancel</button>
+                <button class="btn btn-info" type="submit"><i class="fa-solid fa-shield-halved"></i> Apply Role</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if can_edit('users') %}
+<div id="revokeSessionModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="revokeSessionTitle">
+    <div class="um-modal-card" style="width: min(460px, 94vw);">
+        <form id="revokeSessionForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="um-modal-head">
+                <h2 id="revokeSessionTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;"><i class="fa-solid fa-right-from-bracket" style="color: #f59e0b;"></i> Revoke Sessions</h2>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('revokeSessionModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p style="color: #cbd5e1; font-size: 0.96rem;">Are you sure you want to terminate all active sessions for <strong id="revoke_username_display" style="color: var(--text-main);"></strong>?</p>
+                <p class="um-sub" style="margin-top: 0.5rem;">The user will be immediately logged out from all devices and required to authenticate again.</p>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('revokeSessionModal')">Cancel</button>
+                <button class="btn btn-info" type="submit">Revoke Active Sessions</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+const userFormState = {{ form_state|tojson if form_state else 'null' }};
+let previousModalFocus = null;
+
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    previousModalFocus = document.activeElement;
+    modal.style.display = 'flex';
+    const focusTarget = modal.querySelector('input:not([type="hidden"]), select, button:not([disabled])');
+    if (focusTarget) window.setTimeout(() => focusTarget.focus(), 0);
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.style.display = 'none';
+    if (previousModalFocus && typeof previousModalFocus.focus === 'function') previousModalFocus.focus();
+}
+
+function showUserError(msg) {
+    const alertBox = document.getElementById('modal_validation_alert');
+    const msgSpan = document.getElementById('modal_validation_msg');
+    if (alertBox && msgSpan) {
+        msgSpan.textContent = msg;
+        alertBox.style.display = 'flex';
+    }
+}
+
+function clearUserError() {
+    const alertBox = document.getElementById('modal_validation_alert');
+    if (alertBox) alertBox.style.display = 'none';
+}
+
+function checkPasswordStrength(inputId, barId, textId) {
+    const val = document.getElementById(inputId)?.value || '';
+    const bar = document.getElementById(barId);
+    const text = document.getElementById(textId);
+    if (!bar || !text) return;
+    
+    if (!val) {
+        bar.style.width = '0%';
+        bar.style.background = 'transparent';
+        text.textContent = '-';
+        return;
+    }
+    
+    let score = 0;
+    if (val.length >= 8) score += 25;
+    if (val.length >= 12) score += 25;
+    if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score += 25;
+    if (/[0-9]/.test(val) || /[^A-Za-z0-9]/.test(val)) score += 25;
+    
+    bar.style.width = score + '%';
+    if (score <= 25) {
+        bar.style.background = '#ef4444';
+        text.textContent = 'Weak';
+        text.style.color = '#ef4444';
+    } else if (score <= 50) {
+        bar.style.background = '#f59e0b';
+        text.textContent = 'Fair';
+        text.style.color = '#f59e0b';
+    } else if (score <= 75) {
+        bar.style.background = '#38bdf8';
+        text.textContent = 'Good';
+        text.style.color = '#38bdf8';
+    } else {
+        bar.style.background = '#10b981';
+        text.textContent = 'Strong';
+        text.style.color = '#10b981';
+    }
+}
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+    }
+}
+
+function copyToClipboardInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input || !input.value) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+        showToastNotification("Password copied to clipboard!", "success");
+    }).catch(() => {
+        showToastNotification("Failed to copy password.", "danger");
+    });
+}
+
+function showToastNotification(message, type = "info") {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<div style="display:flex;align-items:center;gap:0.75rem;"><i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-info'}" style="color:${type === 'success' ? '#10b981' : '#38bdf8'};"></i> <span>${message}</span></div>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+function openAddUserModal() {
+    clearUserError();
+    document.getElementById('userModalTitle').textContent = 'Add User';
+    document.getElementById('userForm').action = "{{ url_for('user_add') }}";
+    document.getElementById('modal_user_id').value = '';
+    document.getElementById('modal_username').value = '';
+    document.getElementById('modal_username').readOnly = false;
+    document.getElementById('modal_email').value = '';
+    document.getElementById('modal_password').value = '';
+    document.getElementById('modal_password').type = 'password';
+    document.getElementById('modal_password').required = true;
+    document.getElementById('modal_confirm_password').value = '';
+    document.getElementById('modal_confirm_password').type = 'password';
+    document.getElementById('modal_confirm_password').required = true;
+    document.getElementById('password_required_star').style.display = 'inline';
+    document.getElementById('confirm_password_required_star').style.display = 'inline';
+    document.getElementById('modal_privilege_id').value = '';
+    document.getElementById('modal_status').value = 'enabled';
+    document.getElementById('userModalSubmitBtn').textContent = 'Create User';
+    checkPasswordStrength('modal_password', 'pw_strength_bar_1', 'pw_strength_text_1');
+    openModal('userModal');
+}
+
+function openEditUserFromButton(btn) {
+    clearUserError();
+    document.getElementById('userModalTitle').textContent = 'Edit User Account';
+    document.getElementById('userForm').action = '/users/edit/' + btn.dataset.userId;
+    document.getElementById('modal_user_id').value = btn.dataset.userId;
+    document.getElementById('modal_username').value = btn.dataset.username || '';
+    document.getElementById('modal_username').readOnly = false;
+    document.getElementById('modal_email').value = btn.dataset.email || '';
+    document.getElementById('modal_password').value = '';
+    document.getElementById('modal_password').type = 'password';
+    document.getElementById('modal_password').required = false;
+    document.getElementById('modal_confirm_password').value = '';
+    document.getElementById('modal_confirm_password').type = 'password';
+    document.getElementById('modal_confirm_password').required = false;
+    document.getElementById('password_required_star').style.display = 'none';
+    document.getElementById('confirm_password_required_star').style.display = 'none';
+    document.getElementById('modal_privilege_id').value = btn.dataset.privilegeId || '';
+    document.getElementById('modal_status').value = btn.dataset.status || 'enabled';
+    document.getElementById('userModalSubmitBtn').textContent = 'Save Changes';
+    checkPasswordStrength('modal_password', 'pw_strength_bar_1', 'pw_strength_text_1');
+    openModal('userModal');
+}
+
+function openResetPasswordModal(id, username) {
+    document.getElementById('reset_password_username').textContent = username;
+    document.getElementById('new_user_password').value = '';
+    document.getElementById('new_user_password').type = 'password';
+    document.getElementById('new_user_confirm_password').value = '';
+    document.getElementById('new_user_confirm_password').type = 'password';
+    document.getElementById('resetPasswordForm').action = '/users/change-password/' + id;
+    checkPasswordStrength('new_user_password', 'pw_strength_bar_2', 'pw_strength_text_2');
+    openModal('resetPasswordModal');
+}
+
+function confirmDeleteUser(id, username) {
+    document.getElementById('delete_username_display').textContent = username;
+    document.getElementById('deleteUserForm').action = '/users/delete/' + id;
+    openModal('deleteUserModal');
+}
+
+function confirmRevokeSession(id, username) {
+    document.getElementById('revoke_username_display').textContent = username;
+    document.getElementById('revokeSessionForm').action = '/users/revoke-session/' + id;
+    openModal('revokeSessionModal');
+}
+
+function secureRandomIndex(max) {
+    const values = new Uint32Array(1);
+    crypto.getRandomValues(values);
+    return values[0] % max;
+}
+
+function generatePassword() {
+    const groups = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789', '!@#$%^&*()'];
+    const all = groups.join('');
+    const chars = groups.map(group => group[secureRandomIndex(group.length)]);
+    while (chars.length < 14) chars.push(all[secureRandomIndex(all.length)]);
+    for (let i = chars.length - 1; i > 0; i--) {
+        const j = secureRandomIndex(i + 1);
+        [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    return chars.join('');
+}
+
+function generateAndShowPassword() {
+    const p = generatePassword();
+    document.getElementById('modal_password').type = 'text';
+    document.getElementById('modal_confirm_password').type = 'text';
+    document.getElementById('modal_password').value = p;
+    document.getElementById('modal_confirm_password').value = p;
+    checkPasswordStrength('modal_password', 'pw_strength_bar_1', 'pw_strength_text_1');
+    showToastNotification("Secure password generated!", "success");
+}
+
+function generateResetPassword() {
+    const p = generatePassword();
+    document.getElementById('new_user_password').type = 'text';
+    document.getElementById('new_user_confirm_password').type = 'text';
+    document.getElementById('new_user_password').value = p;
+    document.getElementById('new_user_confirm_password').value = p;
+    checkPasswordStrength('new_user_password', 'pw_strength_bar_2', 'pw_strength_text_2');
+    showToastNotification("Secure password generated!", "success");
+}
+
+function toggleSelectAllUsers(master) {
+    document.querySelectorAll('.user-select-cb').forEach(cb => cb.checked = master.checked);
+    updateUsersBulkBar();
+}
+
+function updateUsersBulkBar() {
+    const count = document.querySelectorAll('.user-select-cb:checked').length;
+    document.getElementById('bulkSelectedCount').textContent = count;
+    document.getElementById('bulkActionsBar').style.display = count ? 'flex' : 'none';
+}
+
+function deselectAllUsers() {
+    document.querySelectorAll('.user-select-cb').forEach(cb => cb.checked = false);
+    const master = document.getElementById('selectAllUsersCb');
+    if (master) master.checked = false;
+    updateUsersBulkBar();
+}
+
+function appendHiddenInput(container, name, value) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = String(value);
+    container.append(input);
+}
+
+function buildBulkForm(actionUrl, extra) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = actionUrl;
+    appendHiddenInput(form, 'csrf_token', {{ csrf_token()|tojson }});
+    if (extra) Object.entries(extra).forEach(([key, value]) => appendHiddenInput(form, key, value));
+    document.querySelectorAll('.user-select-cb:checked').forEach(cb => appendHiddenInput(form, 'user_ids', cb.value));
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function submitBulkToggle(action) {
+    if (!document.querySelector('.user-select-cb:checked')) return;
+    buildBulkForm("{{ url_for('users_bulk_toggle') }}", {action});
+}
+
+function confirmBulkDeleteUsers() {
+    if (!document.querySelector('.user-select-cb:checked')) return;
+    if (confirm('Permanently delete all selected user accounts?')) buildBulkForm("{{ url_for('users_bulk_delete') }}");
+}
+
+function openBulkAssignRoleModal() {
+    const box = document.getElementById('bulkAssignRoleInputs');
+    box.replaceChildren();
+    document.querySelectorAll('.user-select-cb:checked').forEach(cb => appendHiddenInput(box, 'user_ids', cb.value));
+    openModal('bulkAssignRoleModal');
+}
+
+function openUserActivityModal(username) {
+    document.getElementById('activity_username_header').textContent = username;
+    const box = document.getElementById('activity_logs_content');
+    box.replaceChildren();
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.style.cssText = 'padding: 3rem; text-align: center; color: var(--um-text-muted);';
+    loadingDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin fa-2x" style="color:var(--um-primary);margin-bottom:0.75rem;"></i><br>Fetching audit trail logs...';
+    box.append(loadingDiv);
+    
+    openModal('userActivityModal');
+    
+    fetch('/api/users/' + encodeURIComponent(username) + '/activity')
+        .then(r => {
+            if (!r.ok) throw new Error('Activity request failed');
+            return r.json();
+        })
+        .then(data => {
+            const logs = data.logs || [];
+            box.replaceChildren();
+            if (!logs.length) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.style.cssText = 'padding: 3rem; text-align: center; color: var(--um-text-muted);';
+                emptyDiv.innerHTML = '<i class="fa-solid fa-clipboard-check fa-2x" style="margin-bottom:0.75rem;opacity:0.5;"></i><br>No recent activity logs recorded for this user.';
+                box.append(emptyDiv);
+                return;
+            }
+            logs.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                
+                const isSuccess = (log.result || log.status || '').toLowerCase() === 'success';
+                const badgeColor = isSuccess ? '#10b981' : '#f59e0b';
+                
+                item.innerHTML = `
+                    <div class="activity-header">
+                        <span class="activity-action"><i class="fa-solid fa-bolt" style="color:var(--um-primary);margin-right:0.4rem;"></i> ${esc(log.action || 'System Operation')}</span>
+                        <span class="um-badge" style="background: ${isSuccess ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'}; color: ${badgeColor}; border-color: ${isSuccess ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'};">${esc(log.result || log.status || 'Logged')}</span>
+                    </div>
+                    <div class="activity-meta" style="margin-bottom: 0.4rem;">
+                        <i class="fa-regular fa-clock"></i> ${log.timestamp || 'Unknown Time'} &bull; Module: <strong style="color: var(--text-main);">${esc(log.module || 'System')}</strong> ${log.ip_address ? `&bull; IP: <strong>${esc(log.ip_address)}</strong>` : ''}
+                    </div>
+                    <div class="activity-details">${esc(log.details || log.message || 'No additional details provided.')}</div>
+                `;
+                box.append(item);
+            });
+        })
+        .catch(() => {
+            box.replaceChildren();
+            const errDiv = document.createElement('div');
+            errDiv.style.cssText = 'padding: 2rem; text-align: center; color: #fca5a5;';
+            errDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation fa-2x" style="margin-bottom:0.5rem;"></i><br>Failed to load activity logs from server.';
+            box.append(errDiv);
+        });
+}
+
+document.getElementById('addUserBtn')?.addEventListener('click', openAddUserModal);
+document.querySelectorAll('.user-edit-btn').forEach(btn => btn.addEventListener('click', () => openEditUserFromButton(btn)));
+
+document.getElementById('userForm')?.addEventListener('submit', function(e) {
+    const id = document.getElementById('modal_user_id').value;
+    const username = document.getElementById('modal_username').value.trim();
+    const email = document.getElementById('modal_email').value.trim();
+    const password = document.getElementById('modal_password').value;
+    const confirmPassword = document.getElementById('modal_confirm_password').value;
+    const privilegeId = document.getElementById('modal_privilege_id').value;
+    if (!username) { e.preventDefault(); return showUserError('Username is required.'); }
+    if (!email) { e.preventDefault(); return showUserError('Email address is required.'); }
+    if (!privilegeId) { e.preventDefault(); return showUserError('Privilege role is required.'); }
+    if (!id && !password) { e.preventDefault(); return showUserError('Password is required for new accounts.'); }
+    if (password && password !== confirmPassword) { e.preventDefault(); return showUserError('Password confirmation does not match.'); }
+});
+
+document.getElementById('resetPasswordForm')?.addEventListener('submit', function(e) {
+    if (document.getElementById('new_user_password').value !== document.getElementById('new_user_confirm_password').value) {
+        e.preventDefault();
+        showToastNotification("Password confirmation does not match.", "danger");
+    }
+});
+
+function restoreUserFormState() {
+    if (!userFormState) return;
+    const values = userFormState.values || {};
+    if (userFormState.mode === 'edit') {
+        clearUserError();
+        document.getElementById('userModalTitle').textContent = 'Edit User Account';
+        document.getElementById('userForm').action = '/users/edit/' + values.user_id;
+        document.getElementById('modal_user_id').value = values.user_id || '';
+        document.getElementById('modal_password').required = false;
+        document.getElementById('modal_confirm_password').required = false;
+        document.getElementById('password_required_star').style.display = 'none';
+        document.getElementById('confirm_password_required_star').style.display = 'none';
+        document.getElementById('userModalSubmitBtn').textContent = 'Save Changes';
+    } else {
+        openAddUserModal();
+    }
+    document.getElementById('modal_username').value = values.username || '';
+    document.getElementById('modal_email').value = values.email || '';
+    document.getElementById('modal_privilege_id').value = values.privilege_id || '';
+    document.getElementById('modal_status').value = values.status || 'enabled';
+    showUserError(userFormState.error || 'Please review the highlighted form fields.');
+    openModal('userModal');
+}
+
+window.addEventListener('click', e => {
+    if (e.target.classList && e.target.classList.contains('um-modal')) closeModal(e.target.id);
+});
+
+window.addEventListener('keydown', e => {
+    const open = Array.from(document.querySelectorAll('.um-modal')).find(modal => modal.style.display === 'flex');
+    if (!open) return;
+    if (e.key === 'Escape') {
+        closeModal(open.id);
+        return;
+    }
+    if (e.key === 'Tab') {
+        const focusable = Array.from(open.querySelectorAll('button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), a[href]'));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+});
+
+restoreUserFormState();
+</script>
+{% endblock %}

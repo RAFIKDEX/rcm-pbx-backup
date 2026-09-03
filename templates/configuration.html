@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Asterisk Configuration Manager - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Asterisk Configuration Files</h1>
+        <div style="font-size: 0.9rem; color: #888; margin-top: 0.2rem;">View or manually adjust raw RCM Asterisk configurations</div>
+    </div>
+</div>
+
+<div class="form-row" style="margin-bottom: 2rem; align-items: flex-end;">
+    <div class="form-group" style="max-width: 300px;">
+        <label for="config-select" style="font-weight: bold; display: block; margin-bottom: 0.5rem;">Select Config File</label>
+        <select id="config-select" class="form-control" onchange="loadConfigFile(this)">
+            {% for key, path in files.items() %}
+                <option value="{{ key }}" {% if selected == key %}selected{% endif %}>{{ path.split('/')[-1] }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <span style="font-size: 0.9rem; color: #888; font-style: italic; margin-left: 1rem;">
+            File Path: <code>/etc/asterisk/{{ filename }}</code>
+        </span>
+    </div>
+</div>
+
+<!-- Config File Editor Panel -->
+<div class="panel" style="padding: 1.5rem;">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.1rem; color: var(--text-main);"><i class="fa-solid fa-file-code"></i> Editing {{ filename }}</h2>
+        <span class="badge badge-ringing" style="background-color: rgba(255,165,0,0.1); color: orange; border: 1px solid rgba(255,165,0,0.2);">
+            <i class="fa-solid fa-triangle-exclamation"></i> Be careful with manual modifications
+        </span>
+    </div>
+
+    <form action="{{ url_for('configuration', file=selected) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <textarea name="content" class="form-control" rows="24" 
+                      style="font-family: monospace; font-size: 0.95rem; background-color: #111; color: #a4e4a4; line-height: 1.5; border: 1px solid #333;"
+                      spellcheck="false">{{ content }}</textarea>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.85rem; color: #888;">Saving will write modifications and trigger a config reload.</span>
+            <button type="submit" class="btn btn-info" style="padding: 0.75rem 2rem;">
+                <i class="fa-solid fa-floppy-disk"></i> Save & Reload
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function loadConfigFile(select) {
+        const fileKey = select.value;
+        window.location.href = `{{ url_for('configuration') }}?file=${fileKey}`;
+    }
+</script>
+{% endblock %}

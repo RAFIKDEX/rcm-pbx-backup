@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block title %}Time Conditions - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Time Conditions & Schedules</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage office shifts and holidays to be reused for inbound route mapping</div>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <a href="{{ url_for('office_time_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Office Profile
+        </a>
+        <a href="{{ url_for('holiday_add') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Holiday
+        </a>
+    </div>
+</div>
+
+<!-- Office Time Profiles Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-business-time" style="color: var(--primary);"></i> Office Time Profiles</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Profile Name</th>
+                    <th>Days Selection</th>
+                    <th>Time Ranges</th>
+                    <th style="width: 200px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not office_times %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+                        <i class="fa-solid fa-calendar-minus" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Office Time profiles configured.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for profile in office_times %}
+                <tr>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">{{ profile.name }}</strong></td>
+                    <td>
+                        {% if profile.days %}
+                            {% for day in profile.days %}
+                            <span class="badge badge-registered" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); margin-right: 0.25rem;">
+                                {{ day[:3].upper() }}
+                            </span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="badge badge-gray">None</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if profile.ranges %}
+                            {% for range in profile.ranges %}
+                            <span class="badge badge-registered" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); margin-right: 0.25rem; font-family: monospace;">
+                                {{ range.start }} - {{ range.end }}
+                            </span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="badge badge-gray">None</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end; display: flex; gap: 0.5rem;">
+                            <a href="{{ url_for('office_time_edit', profile_id=profile.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form action="{{ url_for('office_time_delete', profile_id=profile.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Office Time Profile {{ profile.name }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Holiday Management Panel -->
+<div class="panel" style="margin-top: 2rem;">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-umbrella-beach" style="color: var(--status-ringing);"></i> Holiday Management</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Holiday Name</th>
+                    <th>Date Period</th>
+                    <th>Recurring Yearly</th>
+                    <th style="width: 200px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not holidays %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+                        <i class="fa-solid fa-sun" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Holidays configured.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for holiday in holidays %}
+                <tr>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">{{ holiday.name }}</strong></td>
+                    <td>
+                        <span class="badge badge-registered" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); font-family: monospace;">
+                            {{ holiday.start_date }} {% if holiday.end_date != holiday.start_date %} to {{ holiday.end_date }}{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if holiday.recurring %}
+                        <span class="badge badge-registered" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            <i class="fa-solid fa-arrows-spin"></i> Yes
+                        </span>
+                        {% else %}
+                        <span class="badge badge-registered" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3);">
+                            No
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end; display: flex; gap: 0.5rem;">
+                            <a href="{{ url_for('holiday_edit', holiday_id=holiday.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form action="{{ url_for('holiday_delete', holiday_id=holiday.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Holiday {{ holiday.name }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

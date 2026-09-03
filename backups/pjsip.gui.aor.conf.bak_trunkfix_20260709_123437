@@ -1,0 +1,121 @@
+[5000]
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+type=aor
+
+; rcm_max_contacts=10
+maximum_expiration=120
+[5001]
+type=aor
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+
+; rcm_max_contacts=10
+maximum_expiration=120
+[5002]
+type=aor
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+
+; rcm_max_contacts=10
+maximum_expiration=120
+[5004]
+type=aor
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+; rcm_max_contacts=10
+maximum_expiration=120
+[9999]
+type=aor
+max_contacts=9666
+remove_existing=yes
+qualify_frequency=60
+
+; rcm_max_contacts=9666
+maximum_expiration=120
+[5858]
+type=aor
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+; rcm_max_contacts=10
+maximum_expiration=120
+[2121]
+type=aor
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+
+; rcm_max_contacts=10
+maximum_expiration=120
+[3001]
+type=aor
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+
+; rcm_max_contacts=10
+maximum_expiration=120
+[555]
+type=aor
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+
+; rcm_max_contacts=10
+maximum_expiration=120
+[10000]
+type=aor
+max_contacts=10
+remove_existing=yes
+qualify_frequency=60
+; --- RCM-TRUNK: GSM BEGIN ---
+; rcm_max_contacts=10
+maximum_expiration=120
+[GSM]
+type=aor
+contact=sip:192.168.99.237:5060
+qualify_frequency=60
+; --- RCM-TRUNK: GSM END ---
+
+[4321]
+type=aor
+; rcm_max_contacts=3
+max_contacts=3
+remove_existing=yes
+qualify_frequency=60
+maximum_expiration=120
+; --- RCM-TRUNK: ucm1 BEGIN ---
+[ucm1]
+type=aor
+contact=sip:192.168.99.17:5060
+qualify_frequency=60
+; --- RCM-TRUNK: ucm1 END ---
+[5555]
+type=aor
+; rcm_max_contacts=3
+max_contacts=3
+remove_existing=yes
+qualify_frequency=60
+maximum_expiration=120
+
+
+[5003]
+type=aor
+; rcm_max_contacts=3
+max_contacts=3
+remove_existing=yes
+qualify_frequency=60
+maximum_expiration=120
+
+[852]
+type=aor
+; rcm_max_contacts=1
+max_contacts=1
+remove_existing=yes
+qualify_frequency=60
+maximum_expiration=120

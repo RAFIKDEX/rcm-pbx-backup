@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<section class="portal-panel welcome-panel">
+    <div class="welcome-content">
+        <div class="welcome-avatar">{{ (extension.name or extension.ext)[0]|upper }}</div>
+        <div>
+        <span class="welcome-kicker">Extension workspace</span>
+        <h1>Welcome, {{ extension.name or ('Extension ' ~ extension.ext) }}</h1>
+        <div class="welcome-meta">
+            <div><i class="fa-solid fa-phone"></i><span>Extension</span><strong>{{ extension.ext }}</strong></div>
+            <div><i class="fa-regular fa-clock"></i><span>Last Login</span><strong>{{ last_login }}</strong></div>
+        </div>
+        </div>
+    </div>
+    <div class="welcome-status"><span>Current Status</span><div class="status-pill {% if extension_status == 'Offline' %}offline{% endif %}"><i class="fa-solid fa-circle"></i> {{ extension_status }}</div></div>
+</section>
+
+<section class="stats-grid">
+    <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-phone-volume"></i></div><div><span>Today's Calls</span><strong>{{ stats.total }}</strong></div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div><div><span>Answered</span><strong>{{ stats.answered }}</strong></div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-phone-slash"></i></div><div><span>Missed</span><strong>{{ stats.missed }}</strong></div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-arrow-down"></i></div><div><span>Incoming</span><strong>{{ stats.incoming }}</strong></div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-arrow-up"></i></div><div><span>Outgoing</span><strong>{{ stats.outgoing }}</strong></div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-stopwatch"></i></div><div><span>Talk Time</span><strong>{{ stats.talk_time_display }}</strong></div></div>
+</section>
+
+<div class="portal-grid">
+    <section class="saas-table-container">
+        <div class="panel-head" style="padding: 1.25rem; border-bottom: 1px solid var(--portal-border); display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0; font-size: 1.1rem; color: var(--text-main);"><i class="fa-solid fa-clock-rotate-left" style="color: var(--portal-primary); margin-right: 8px;"></i> Recent Calls</h2>
+            <a class="panel-link" href="{{ url_for('extension_portal_calls') }}" style="color: var(--portal-primary); text-decoration: none; font-size: 0.85rem; font-weight: 600;">View All <i class="fa-solid fa-arrow-right"></i></a>
+        </div>
+        {% if calls %}
+        <table class="saas-table">
+            <thead><tr><th>Date</th><th>Direction</th><th>Number</th><th>Duration</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for call in calls %}
+                <tr>
+                    <td class="cell-date">{{ call.start_time.split(' ')[1] }}</td>
+                    <td>
+                        <span class="cell-direction {{ call.direction }}">
+                            {% if call.direction == 'incoming' %}<i class="fa-solid fa-arrow-down"></i>{% else %}<i class="fa-solid fa-arrow-up"></i>{% endif %}
+                            {{ call.direction }}
+                        </span>
+                    </td>
+                    <td class="cell-party">{{ call.number }}</td>
+                    <td class="cell-duration">{{ call.duration_display }}</td>
+                    <td><span class="status-badge {{ call.status_display|lower|replace(' ', '-') }}">{{ call.status_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty-box" style="padding: 3rem 1rem;"><h3>No recent calls.</h3></div>{% endif %}
+    </section>
+
+    <section class="saas-table-container" style="background: var(--portal-panel); padding: 0;">
+        <div class="panel-head" style="padding: 1.25rem; border-bottom: 1px solid var(--portal-border); display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0; font-size: 1.1rem; color: var(--text-main);"><i class="fa-solid fa-sliders" style="color: var(--portal-primary); margin-right: 8px;"></i> Extension Status</h2>
+            <a class="panel-icon-link" href="{{ url_for('extension_portal_my_extension') }}" title="Edit Extension" style="color: var(--portal-muted);"><i class="fa-solid fa-pen"></i></a>
+        </div>
+        <div class="panel-body status-list" style="padding: 1.25rem;">
+            <div><span><i class="fa-solid fa-hashtag"></i> Extension</span><strong>{{ extension.ext }}</strong></div>
+            <div><span><i class="fa-solid fa-user"></i> Name</span><strong>{{ extension.name or '-' }}</strong></div>
+            <div><span><i class="fa-solid fa-envelope"></i> Email</span><strong>{{ extension.email or '-' }}</strong></div>
+            <div><span><i class="fa-solid fa-mobile-screen"></i> Mobile</span><strong>{{ extension.mobile or '-' }}</strong></div>
+            <div><span><i class="fa-solid fa-bell-slash"></i> DND</span><strong class="inline-state {% if extension.dnd_status == 'on' %}enabled{% endif %}">{{ 'Enabled' if extension.dnd_status == 'on' else 'Disabled' }}</strong></div>
+            <div><span><i class="fa-solid fa-share"></i> Forward</span><strong>{{ extension.fwd_always or extension.fwd_noanswer or extension.fwd_busy or '-' }}</strong></div>
+            <div><span><i class="fa-solid fa-voicemail"></i> Voicemail</span><strong class="inline-state {% if extension.vm_enabled %}enabled{% endif %}">{{ 'Enabled' if extension.vm_enabled else 'Disabled' }}</strong></div>
+        </div>
+    </section>
+</div>
+
+<div class="portal-grid">
+    <section class="saas-table-container">
+        <div class="panel-head" style="padding: 1.25rem; border-bottom: 1px solid var(--portal-border); display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0; font-size: 1.1rem; color: var(--text-main);"><i class="fa-solid fa-microphone-lines" style="color: var(--portal-primary); margin-right: 8px;"></i> Recent Recordings</h2>
+            <a class="panel-link" href="{{ url_for('extension_portal_recordings') }}" style="color: var(--portal-primary); text-decoration: none; font-size: 0.85rem; font-weight: 600;">View All <i class="fa-solid fa-arrow-right"></i></a>
+        </div>
+        {% if recordings %}
+        <table class="saas-table">
+            <thead><tr><th>Caller</th><th>Duration</th><th>Play</th><th>Download</th></tr></thead>
+            <tbody>
+                {% for rec in recordings %}
+                <tr>
+                    <td class="cell-party">{{ rec.caller }} <i class="fa-solid fa-arrow-right-long party-direction"></i> {{ rec.callee }}</td>
+                    <td class="cell-duration">{{ rec.duration }}</td>
+                    <td><audio class="minimal-audio" controls preload="none" src="{{ url_for('extension_portal_recording_file', filename=rec.filename) }}"></audio></td>
+                    <td class="cell-actions"><a class="btn-icon-minimal" href="{{ url_for('extension_portal_recording_file', filename=rec.filename, download=1) }}"><i class="fa-solid fa-download"></i></a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty-box" style="padding: 3rem 1rem;"><h3>No recent recordings.</h3></div>{% endif %}
+    </section>
+
+    <section class="saas-table-container" style="background: var(--portal-panel); padding: 0;">
+        <div class="panel-head" style="padding: 1.25rem; border-bottom: 1px solid var(--portal-border); display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0; font-size: 1.1rem; color: var(--text-main);"><i class="fa-solid fa-bolt" style="color: var(--portal-primary); margin-right: 8px;"></i> Quick Actions</h2>
+        </div>
+        <div class="panel-body quick-actions" style="padding: 1.25rem;">
+            <a href="{{ url_for('extension_portal_my_extension') }}"><span class="quick-icon"><i class="fa-solid fa-pen"></i></span><span>Edit Extension</span><i class="fa-solid fa-chevron-right"></i></a>
+            <a href="{{ url_for('extension_portal_calls') }}"><span class="quick-icon"><i class="fa-solid fa-list"></i></span><span>My Calls</span><i class="fa-solid fa-chevron-right"></i></a>
+            <a href="{{ url_for('extension_portal_recordings') }}"><span class="quick-icon"><i class="fa-solid fa-play"></i></span><span>My Recordings</span><i class="fa-solid fa-chevron-right"></i></a>
+            <a href="{{ url_for('extension_portal_profile') }}"><span class="quick-icon"><i class="fa-solid fa-key"></i></span><span>Web Password</span><i class="fa-solid fa-chevron-right"></i></a>
+        </div>
+    </section>
+</div>
+{% endblock %}

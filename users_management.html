@@ -1,0 +1,649 @@
+{% extends 'base.html' %}
+
+{% block title %}Users Management - RCM 7021 Management Panel{% endblock %}
+
+{% block content %}
+<div class="header-panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.75rem;">
+    <div>
+        <h1 style="margin: 0; font-size: 1.85rem; font-weight: 700; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            <i class="fa-solid fa-users-gear" style="color: var(--primary); margin-right: 0.5rem; -webkit-text-fill-color: var(--primary);"></i> Users Management
+        </h1>
+        <div style="font-size: 0.92rem; color: var(--text-muted); margin-top: 0.35rem;">Manage administrative accounts, assign privilege roles, and control access policies across PBX modules</div>
+    </div>
+    
+    <div class="action-buttons" style="display: flex; gap: 0.75rem;">
+        {% if has_permission('users', 'add') %}
+        <button class="btn btn-info" onclick="openAddUserModal()" style="padding: 0.65rem 1.25rem; font-weight: 600; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35); display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-user-plus"></i> Add New User Account
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- KPI Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.75rem;">
+    <div class="panel" style="padding: 1.25rem; display: flex; align-items: center; gap: 1.25rem; background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);">
+        <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #6366f1, #3b82f6); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+            <i class="fa-solid fa-users"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Total Accounts</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #fff; line-height: 1.2; margin-top: 0.2rem;">{{ total }}</div>
+        </div>
+    </div>
+    
+    <div class="panel" style="padding: 1.25rem; display: flex; align-items: center; gap: 1.25rem; background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);">
+        <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #10b981, #059669); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+            <i class="fa-solid fa-user-check"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Active / Enabled</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #10b981; line-height: 1.2; margin-top: 0.2rem;">
+                {% set active_count = users|selectattr('status', 'equalto', 'enabled')|list|length %}
+                {{ active_count }}
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel" style="padding: 1.25rem; display: flex; align-items: center; gap: 1.25rem; background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);">
+        <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #f59e0b, #d97706); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+            <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Super Admins & Root</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #f59e0b; line-height: 1.2; margin-top: 0.2rem;">
+                {% set root_count = users|selectattr('system_key', 'equalto', 'super_admin')|list|length %}
+                {% if root_count > 0 %}{{ root_count }}{% else %}{{ users|selectattr('legacy_role', 'equalto', 'admin')|list|length }}{% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel" style="padding: 1.25rem; display: flex; align-items: center; gap: 1.25rem; background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);">
+        <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);">
+            <i class="fa-solid fa-key"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Privilege Roles</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #06b6d4; line-height: 1.2; margin-top: 0.2rem;">{{ privileges|length }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="panel" style="padding: 1.25rem 1.5rem; margin-bottom: 1.75rem; background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);">
+    <form method="GET" action="{{ url_for('users_list') }}" style="display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.85rem; flex: 1; min-width: 260px; background: rgba(15, 23, 42, 0.6); padding: 0.5rem 1rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+            <i class="fa-solid fa-magnifying-glass" style="color: var(--primary); font-size: 1.1rem;"></i>
+            <input type="text" name="search" class="form-control" dir="auto" 
+                   placeholder="Search by username, email address, or role name..." 
+                   value="{{ search or '' }}"
+                   style="border: none; background: transparent; padding: 0.2rem 0; color: #fff; font-size: 0.95rem; width: 100%;">
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-circle-dot" style="margin-right: 0.25rem; font-size: 0.75rem;"></i>Status:</label>
+                <select name="status" onchange="this.form.submit()" class="form-control-inline" style="width: 140px; padding: 0.45rem 0.65rem; border-radius: 8px; background: rgba(15, 23, 42, 0.8); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-size: 0.88rem;">
+                    <option value="" {% if not status %}selected{% endif %}>All Statuses</option>
+                    <option value="enabled" {% if status == 'enabled' %}selected{% endif %}>Enabled / Active</option>
+                    <option value="disabled" {% if status == 'disabled' %}selected{% endif %}>Disabled</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-shield" style="margin-right: 0.25rem; font-size: 0.75rem;"></i>Role:</label>
+                <select name="privilege_id" onchange="this.form.submit()" class="form-control-inline" style="width: 180px; padding: 0.45rem 0.65rem; border-radius: 8px; background: rgba(15, 23, 42, 0.8); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-size: 0.88rem;">
+                    <option value="" {% if not privilege_id %}selected{% endif %}>All Roles</option>
+                    {% for p in privileges %}
+                    <option value="{{ p.id }}" {% if privilege_id|string == p.id|string %}selected{% endif %}>{{ p.name }} ({{ p.legacy_role|title }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Rows:</label>
+                <select name="per_page" onchange="this.form.submit()" class="form-control-inline" style="width: 80px; padding: 0.45rem 0.65rem; border-radius: 8px; background: rgba(15, 23, 42, 0.8); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-size: 0.88rem;">
+                    <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                    <option value="20" {% if per_page == 20 or not per_page %}selected{% endif %}>20</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                </select>
+            </div>
+            
+            {% if search or status or privilege_id %}
+            <a href="{{ url_for('users_list') }}" class="btn btn-secondary btn-sm" style="padding: 0.45rem 0.85rem; border-radius: 8px; display: flex; align-items: center; gap: 0.4rem;"><i class="fa-solid fa-filter-circle-xmark"></i> Clear</a>
+            {% endif %}
+            <button type="submit" class="btn btn-secondary" style="padding: 0.45rem 1rem; border-radius: 8px; display: flex; align-items: center; gap: 0.4rem;"><i class="fa-solid fa-arrow-rotate-right"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Users Table Panel -->
+<div class="panel" style="border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); padding: 0;">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.75rem; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+        <h2 style="margin: 0; font-size: 1.15rem; color: #fff; display: flex; align-items: center; gap: 0.6rem;">
+            <i class="fa-solid fa-user-shield" style="color: var(--primary);"></i> Registered System Accounts 
+            <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: normal; background: rgba(255,255,255,0.05); padding: 0.2rem 0.6rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">{{ total }} total</span>
+        </h2>
+    </div>
+    
+    <div class="table-responsive" style="padding: 0.5rem 1rem;">
+        <table class="table" id="users-table" style="width: 100%; border-collapse: separate; border-spacing: 0 0.5rem;">
+            <thead>
+                <tr style="color: var(--text-muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <th style="padding: 0.75rem 1rem; width: 65px;">ID</th>
+                    <th style="padding: 0.75rem 1rem;">Account & Profile</th>
+                    <th style="padding: 0.75rem 1rem;">Email Address</th>
+                    <th style="padding: 0.75rem 1rem;">Role & Privilege Scope</th>
+                    <th style="padding: 0.75rem 1rem;">Legacy Tier</th>
+                    <th style="padding: 0.75rem 1rem;">Account Status</th>
+                    <th style="padding: 0.75rem 1rem;">Session Rev</th>
+                    <th style="padding: 0.75rem 1rem;">Created At</th>
+                    <th style="padding: 0.75rem 1rem; text-align: right; min-width: 190px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not users %}
+                <tr>
+                    <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 4.5rem 2rem;">
+                        <div style="max-width: 320px; margin: 0 auto;">
+                            <i class="fa-solid fa-user-slash" style="font-size: 3.5rem; color: rgba(255,255,255,0.12); margin-bottom: 1.25rem; display: block;"></i>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 0.4rem;">No User Accounts Found</div>
+                            <div style="font-size: 0.88rem; color: var(--text-muted);">We couldn't find any administrator accounts matching your selected filters or search terms.</div>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                {% for u in users %}
+                <tr style="background: rgba(30, 41, 59, 0.45); transition: all 0.2s ease; border-radius: 10px;">
+                    <td style="padding: 1rem; border-top-left-radius: 10px; border-bottom-left-radius: 10px;">
+                        <span style="font-family: monospace; font-weight: bold; color: var(--text-muted); background: rgba(0,0,0,0.3); padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">#{{ u.id }}</span>
+                    </td>
+                    <td style="padding: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.85rem;">
+                            <div style="position: relative;">
+                                <div style="width: 42px; height: 42px; border-radius: 12px; background: {% if u.system_key == 'super_admin' %}linear-gradient(135deg, #f59e0b, #ef4444){% elif u.legacy_role == 'admin' %}linear-gradient(135deg, #3b82f6, #6366f1){% else %}linear-gradient(135deg, #10b981, #059669){% endif %}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.15rem; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.35);">
+                                    {{ u.username[0]|upper }}
+                                </div>
+                                <span style="position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px; border-radius: 50%; background-color: {% if u.status == 'enabled' %}#10b981{% else %}#ef4444{% endif %}; border: 2px solid var(--panel-dark);"></span>
+                            </div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 1.02rem; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
+                                    {{ u.username }}
+                                    {% if u.system_key == 'super_admin' %}
+                                    <span class="badge badge-warning" style="padding: 0.15rem 0.5rem; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.3px; display: inline-flex; align-items: center; gap: 0.3rem; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);">
+                                        <i class="fa-solid fa-crown" style="font-size: 0.65rem;"></i> Root System
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem;"><i class="fa-solid fa-id-badge" style="font-size: 0.7rem; margin-right: 0.3rem;"></i>Account ID: {{ u.username|lower }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding: 1rem;">
+                        {% if u.email %}
+                        <a href="mailto:{{ u.email }}" style="color: #cbd5e1; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; transition: color 0.15s ease;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='#cbd5e1'">
+                            <i class="fa-regular fa-envelope" style="color: var(--primary);"></i> {{ u.email }}
+                        </a>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-style: italic; font-size: 0.85rem;"><i class="fa-solid fa-minus" style="margin-right: 0.3rem;"></i>Not configured</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.6rem;">
+                            <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
+                                <i class="fa-solid fa-shield-halved" style="color: {% if u.legacy_role == 'admin' %}#f59e0b{% elif u.legacy_role == 'supervisor' %}#3b82f6{% else %}#10b981{% endif %}; font-size: 0.9rem;"></i>
+                            </div>
+                            <span style="font-weight: 600; color: #fff; font-size: 0.92rem;">{{ u.privilege_name or 'Default Agent Role' }}</span>
+                        </div>
+                    </td>
+                    <td style="padding: 1rem;">
+                        <span class="badge {% if u.legacy_role == 'admin' %}badge-danger{% elif u.legacy_role == 'supervisor' %}badge-info{% else %}badge-success{% endif %}" style="text-transform: uppercase; font-size: 0.72rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 6px; letter-spacing: 0.5px;">
+                            {{ u.legacy_role|title }}
+                        </span>
+                    </td>
+                    <td style="padding: 1rem;">
+                        {% if u.status == 'enabled' %}
+                        <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem; border-radius: 20px; font-weight: 600;">
+                            <span style="width: 7px; height: 7px; border-radius: 50%; background-color: #fff; box-shadow: 0 0 6px #fff;"></span> Active
+                        </span>
+                        {% else %}
+                        <span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem; border-radius: 20px; font-weight: 600;">
+                            <span style="width: 7px; height: 7px; border-radius: 50%; background-color: #fff;"></span> Disabled
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1rem;">
+                        <span style="font-family: monospace; font-size: 0.85rem; color: #94a3b8; background: rgba(0,0,0,0.35); padding: 0.25rem 0.55rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); font-weight: 600;">v{{ u.session_version or 1 }}</span>
+                    </td>
+                    <td style="padding: 1rem;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.35rem;">
+                            <i class="fa-regular fa-clock" style="font-size: 0.8rem;"></i> {{ u.created_at or 'Recently' }}
+                        </span>
+                    </td>
+                    <td style="padding: 1rem; border-top-right-radius: 10px; border-bottom-right-radius: 10px; text-align: right;">
+                        <div style="display: inline-flex; gap: 0.45rem;">
+                            {% if has_permission('users', 'edit') %}
+                            <button type="button" class="btn btn-secondary btn-sm" title="Edit User Profile & Role" onclick='openEditUserModal({{ u|tojson|safe }})' style="padding: 0.4rem 0.65rem; border-radius: 8px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #60a5fa; transition: all 0.15s ease;" onmouseover="this.style.background='rgba(59, 130, 246, 0.3)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.15)'">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            {% endif %}
+                            
+                            {% if has_permission('users', 'change_password') %}
+                            <button type="button" class="btn btn-secondary btn-sm" title="Reset User Password" onclick="openResetPasswordModal({{ u.id }}, '{{ u.username }}')" style="padding: 0.4rem 0.65rem; border-radius: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; transition: all 0.15s ease;" onmouseover="this.style.background='rgba(245, 158, 11, 0.3)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <i class="fa-solid fa-key"></i>
+                            </button>
+                            {% endif %}
+                            
+                            {% if u.system_key != 'super_admin' and u.username != session.get('username') %}
+                                {% if has_permission('users', 'enable') or has_permission('users', 'disable') or has_permission('users', 'edit') %}
+                                <form method="POST" action="{{ url_for('user_toggle', user_id=u.id) }}" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-secondary btn-sm" title="{% if u.status == 'enabled' %}Disable User Account{% else %}Enable User Account{% endif %}" style="padding: 0.4rem 0.65rem; border-radius: 8px; background: {% if u.status == 'enabled' %}rgba(239, 68, 68, 0.15){% else %}rgba(16, 185, 129, 0.15){% endif %}; border: 1px solid {% if u.status == 'enabled' %}rgba(239, 68, 68, 0.3){% else %}rgba(16, 185, 129, 0.3){% endif %}; color: {% if u.status == 'enabled' %}#f87171{% else %}#34d399{% endif %}; transition: all 0.15s ease;" onmouseover="this.style.background='{% if u.status == 'enabled' %}rgba(239, 68, 68, 0.3){% else %}rgba(16, 185, 129, 0.3){% endif %}'" onmouseout="this.style.background='{% if u.status == 'enabled' %}rgba(239, 68, 68, 0.15){% else %}rgba(16, 185, 129, 0.15){% endif %}'">
+                                        <i class="fa-solid {% if u.status == 'enabled' %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                
+                                {% if has_permission('users', 'delete') %}
+                                <button type="button" class="btn btn-danger btn-sm" title="Delete Account" onclick="confirmDeleteUser({{ u.id }}, '{{ u.username }}')" style="padding: 0.4rem 0.65rem; border-radius: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; transition: all 0.15s ease;" onmouseover="this.style.background='rgba(239, 68, 68, 0.35)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.15)'">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            {% else %}
+                                <button type="button" class="btn btn-secondary btn-sm" disabled title="Protected System Account" style="padding: 0.4rem 0.65rem; border-radius: 8px; opacity: 0.3; cursor: not-allowed; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                    <i class="fa-solid fa-lock"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination Footer -->
+    {% if total_pages > 1 %}
+    <div class="panel-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.75rem; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.08);">
+        <div style="font-size: 0.88rem; color: var(--text-muted);">
+            Showing accounts <strong style="color: #fff;">{{ (page - 1) * per_page + 1 }}</strong> to <strong style="color: #fff;">{{ [page * per_page, total]|min }}</strong> of <strong style="color: #fff;">{{ total }}</strong>
+        </div>
+        
+        <div style="display: flex; gap: 0.4rem;">
+            {% if page > 1 %}
+            <a href="{{ url_for('users_list', page=page-1, search=search, status=status, privilege_id=privilege_id, per_page=per_page) }}" class="btn btn-secondary btn-sm" style="border-radius: 8px; padding: 0.35rem 0.75rem;"><i class="fa-solid fa-chevron-left"></i> Prev</a>
+            {% endif %}
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == page %}
+                <span class="btn btn-info btn-sm" style="pointer-events: none; font-weight: 700; border-radius: 8px; padding: 0.35rem 0.85rem;">{{ p }}</span>
+                {% elif p <= 3 or p >= total_pages - 1 or (p >= page - 1 and p <= page + 1) %}
+                <a href="{{ url_for('users_list', page=p, search=search, status=status, privilege_id=privilege_id, per_page=per_page) }}" class="btn btn-secondary btn-sm" style="border-radius: 8px; padding: 0.35rem 0.85rem;">{{ p }}</a>
+                {% elif p == 4 or p == total_pages - 2 %}
+                <span style="color: var(--text-muted); padding: 0.35rem 0.5rem;">...</span>
+                {% endif %}
+            {% endfor %}
+            {% if page < total_pages %}
+            <a href="{{ url_for('users_list', page=page+1, search=search, status=status, privilege_id=privilege_id, per_page=per_page) }}" class="btn btn-secondary btn-sm" style="border-radius: 8px; padding: 0.35rem 0.75rem;">Next <i class="fa-solid fa-chevron-right"></i></a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add / Edit User Modal -->
+<div id="userModal" class="modal">
+    <div class="modal-content" style="max-width: 580px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 25px 60px rgba(0,0,0,0.6); padding: 0; overflow: hidden; background: var(--panel-dark);">
+        <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95)); padding: 1.5rem 1.75rem; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.85rem;">
+                <div id="userModalIconContainer" style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #fff; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);">
+                    <i class="fa-solid fa-user-plus" id="userModalIcon"></i>
+                </div>
+                <div>
+                    <h2 id="userModalTitle" style="color: #fff; margin: 0; font-size: 1.25rem; font-weight: 700;">Add New User Account</h2>
+                    <div id="userModalSubtitle" style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.15rem;">Configure account profile, system credentials, and assigned PBX role</div>
+                </div>
+            </div>
+            <button type="button" class="close-modal" onclick="closeUserModal()" style="position: static; font-size: 1.5rem; color: var(--text-muted); background: none; border: none; cursor: pointer; transition: color 0.15s ease;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+        </div>
+        
+        <form id="userForm" method="POST" action="{{ url_for('user_add') }}" style="padding: 1.75rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="user_id" id="modal_user_id" value="">
+            
+            <div id="modal_validation_alert" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.88rem; margin-bottom: 1.25rem; align-items: center; gap: 0.6rem;">
+                <i class="fa-solid fa-circle-exclamation" style="font-size: 1.1rem;"></i>
+                <span id="modal_validation_msg"></span>
+            </div>
+            
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-address-card"></i> Identity & Profile Information
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div class="form-group" style="margin: 0;">
+                    <label for="modal_username" style="font-weight: 600; color: #fff; margin-bottom: 0.4rem; display: block; font-size: 0.9rem;">
+                        Username <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" class="form-control" name="username" id="modal_username" required autocomplete="off" placeholder="e.g. admin_john" style="border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.55rem 0.75rem;">
+                    <small id="username_help" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 0.3rem;">Must be unique across PBX.</small>
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label for="modal_email" style="font-weight: 600; color: #fff; margin-bottom: 0.4rem; display: block; font-size: 0.9rem;">
+                        Email Address
+                    </label>
+                    <input type="email" class="form-control" name="email" id="modal_email" placeholder="e.g. john@company.com" style="border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.55rem 0.75rem;">
+                    <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 0.3rem;">Used for alerts and recovery.</small>
+                </div>
+            </div>
+            
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); margin: 1.25rem 0; padding-top: 1.25rem;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-lock"></i> Authentication Credentials
+                </div>
+                
+                <div class="form-group" id="password_group" style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <label for="modal_password" id="modal_password_label" style="font-weight: 600; color: #fff; font-size: 0.9rem;">
+                            Password <span id="password_required_star" style="color: #ef4444;">*</span>
+                        </label>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="generateAndShowPassword()" title="Generate Random Strong Password" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 6px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Strong
+                        </button>
+                    </div>
+                    <input type="password" class="form-control" name="password" id="modal_password" autocomplete="new-password" placeholder="Enter secure password..." style="border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.55rem 0.75rem;">
+                    <small id="password_hint" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 0.3rem;">Protected with PBX adaptive secure hashing.</small>
+                </div>
+                
+                <div class="form-group" id="confirm_password_group" style="margin-bottom: 1.25rem;">
+                    <label for="modal_confirm_password" id="modal_confirm_password_label" style="font-weight: 600; color: #fff; margin-bottom: 0.4rem; display: block; font-size: 0.9rem;">
+                        Confirm Password <span id="confirm_password_required_star" style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="password" class="form-control" name="confirm_password" id="modal_confirm_password" autocomplete="new-password" placeholder="Re-enter secure password..." style="border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.55rem 0.75rem;">
+                </div>
+                
+                <div id="generated_password_banner" style="display: none; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem; color: #34d399; justify-content: space-between; align-items: center;">
+                    <span><i class="fa-solid fa-check-circle" style="margin-right: 0.4rem;"></i> Generated strong password applied to both fields.</span>
+                </div>
+            </div>
+            
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); margin: 1.25rem 0; padding-top: 1.25rem;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-shield-halved"></i> Role & Access Scope
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 1rem;">
+                    <div class="form-group" style="margin: 0;">
+                        <label for="modal_privilege_id" style="font-weight: 600; color: #fff; margin-bottom: 0.4rem; display: block; font-size: 0.9rem;">
+                            Assigned Role <span style="color: #ef4444;">*</span>
+                        </label>
+                        <select class="form-control" name="privilege_id" id="modal_privilege_id" required style="border-radius: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.55rem 0.75rem;">
+                            <option value="">-- Select Privilege Role --</option>
+                            {% for p in privileges %}
+                            <option value="{{ p.id }}" data-legacy="{{ p.legacy_role }}">{{ p.name }} (Legacy: {{ p.legacy_role|title }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin: 0;">
+                        <label for="modal_status" style="font-weight: 600; color: #fff; margin-bottom: 0.4rem; display: block; font-size: 0.9rem;">
+                            Account Status
+                        </label>
+                        <select class="form-control" name="status" id="modal_status" style="border-radius: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.55rem 0.75rem;">
+                            <option value="enabled">Enabled (Active)</option>
+                            <option value="disabled">Disabled (Blocked)</option>
+                        </select>
+                    </div>
+                </div>
+                <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 0.4rem;">Role defines backend permissions and queue/extension visibility.</small>
+            </div>
+            
+            <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.25rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeUserModal()" style="padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 600;">Cancel</button>
+                <button type="submit" class="btn btn-info" id="userModalSubmitBtn" style="padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);">
+                    <i class="fa-solid fa-check"></i> Save User Account
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="resetPasswordModal" class="modal">
+    <div class="modal-content" style="max-width: 480px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 25px 60px rgba(0,0,0,0.6); padding: 0; overflow: hidden; background: var(--panel-dark);">
+        <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95)); padding: 1.5rem 1.75rem; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.85rem;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #fff; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <div>
+                    <h2 style="color: #fff; margin: 0; font-size: 1.25rem; font-weight: 700;">Reset Account Password</h2>
+                    <div style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.15rem;">Update login credentials with PBX secure hash</div>
+                </div>
+            </div>
+            <button type="button" class="close-modal" onclick="closeResetPasswordModal()" style="position: static; font-size: 1.5rem; color: var(--text-muted); background: none; border: none; cursor: pointer;">&times;</button>
+        </div>
+        
+        <form id="resetPasswordForm" method="POST" action="" style="padding: 1.75rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <p style="color: #cbd5e1; font-size: 0.92rem; line-height: 1.5; margin-top: 0; margin-bottom: 1.25rem; background: rgba(255,255,255,0.03); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                Target account: <strong id="reset_password_username" style="color: #f59e0b; font-family: monospace; font-size: 1.05rem;"></strong>
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 1.1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                    <label for="new_user_password" style="font-weight: 600; color: #fff; font-size: 0.9rem;">
+                        New Secure Password <span style="color: #ef4444;">*</span>
+                    </label>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="generateResetPassword()" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 6px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Strong
+                    </button>
+                </div>
+                <input type="password" class="form-control" name="password" id="new_user_password" required autocomplete="off" placeholder="Enter new password..." style="border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.55rem 0.75rem;">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="new_user_confirm_password" style="font-weight: 600; color: #fff; margin-bottom: 0.4rem; display: block; font-size: 0.9rem;">
+                    Confirm New Password <span style="color: #ef4444;">*</span>
+                </label>
+                <input type="password" class="form-control" name="confirm_password" id="new_user_confirm_password" required autocomplete="off" placeholder="Re-enter new password..." style="border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.55rem 0.75rem;">
+            </div>
+            
+            <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.25rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeResetPasswordModal()" style="padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 600;">Cancel</button>
+                <button type="submit" class="btn btn-warning" style="background-color: #f59e0b; color: #000; font-weight: 700; padding: 0.6rem 1.5rem; border-radius: 8px; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);">
+                    <i class="fa-solid fa-check"></i> Update Password
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div id="deleteUserModal" class="modal">
+    <div class="modal-content" style="max-width: 450px; border-radius: 18px; border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: 0 25px 60px rgba(0,0,0,0.6); padding: 0; overflow: hidden; background: var(--panel-dark);">
+        <div style="background: linear-gradient(135deg, rgba(127, 29, 29, 0.8), rgba(69, 10, 10, 0.9)); padding: 1.5rem 1.75rem; border-bottom: 1px solid rgba(239, 68, 68, 0.2); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.85rem;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #f87171;">
+                    <i class="fa-solid fa-user-xmark"></i>
+                </div>
+                <div>
+                    <h2 style="color: #fff; margin: 0; font-size: 1.25rem; font-weight: 700;">Delete User Account</h2>
+                    <div style="color: #fca5a5; font-size: 0.82rem; margin-top: 0.15rem;">Permanent account and session revocation</div>
+                </div>
+            </div>
+            <button type="button" class="close-modal" onclick="closeDeleteUserModal()" style="position: static; font-size: 1.5rem; color: #fca5a5; background: none; border: none; cursor: pointer;">&times;</button>
+        </div>
+        
+        <form id="deleteUserForm" method="POST" action="" style="padding: 1.75rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <p style="color: #cbd5e1; font-size: 0.92rem; line-height: 1.6; margin-top: 0; margin-bottom: 1.5rem;">
+                Are you sure you want to permanently delete account <strong id="delete_username_display" style="color: #f87171; font-family: monospace; font-size: 1.08rem; background: rgba(239, 68, 68, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px;"></strong>? All active API tokens, sessions, and permissions will be revoked immediately.
+            </p>
+            
+            <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.25rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteUserModal()" style="padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 600;">Cancel</button>
+                <button type="submit" class="btn btn-danger" style="padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);">
+                    <i class="fa-solid fa-trash"></i> Confirm Delete
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openAddUserModal() {
+    document.getElementById('userModalTitle').textContent = 'Add New User Account';
+    document.getElementById('userModalSubtitle').textContent = 'Configure account profile, system credentials, and assigned PBX role';
+    document.getElementById('userModalIconContainer').style.background = 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
+    document.getElementById('userModalIcon').className = 'fa-solid fa-user-plus';
+    document.getElementById('userForm').action = "{{ url_for('user_add') }}";
+    document.getElementById('modal_user_id').value = '';
+    document.getElementById('modal_username').value = '';
+    document.getElementById('modal_username').readOnly = false;
+    document.getElementById('username_help').style.display = 'block';
+    document.getElementById('modal_email').value = '';
+    document.getElementById('modal_password').type = 'password';
+    document.getElementById('modal_password').value = '';
+    document.getElementById('modal_password').required = true;
+    document.getElementById('password_required_star').style.display = 'inline';
+    document.getElementById('modal_confirm_password').type = 'password';
+    document.getElementById('modal_confirm_password').value = '';
+    document.getElementById('modal_confirm_password').required = true;
+    document.getElementById('confirm_password_required_star').style.display = 'inline';
+    document.getElementById('password_hint').textContent = 'Protected with PBX adaptive secure hashing.';
+    document.getElementById('modal_privilege_id').value = '';
+    document.getElementById('modal_status').value = 'enabled';
+    document.getElementById('userModalSubmitBtn').innerHTML = '<i class="fa-solid fa-check"></i> Save User Account';
+    document.getElementById('modal_validation_alert').style.display = 'none';
+    document.getElementById('generated_password_banner').style.display = 'none';
+    
+    document.getElementById('userModal').style.display = 'flex';
+}
+
+function openEditUserModal(user) {
+    document.getElementById('userModalTitle').textContent = 'Edit User Account: ' + user.username;
+    document.getElementById('userModalSubtitle').textContent = 'Update account profile, assigned PBX role, or change password';
+    document.getElementById('userModalIconContainer').style.background = 'linear-gradient(135deg, #6366f1, #4f46e5)';
+    document.getElementById('userModalIcon').className = 'fa-solid fa-user-pen';
+    document.getElementById('userForm').action = '/users/edit/' + user.id;
+    document.getElementById('modal_user_id').value = user.id;
+    document.getElementById('modal_username').value = user.username;
+    document.getElementById('modal_username').readOnly = true;
+    document.getElementById('username_help').style.display = 'none';
+    document.getElementById('modal_email').value = user.email || '';
+    document.getElementById('modal_password').type = 'password';
+    document.getElementById('modal_password').value = '';
+    document.getElementById('modal_password').required = false;
+    document.getElementById('password_required_star').style.display = 'none';
+    document.getElementById('modal_confirm_password').type = 'password';
+    document.getElementById('modal_confirm_password').value = '';
+    document.getElementById('modal_confirm_password').required = false;
+    document.getElementById('confirm_password_required_star').style.display = 'none';
+    document.getElementById('password_hint').textContent = 'Leave blank to keep current password unchanged.';
+    document.getElementById('modal_privilege_id').value = user.privilege_id || '';
+    document.getElementById('modal_status').value = user.status || 'enabled';
+    document.getElementById('userModalSubmitBtn').innerHTML = '<i class="fa-solid fa-check"></i> Update Profile & Role';
+    document.getElementById('modal_validation_alert').style.display = 'none';
+    document.getElementById('generated_password_banner').style.display = 'none';
+    
+    document.getElementById('userModal').style.display = 'flex';
+}
+
+function closeUserModal() {
+    document.getElementById('userModal').style.display = 'none';
+}
+
+function openResetPasswordModal(userId, username) {
+    document.getElementById('reset_password_username').textContent = username;
+    document.getElementById('new_user_password').value = '';
+    document.getElementById('new_user_confirm_password').value = '';
+    document.getElementById('resetPasswordForm').action = '/users/edit/' + userId;
+    document.getElementById('resetPasswordModal').style.display = 'flex';
+}
+
+function closeResetPasswordModal() {
+    document.getElementById('resetPasswordModal').style.display = 'none';
+}
+
+function confirmDeleteUser(userId, username) {
+    document.getElementById('delete_username_display').textContent = username;
+    document.getElementById('deleteUserForm').action = '/users/delete/' + userId;
+    document.getElementById('deleteUserModal').style.display = 'flex';
+}
+
+function closeDeleteUserModal() {
+    document.getElementById('deleteUserModal').style.display = 'none';
+}
+
+function generateAndShowPassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
+    let pwd = '';
+    for (let i = 0; i < 14; i++) {
+        pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('modal_password').type = 'text';
+    document.getElementById('modal_password').value = pwd;
+    document.getElementById('modal_confirm_password').type = 'text';
+    document.getElementById('modal_confirm_password').value = pwd;
+    document.getElementById('generated_password_banner').style.display = 'flex';
+}
+
+function generateResetPassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
+    let pwd = '';
+    for (let i = 0; i < 14; i++) {
+        pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('new_user_password').type = 'text';
+    document.getElementById('new_user_password').value = pwd;
+    document.getElementById('new_user_confirm_password').type = 'text';
+    document.getElementById('new_user_confirm_password').value = pwd;
+}
+
+document.getElementById('userForm').addEventListener('submit', function(e) {
+    const userId = document.getElementById('modal_user_id').value;
+    const pwd = document.getElementById('modal_password').value;
+    const confirmPwd = document.getElementById('modal_confirm_password').value;
+    const privilegeId = document.getElementById('modal_privilege_id').value;
+    
+    if (!privilegeId) {
+        e.preventDefault();
+        document.getElementById('modal_validation_msg').textContent = 'Please select an assigned Privilege Role.';
+        document.getElementById('modal_validation_alert').style.display = 'flex';
+        return;
+    }
+    
+    if (!userId && !pwd) {
+        e.preventDefault();
+        document.getElementById('modal_validation_msg').textContent = 'Password is required when creating a new user account.';
+        document.getElementById('modal_validation_alert').style.display = 'flex';
+        return;
+    }
+    
+    if (pwd && pwd !== confirmPwd) {
+        e.preventDefault();
+        document.getElementById('modal_validation_msg').textContent = 'Password and confirmation password do not match.';
+        document.getElementById('modal_validation_alert').style.display = 'flex';
+        return;
+    }
+});
+
+document.getElementById('resetPasswordForm').addEventListener('submit', function(e) {
+    const pwd = document.getElementById('new_user_password').value;
+    const confirmPwd = document.getElementById('new_user_confirm_password').value;
+    if (pwd && pwd !== confirmPwd) {
+        e.preventDefault();
+        alert('New password and confirmation password do not match.');
+    }
+});
+
+window.addEventListener('click', function(e) {
+    if (e.target == document.getElementById('userModal')) closeUserModal();
+    if (e.target == document.getElementById('resetPasswordModal')) closeResetPasswordModal();
+    if (e.target == document.getElementById('deleteUserModal')) closeDeleteUserModal();
+});
+</script>
+{% endblock %}

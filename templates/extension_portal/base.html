@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Extension Portal{% endblock %} - RCM 7021</title>
+    <link rel="icon" type="image/png" href="/Logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/extension_portal.css') }}?v=1.3">
+</head>
+<body>
+    <div class="portal-shell">
+        <div class="portal-overlay" id="portalOverlay"></div>
+        <aside class="portal-sidebar" id="portalSidebar">
+            <div class="portal-brand">
+                <div><strong>RCM 7021</strong><span>EXTENSION PORTAL</span></div>
+                <button type="button" class="portal-sidebar-close" id="portalSidebarClose" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="portal-nav-label">Workspace</div>
+            <ul class="portal-nav">
+                <li class="{% if request.endpoint == 'extension_portal_dashboard' %}active{% endif %}"><a href="{{ url_for('extension_portal_dashboard') }}"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+                <li class="{% if request.endpoint == 'extension_portal_my_extension' %}active{% endif %}"><a href="{{ url_for('extension_portal_my_extension') }}"><i class="fa-solid fa-phone"></i> My Extension</a></li>
+                <li class="{% if request.endpoint in ['extension_portal_calls', 'extension_portal_calls_export'] %}active{% endif %}"><a href="{{ url_for('extension_portal_calls') }}"><i class="fa-solid fa-list"></i> My Calls</a></li>
+                <li class="{% if request.endpoint in ['extension_portal_recordings', 'extension_portal_recording_file'] %}active{% endif %}"><a href="{{ url_for('extension_portal_recordings') }}"><i class="fa-solid fa-microphone-lines"></i> My Recordings</a></li>
+                {% if is_con_agent() %}
+                <li class="{% if request.endpoint == 'con_bp.con_agent' %}active{% endif %}">
+                    <a href="{{ url_for('con_bp.con_agent') }}"><i class="fa-solid fa-headset" style="color: #6366f1;"></i> CON Agent Console</a>
+                </li>
+                {% endif %}
+                {% if is_con_supervisor() %}
+                <li class="{% if request.endpoint == 'con_bp.con_supervisor' %}active{% endif %}">
+                    <a href="{{ url_for('con_bp.con_supervisor') }}"><i class="fa-solid fa-eye" style="color: #f59e0b;"></i> CON Supervisor Console</a>
+                </li>
+                {% endif %}
+                {% if reporting_scope_has_access('queue_live') %}
+                <li class="{% if request.endpoint == 'queue_live' %}active{% endif %}">
+                    <a href="{{ url_for('queue_live') }}"><i class="fa-solid fa-gauge-high" style="color: #10b981;"></i> Live Queue</a>
+                </li>
+                {% endif %}
+                {% if reporting_scope_has_access('queue_stats') %}
+                <li class="{% if request.endpoint == 'queue_stats' %}active{% endif %}">
+                    <a href="{{ url_for('queue_stats') }}"><i class="fa-solid fa-chart-line" style="color: #6366f1;"></i> Queue Statistics</a>
+                </li>
+                {% endif %}
+            </ul>
+            <div class="portal-nav-label portal-account-label">Account</div>
+            <ul class="portal-nav">
+                <li class="{% if request.endpoint == 'extension_portal_profile' %}active{% endif %}"><a href="{{ url_for('extension_portal_profile') }}"><i class="fa-solid fa-user"></i> Profile</a></li>
+            </ul>
+            <a class="portal-nav portal-signout" href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a>
+        </aside>
+        <main class="portal-main">
+            <header class="portal-topbar">
+                <div class="portal-topbar-start">
+                    <button type="button" class="portal-menu-button" id="portalMenuButton" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                    <a href="{{ url_for('extension_portal_dashboard') }}"><img src="/Logo.png" alt="RCM Logo"></a>
+                    <div class="portal-page-context"><span>Extension Portal</span><strong>{{ self.title() }}</strong></div>
+                </div>
+                <div class="portal-user">
+                    <div class="portal-avatar">{{ session.get('extension_ext', 'E')[0] }}</div>
+                    <div><strong>Extension {{ session.get('extension_ext') }}</strong><small>Employee account</small></div>
+                </div>
+            </header>
+            <div class="alert-stack">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for category, message in messages %}<div class="portal-alert {{ category }}">{{ message }}</div>{% endfor %}
+                {% endwith %}
+            </div>
+            <div class="portal-content">{% block content %}{% endblock %}</div>
+        </main>
+    </div>
+    <script>
+        const portalSidebar = document.getElementById('portalSidebar');
+        const portalOverlay = document.getElementById('portalOverlay');
+        const portalMenuButton = document.getElementById('portalMenuButton');
+        const closePortalMenu = () => {
+            portalSidebar.classList.remove('open');
+            portalOverlay.classList.remove('active');
+        };
+        portalMenuButton.addEventListener('click', event => {
+            event.stopPropagation();
+            portalSidebar.classList.add('open');
+            portalOverlay.classList.add('active');
+        });
+        document.getElementById('portalSidebarClose').addEventListener('click', closePortalMenu);
+        portalOverlay.addEventListener('click', closePortalMenu);
+        portalSidebar.querySelectorAll('a').forEach(link => link.addEventListener('click', closePortalMenu));
+        setTimeout(() => document.querySelectorAll('.portal-alert').forEach(item => item.remove()), 5000);
+    </script>
+    {% block scripts %}{% endblock %}
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

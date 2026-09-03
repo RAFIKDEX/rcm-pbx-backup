@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Call Queues - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Call Queues</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage incoming call queues, queue strategies, wrapup times and MOH classes</div>
+    </div>
+    <div>
+        <a href="{{ url_for('queue_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Create Queue
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-lines-leaning" style="color: var(--primary);"></i> Call Queues</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Queue Number</th>
+                    <th>Queue Name</th>
+                    <th>Strategy</th>
+                    <th>MOH Class</th>
+                    <th>Ring Time (sec)</th>
+                    <th>Wrapup Time</th>
+                    <th>Static Agents</th>
+                    <th>Failover Route</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not queues %}
+                <tr>
+                    <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-users-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Call Queues configured in the system.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for q in queues %}
+                <tr>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">{{ q.queue_number }}</strong></td>
+                    <td>{{ q.name }}</td>
+                    <td><span class="badge badge-gray" style="background-color: rgba(244, 63, 94, 0.1); color: #fb7185; border-color: rgba(244, 63, 94, 0.2); text-transform: uppercase;">{{ q.strategy }}</span></td>
+                    <td><code>{{ q.music_on_hold }}</code></td>
+                    <td><code>{{ q.ring_time }}</code>s</td>
+                    <td><code>{{ q.wrapup_time }}</code>s</td>
+                    <td>
+                        {% for agent in q.static_agents %}
+                        <span style="font-size: 0.85rem; color: #fff; background: rgba(255,255,255,0.05); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                            Agent {{ agent }}
+                        </span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if q.destination_type != 'hangup' and q.destination_value %}
+                        <span style="text-transform: capitalize; color: var(--text-muted);">{{ q.destination_type }} </span><code>{{ q.destination_value }}</code>
+                        {% else %}
+                        <span style="color: var(--status-offline);"><i class="fa-solid fa-ban"></i> Hangup</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            <a href="{{ url_for('queue_edit', num=q.queue_number) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form action="{{ url_for('queue_delete', num=q.queue_number) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Call Queue {{ q.queue_number }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

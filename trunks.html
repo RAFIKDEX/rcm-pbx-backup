@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Trunks - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Trunks Management</h1>
+        <div style="font-size: 0.9rem; color: #888; margin-top: 0.2rem;">Configure external SIP gateways and IP-to-IP peers</div>
+    </div>
+    <div>
+        <a href="{{ url_for('trunks_add') }}" class="btn btn-info" style="padding: 0.75rem 1.5rem; text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Trunk
+        </a>
+    </div>
+</div>
+
+<!-- Trunks List Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2>SIP Trunks</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Trunk Name</th>
+                    <th>Status</th>
+                    <th>Type</th>
+                    <th>Register Mode</th>
+                    <th>Server Address</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not trunks %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #888; padding: 2rem;">
+                        No trunks configured in the system.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for trunk in trunks %}
+                <tr>
+                    <td><strong>{{ trunk.name }}</strong></td>
+                    <td>
+                        {% if trunk.status == 'Reachable' %}
+                        <span class="badge badge-answered"><i class="fa-solid fa-circle-check"></i> Registered</span>
+                        {% elif trunk.status == 'Unregistered' %}
+                        <span class="badge badge-ringing" style="background-color: rgba(255,165,0,0.1); color: orange; border: 1px solid rgba(255,165,0,0.2);"><i class="fa-solid fa-circle-pause"></i> Unregistered</span>
+                        {% elif trunk.status == 'Rejected' %}
+                        <span class="badge badge-ringing" style="background-color: rgba(255,74,74,0.15); color: #ff4a4a; border: 1px solid rgba(255,74,74,0.3);"><i class="fa-solid fa-circle-exclamation"></i> Rejected</span>
+                        {% else %}
+                        <span class="badge badge-ringing" style="background-color: rgba(255,74,74,0.1); color: #ff4a4a; border: 1px solid rgba(255,74,74,0.2);"><i class="fa-solid fa-circle-xmark"></i> Unreachable</span>
+                        {% endif %}
+                    </td>
+                    <td><span style="font-weight: 500; text-transform: capitalize;">{{ trunk.type }}</span></td>
+                    <td>
+                        {% if trunk.register_mode %}
+                        <span style="font-size: 0.9rem; color: #bbb;">{{ trunk.register_mode|capitalize }}</span>
+                        {% else %}
+                        <span style="font-size: 0.9rem; color: #666;">None (Peer)</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ trunk.server_addr or '-' }}</code></td>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="{{ url_for('trunks_edit', name=trunk.name) }}" class="btn btn-secondary btn-sm" style="text-decoration: none;">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form action="{{ url_for('trunks_delete', name=trunk.name) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete trunk {{ trunk.name }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

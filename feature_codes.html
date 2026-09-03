@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Feature Codes - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Feature Codes Management</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Customize dialed feature codes for voicemail, call forwarding, DND, call pickup and recording</div>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{{ url_for('feature_codes') }}" method="POST">
+        
+        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+            
+            <!-- Call Forward Section -->
+            <div style="flex: 1; min-width: 300px; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+                <h3 style="margin-top: 0; font-family: 'Orbitron', sans-serif; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; color: var(--primary);">
+                    <i class="fa-solid fa-phone-arrow-right"></i> Call Forwarding
+                </h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fwd_always_on">Forward Always On <span class="tooltip-container">!<span class="tooltip-text">Dialed prefix followed by target number to enable unconditional call forwarding.</span></span></label>
+                        <input type="text" id="fwd_always_on" name="fwd_always_on" class="form-control" value="{{ fc.fwd_always_on }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fwd_always_off">Forward Always Off <span class="tooltip-container">!<span class="tooltip-text">Dialed code to disable unconditional call forwarding.</span></span></label>
+                        <input type="text" id="fwd_always_off" name="fwd_always_off" class="form-control" value="{{ fc.fwd_always_off }}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fwd_busy_on">Forward on Busy On <span class="tooltip-container">!<span class="tooltip-text">Dialed prefix followed by target number to enable call forwarding on busy.</span></span></label>
+                        <input type="text" id="fwd_busy_on" name="fwd_busy_on" class="form-control" value="{{ fc.fwd_busy_on }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fwd_busy_off">Forward on Busy Off <span class="tooltip-container">!<span class="tooltip-text">Dialed code to disable call forwarding on busy.</span></span></label>
+                        <input type="text" id="fwd_busy_off" name="fwd_busy_off" class="form-control" value="{{ fc.fwd_busy_off }}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fwd_noans_on">Forward No Answer On <span class="tooltip-container">!<span class="tooltip-text">Dialed prefix followed by target number to enable call forwarding on no answer.</span></span></label>
+                        <input type="text" id="fwd_noans_on" name="fwd_noans_on" class="form-control" value="{{ fc.fwd_noans_on }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fwd_noans_off">Forward No Answer Off <span class="tooltip-container">!<span class="tooltip-text">Dialed code to disable call forwarding on no answer.</span></span></label>
+                        <input type="text" id="fwd_noans_off" name="fwd_noans_off" class="form-control" value="{{ fc.fwd_noans_off }}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fwd_unavail_on">Forward Unavail On <span class="tooltip-container">!<span class="tooltip-text">Dialed prefix followed by target number to enable call forwarding on unavailable.</span></span></label>
+                        <input type="text" id="fwd_unavail_on" name="fwd_unavail_on" class="form-control" value="{{ fc.fwd_unavail_on }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fwd_unavail_off">Forward Unavail Off <span class="tooltip-container">!<span class="tooltip-text">Dialed code to disable call forwarding on unavailable.</span></span></label>
+                        <input type="text" id="fwd_unavail_off" name="fwd_unavail_off" class="form-control" value="{{ fc.fwd_unavail_off }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- General Services Section -->
+            <div style="flex: 1; min-width: 300px; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                <h3 style="margin-top: 0; font-family: 'Orbitron', sans-serif; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; color: var(--status-ringing);">
+                    <i class="fa-solid fa-gears"></i> General Settings
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vm">Voicemail Access Code <span class="tooltip-container">!<span class="tooltip-text">Dialed code to access user voicemail menu box.</span></span></label>
+                        <input type="text" id="vm" name="vm" class="form-control" value="{{ fc.vm }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="recording">Call Recording Toggle <span class="tooltip-container">!<span class="tooltip-text">Dialed code to toggle call recording on demand during active call.</span></span></label>
+                        <input type="text" id="recording" name="recording" class="form-control" value="{{ fc.recording }}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dnd_on">Do Not Disturb (DND) On <span class="tooltip-container">!<span class="tooltip-text">Dialed code to enable Do Not Disturb status.</span></span></label>
+                        <input type="text" id="dnd_on" name="dnd_on" class="form-control" value="{{ fc.dnd_on }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dnd_off">Do Not Disturb (DND) Off <span class="tooltip-container">!<span class="tooltip-text">Dialed code to disable Do Not Disturb status.</span></span></label>
+                        <input type="text" id="dnd_off" name="dnd_off" class="form-control" value="{{ fc.dnd_off }}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="pickup">Group Call Pickup <span class="tooltip-container">!<span class="tooltip-text">Dialed code to pickup any ringing phone in user's pickup group.</span></span></label>
+                        <input type="text" id="pickup" name="pickup" class="form-control" value="{{ fc.pickup }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="directed_pickup">Directed Call Pickup Prefix <span class="tooltip-container">!<span class="tooltip-text">Dialed prefix followed by target extension to pick up calls ringing on that specific extension.</span></span></label>
+                        <input type="text" id="directed_pickup" name="directed_pickup" class="form-control" value="{{ fc.directed_pickup }}" required>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Feature Codes</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

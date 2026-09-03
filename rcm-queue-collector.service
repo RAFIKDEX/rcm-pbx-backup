@@ -1,0 +1,15 @@
+[Unit]
+Description=RCM Queue Event Collector Daemon
+After=asterisk.service
+Requires=asterisk.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/RCM_7021
+ExecStart=/usr/bin/python3 -u /root/RCM_7021/rcm_queue_collector.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.service

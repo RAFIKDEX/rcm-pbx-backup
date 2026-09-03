@@ -1,0 +1,727 @@
+{% extends 'base.html' %}
+
+{% block title %}Inbound Routes - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Inbound Routes Premium Styling */
+    .header-panel {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    .metric-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--accent-color, var(--primary));
+    }
+
+    .metric-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+    }
+
+    .metric-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .metric-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+    }
+
+    .metric-value {
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: #fff;
+        font-family: 'Orbitron', sans-serif;
+    }
+
+    /* Filter Toolbar */
+    .toolbar-panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        flex: 1;
+        min-width: 260px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-box:focus-within {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+    }
+
+    .search-box input {
+        border: none;
+        background: transparent;
+        color: #fff;
+        width: 100%;
+        outline: none;
+        font-size: 0.95rem;
+    }
+
+    /* Table Enhancements */
+    .inbound-table tbody tr {
+        transition: background-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .inbound-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.025);
+    }
+
+    .inbound-table tbody tr.row-disabled {
+        opacity: 0.65;
+    }
+
+    .priority-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(14, 165, 233, 0.12);
+        color: var(--primary);
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 700;
+        font-size: 0.95rem;
+        border: 1px solid rgba(14, 165, 233, 0.3);
+    }
+
+    .priority-actions {
+        display: flex;
+        gap: 0.25rem;
+        justify-content: center;
+        margin-top: 0.3rem;
+    }
+
+    .priority-actions button {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .priority-actions button:hover {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+    }
+
+    /* Pattern Pills */
+    .pattern-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: #fbbf24;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .cid-pill {
+        color: #60a5fa;
+        border-color: rgba(96, 165, 250, 0.25);
+        background: rgba(96, 165, 250, 0.08);
+    }
+
+    /* Destination Badges */
+    .dest-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .dest-badge-queue { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .dest-badge-ivr { background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.3); }
+    .dest-badge-ext { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+    .dest-badge-ringgroup { background: rgba(167, 139, 250, 0.15); color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); }
+    .dest-badge-hangup { background: rgba(248, 113, 113, 0.15); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
+    .dest-badge-default { background: rgba(148, 163, 184, 0.15); color: #e2e8f0; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+    .time-rule-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: rgba(139, 92, 246, 0.18);
+        color: #c4b5fd;
+        border: 1px solid rgba(139, 92, 246, 0.35);
+        margin-bottom: 0.35rem;
+    }
+
+    /* Action Buttons */
+    .btn-toggle {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.78rem;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+
+    .btn-toggle-on {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .btn-toggle-on:hover {
+        background: rgba(16, 185, 129, 0.28);
+    }
+
+    .btn-toggle-off {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+        border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    .btn-toggle-off:hover {
+        background: rgba(239, 68, 68, 0.28);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1 style="display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fa-solid fa-phone-volume" style="color: var(--primary);"></i>
+            Inbound Call Routes
+        </h1>
+        <div style="font-size: 0.92rem; color: var(--text-muted); margin-top: 0.3rem;">
+            Direct incoming calls from Trunks and DIDs to Destinations with priority order & time conditions
+        </div>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button type="button" onclick="loadInboundRoutesTable(current_page)" class="btn btn-secondary" title="Refresh list">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+        </button>
+        <a href="{{ url_for('inbound_route_add') }}" class="btn btn-info" style="text-decoration: none; box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);">
+            <i class="fa-solid fa-plus"></i> Add Inbound Route
+        </a>
+    </div>
+</div>
+
+<!-- Summary Metrics Bar -->
+<div class="metrics-grid">
+    <div class="metric-card" style="--accent-color: #0ea5e9;">
+        <div class="metric-icon" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8;">
+            <i class="fa-solid fa-route"></i>
+        </div>
+        <div class="metric-info">
+            <span class="metric-label">Total Routes</span>
+            <span class="metric-value" id="stat-total">-</span>
+        </div>
+    </div>
+
+    <div class="metric-card" style="--accent-color: #10b981;">
+        <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div class="metric-info">
+            <span class="metric-label">Active Routes</span>
+            <span class="metric-value" id="stat-active">-</span>
+        </div>
+    </div>
+
+    <div class="metric-card" style="--accent-color: #8b5cf6;">
+        <div class="metric-icon" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa;">
+            <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <div class="metric-info">
+            <span class="metric-label">Time-Condition Rules</span>
+            <span class="metric-value" id="stat-time-rules">-</span>
+        </div>
+    </div>
+
+    <div class="metric-card" style="--accent-color: #f59e0b;">
+        <div class="metric-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+            <i class="fa-solid fa-microphone-lines"></i>
+        </div>
+        <div class="metric-info">
+            <span class="metric-label">Auto-Recorded</span>
+            <span class="metric-value" id="stat-recorded">-</span>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Toolbar -->
+<div class="toolbar-panel">
+    <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass" style="color: var(--primary);"></i>
+        <input type="text" id="inbound-search" placeholder="Search routes by name, DID pattern, or trunk..." oninput="debounceLoadTable()">
+        <button type="button" onclick="clearSearch()" id="clear-search-btn" style="display: none; background: none; border: none; color: var(--text-muted); cursor: pointer;">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="status-filter" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Status:</label>
+            <select id="status-filter" onchange="loadInboundRoutesTable(1)" class="form-control-inline" style="padding: 0.35rem 0.75rem; border-radius: 6px; background: var(--bg-card); color: #fff; border: 1px solid var(--border-color);">
+                <option value="all">All Statuses</option>
+                <option value="enabled">Enabled Only</option>
+                <option value="disabled">Disabled Only</option>
+            </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="per_page" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Rows:</label>
+            <select id="per_page" onchange="loadInboundRoutesTable(1)" class="form-control-inline" style="width: 75px; padding: 0.35rem 0.5rem; border-radius: 6px; background: var(--bg-card); color: #fff; border: 1px solid var(--border-color);">
+                <option value="10" selected>10</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Inbound Routes Table Panel -->
+<div class="panel">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> Priority-Based Routing Table</h2>
+        <span id="search-count" style="font-size: 0.85rem; color: var(--text-muted);"></span>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table inbound-table">
+            <thead>
+                <tr>
+                    <th style="width: 80px; text-align: center;">Priority</th>
+                    <th>Route Name & Status</th>
+                    <th>Matched Trunks</th>
+                    <th>DID / Caller ID Patterns</th>
+                    <th style="text-align: center;">Features</th>
+                    <th>Destination Flow</th>
+                    <th style="width: 240px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="inbound-tbody">
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 4rem 1rem;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                        Loading Inbound Routes...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="pagination-footer" class="form-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; display: flex; border-top: 1px solid var(--border-color)"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let current_page = 1;
+    let debounceTimer = null;
+    let cachedRoutes = [];
+
+    function debounceLoadTable() {
+        const input = document.getElementById("inbound-search");
+        const clearBtn = document.getElementById("clear-search-btn");
+        clearBtn.style.display = input.value.trim().length > 0 ? 'block' : 'none';
+
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            loadInboundRoutesTable(1);
+        }, 250);
+    }
+
+    function clearSearch() {
+        document.getElementById("inbound-search").value = "";
+        document.getElementById("clear-search-btn").style.display = 'none';
+        loadInboundRoutesTable(1);
+    }
+
+    function formatDestinationBadge(destType, destVal) {
+        const typeStr = (destType || 'hangup').toLowerCase();
+        let badgeClass = 'dest-badge-default';
+        let icon = 'fa-share';
+        let label = destVal || typeStr;
+
+        switch (typeStr) {
+            case 'queue':
+                badgeClass = 'dest-badge-queue';
+                icon = 'fa-headset';
+                label = 'Queue: ' + (destVal || 'Unknown');
+                break;
+            case 'ivr':
+                badgeClass = 'dest-badge-ivr';
+                icon = 'fa-sitemap';
+                label = 'IVR: ' + (destVal || 'Unknown');
+                break;
+            case 'extension':
+            case 'internal':
+                badgeClass = 'dest-badge-ext';
+                icon = 'fa-user';
+                label = 'Ext: ' + (destVal || 'DID');
+                break;
+            case 'ringgroup':
+                badgeClass = 'dest-badge-ringgroup';
+                icon = 'fa-users';
+                label = 'Ring Group: ' + (destVal || 'Unknown');
+                break;
+            case 'hangup':
+                badgeClass = 'dest-badge-hangup';
+                icon = 'fa-phone-slash';
+                label = 'Hangup Call';
+                break;
+            case 'voicemail':
+                badgeClass = 'dest-badge-default';
+                icon = 'fa-voicemail';
+                label = 'Voicemail: ' + (destVal || '');
+                break;
+            case 'announcement':
+                badgeClass = 'dest-badge-default';
+                icon = 'fa-bullhorn';
+                label = 'Announcement: ' + (destVal || '');
+                break;
+            default:
+                label = typeStr.toUpperCase() + (destVal ? ': ' + destVal : '');
+        }
+
+        return `<span class="dest-badge ${badgeClass}">
+                    <i class="fa-solid ${icon}"></i> ${label}
+                </span>`;
+    }
+
+    function updateSummaryMetrics(allRows, totalRows) {
+        const totalElem = document.getElementById("stat-total");
+        const activeElem = document.getElementById("stat-active");
+        const timeElem = document.getElementById("stat-time-rules");
+        const recordElem = document.getElementById("stat-recorded");
+
+        totalElem.innerText = totalRows || 0;
+
+        let activeCount = 0;
+        let timeRuleCount = 0;
+        let recordCount = 0;
+
+        allRows.forEach(r => {
+            if (r.enabled !== false) activeCount++;
+            if (r.rules && r.rules.length > 0) timeRuleCount++;
+            if (r.auto_record) recordCount++;
+        });
+
+        activeElem.innerText = activeCount;
+        timeElem.innerText = timeRuleCount;
+        recordElem.innerText = recordCount;
+    }
+
+    function toggleRouteStatus(routeId, currentState) {
+        fetch(`/inbound-routes/toggle/${routeId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ enabled: !currentState })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                loadInboundRoutesTable(current_page);
+            } else {
+                alert('Error toggling route status: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            console.error('Error toggling status:', err);
+            loadInboundRoutesTable(current_page);
+        });
+    }
+
+    function loadInboundRoutesTable(page = 1) {
+        current_page = page;
+        const limit = document.getElementById("per_page").value;
+        const q = document.getElementById("inbound-search").value.trim();
+        const statusFilter = document.getElementById("status-filter").value;
+        
+        const tbody = document.getElementById("inbound-tbody");
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 4rem 1rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                    Loading Inbound Routes...
+                </td>
+            </tr>
+        `;
+        
+        fetch(`/api/inbound-routes-list?page=${page}&limit=${limit}&q=${encodeURIComponent(q)}`)
+            .then(res => res.json())
+            .then(data => {
+                let filteredData = data.data;
+
+                // Client-side status filtering
+                if (statusFilter === 'enabled') {
+                    filteredData = filteredData.filter(r => r.enabled !== false);
+                } else if (statusFilter === 'disabled') {
+                    filteredData = filteredData.filter(r => r.enabled === false);
+                }
+
+                cachedRoutes = filteredData;
+                updateSummaryMetrics(data.data, data.total_rows);
+
+                tbody.innerHTML = "";
+                if (filteredData.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 4rem 1rem;">
+                                <i class="fa-solid fa-route" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem; opacity: 0.5; display: block;"></i>
+                                <span style="font-size: 1.1rem; color: #fff; font-weight: 600;">No Inbound Routes found</span>
+                                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Try adjusting your search query or filters</div>
+                            </td>
+                        </tr>
+                    `;
+                    updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadInboundRoutesTable');
+                    document.getElementById("search-count").innerText = "";
+                    return;
+                }
+                
+                filteredData.forEach((route, idx) => {
+                    const tr = document.createElement("tr");
+                    const isEnabled = route.enabled !== false;
+                    if (!isEnabled) {
+                        tr.className = "row-disabled";
+                    }
+                    
+                    const loopIndex = (page - 1) * limit + idx + 1;
+                    const isFirst = (page === 1 && idx === 0);
+                    const isLast = (loopIndex === filteredData.length);
+                    
+                    // Column 1: Priority
+                    let priorityControls = `
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <span class="priority-badge">${loopIndex}</span>
+                            <div class="priority-actions">
+                    `;
+                    if (!isFirst) {
+                        priorityControls += `
+                            <form action="/inbound-routes/priority/${route.id}/up" method="POST" style="display: inline;">
+                                <button type="submit" title="Move Higher Priority">
+                                    <i class="fa-solid fa-chevron-up"></i>
+                                </button>
+                            </form>
+                        `;
+                    }
+                    if (!isLast) {
+                        priorityControls += `
+                            <form action="/inbound-routes/priority/${route.id}/down" method="POST" style="display: inline;">
+                                <button type="submit" title="Move Lower Priority">
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                            </form>
+                        `;
+                    }
+                    priorityControls += `
+                            </div>
+                        </div>
+                    `;
+
+                    // Column 2: Name & Status Badge
+                    const statusBadge = isEnabled ?
+                        `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem; padding: 0.15rem 0.45rem;">Active</span>` :
+                        `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.72rem; padding: 0.15rem 0.45rem;">Disabled</span>`;
+
+                    // Column 3: Trunks
+                    let trunksHtml = "";
+                    if (route.trunks && route.trunks.length > 0) {
+                        route.trunks.forEach(t => {
+                            trunksHtml += `<span class="badge" style="background: rgba(14, 165, 233, 0.12); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.25); margin-right: 0.25rem; margin-bottom: 0.25rem; display: inline-block; font-size: 0.8rem;">
+                                            <i class="fa-solid fa-server"></i> ${t}
+                                           </span>`;
+                        });
+                    } else {
+                        trunksHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); font-size: 0.8rem;">
+                                        <i class="fa-solid fa-globe"></i> Any Trunk
+                                      </span>`;
+                    }
+
+                    // Column 4: DID / Caller ID Patterns
+                    let patternsHtml = `<div style="display: flex; flex-direction: column; gap: 0.35rem;">`;
+                    // DID
+                    if (route.did_patterns && route.did_patterns.length > 0) {
+                        let didPills = route.did_patterns.map(d => `<span class="pattern-pill"><i class="fa-solid fa-phone"></i> DID: ${d}</span>`).join('');
+                        patternsHtml += `<div>${didPills}</div>`;
+                    } else {
+                        patternsHtml += `<div><span style="color: var(--text-muted); font-size: 0.85rem;"><i class="fa-solid fa-asterisk"></i> Any DID</span></div>`;
+                    }
+                    // Caller ID
+                    if (route.cid_pattern) {
+                        patternsHtml += `<div><span class="pattern-pill cid-pill"><i class="fa-solid fa-id-card"></i> CID: ${route.cid_pattern}</span></div>`;
+                    }
+                    patternsHtml += `</div>`;
+
+                    // Column 5: Features (Auto Record & Dial Trunk)
+                    const recordBadge = route.auto_record ? 
+                        `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.75rem; margin-bottom: 0.25rem; display: inline-block;" title="Call Recording On"><i class="fa-solid fa-microphone"></i> Rec On</span>` :
+                        `<span class="badge" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); font-size: 0.75rem; margin-bottom: 0.25rem; display: inline-block;"><i class="fa-solid fa-microphone-slash"></i> Rec Off</span>`;
+                        
+                    const dialTrunkBadge = route.enable_dial_trunk ? 
+                        `<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.75rem; display: inline-block;" title="Dial Trunk Enabled"><i class="fa-solid fa-phone-flip"></i> Dial Trunk</span>` : "";
+
+                    // Column 6: Destination Flow (Rules + Fallback)
+                    let destFlowHtml = `<div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem;">`;
+                    if (route.rules && route.rules.length > 0) {
+                        destFlowHtml += `<span class="time-rule-badge"><i class="fa-solid fa-clock"></i> ${route.rules.length} Time Condition Rule(s)</span>`;
+                    }
+                    destFlowHtml += `<div><span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 0.35rem;">Fallback:</span>${formatDestinationBadge(route.default_dest_type, route.default_dest_val)}</div>`;
+                    destFlowHtml += `</div>`;
+
+                    // Column 7: Actions
+                    const toggleBtnHtml = isEnabled ?
+                        `<button type="button" onclick="toggleRouteStatus('${route.id}', true)" class="btn-toggle btn-toggle-on" title="Click to disable route">
+                             <i class="fa-solid fa-toggle-on"></i> On
+                         </button>` :
+                        `<button type="button" onclick="toggleRouteStatus('${route.id}', false)" class="btn-toggle btn-toggle-off" title="Click to enable route">
+                             <i class="fa-solid fa-toggle-off"></i> Off
+                         </button>`;
+
+                    tr.innerHTML = `
+                        <td style="text-align: center;">${priorityControls}</td>
+                        <td>
+                            <div style="font-weight: 700; color: #fff; font-size: 1.05rem; margin-bottom: 0.25rem;">
+                                ${route.name}
+                            </div>
+                            ${statusBadge}
+                        </td>
+                        <td>${trunksHtml}</td>
+                        <td>${patternsHtml}</td>
+                        <td style="text-align: center;">
+                            <div>${recordBadge}</div>
+                            <div>${dialTrunkBadge}</div>
+                        </td>
+                        <td>${destFlowHtml}</td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.4rem;">
+                                ${toggleBtnHtml}
+                                <a href="/inbound-routes/edit/${route.id}" class="btn btn-secondary btn-sm" title="Edit route">
+                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                </a>
+                                <form action="/inbound-routes/delete/${route.id}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Inbound Route ${route.name}?');">
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Delete route">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadInboundRoutesTable');
+                if (q || statusFilter !== 'all') {
+                    document.getElementById("search-count").innerText = `Showing ${filteredData.length} of ${data.total_rows} total routes`;
+                } else {
+                    document.getElementById("search-count").innerText = `${data.total_rows} total routes configured`;
+                }
+            })
+            .catch(err => {
+                console.error("Error loading inbound routes:", err);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--danger); padding: 3rem;">
+                            <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; margin-bottom: 0.75rem; display: block;"></i>
+                            Error loading inbound routes table.
+                        </td>
+                    </tr>
+                `;
+            });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        loadInboundRoutesTable(1);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+
+{% block title %}SIP Security Settings - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>SIP Security Settings</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage real Fail2Ban protection for failed PJSIP registration attempts</div>
+    </div>
+</div>
+
+<div class="status-panel" style="background-color: var(--card-bg); padding: 1rem; border-radius: 8px; margin-bottom: 2rem; display: flex; gap: 2rem; border: 1px solid var(--border-color);">
+    <div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Fail2Ban Service</div>
+        <div style="font-size: 1.2rem; font-weight: 600; color: {% if status.service == 'active' %}var(--status-online){% else %}var(--status-offline){% endif %};">
+            {{ status.service|capitalize }}
+        </div>
+    </div>
+    <div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">RCM SIP Jail</div>
+        <div style="font-size: 1.2rem; font-weight: 600; color: {% if status.jail == 'enabled' %}var(--status-online){% else %}var(--status-offline){% endif %};">
+            {{ status.jail|capitalize }}
+        </div>
+    </div>
+    <div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Active Auto Bans</div>
+        <div style="font-size: 1.2rem; font-weight: 600;">
+            {{ status.banned_ips|length }}
+        </div>
+    </div>
+    <div style="margin-left: auto; align-self: center;">
+        <a href="{{ url_for('sip_security') }}" class="btn btn-secondary"><i class="fa-solid fa-sync"></i> Refresh Status</a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Settings Panel -->
+    <div class="panel">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-gear" style="color: var(--primary);"></i> Settings</h2>
+        </div>
+        
+        <form action="{{ url_for('sip_security_save') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Enable Fail2Ban Protection</label>
+                    <div style="margin-top: 0.5rem;">
+                        <label class="switch">
+                            <input type="checkbox" name="enabled" {% if settings.enabled %}checked{% endif %}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span style="vertical-align: super; margin-left: 0.5rem; color: var(--text-muted);">Enables the dedicated SIP registration jail</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="bantime_seconds">Banned Duration (seconds) <span style="color: var(--status-offline);">*</span></label>
+                    <input type="number" id="bantime_seconds" name="bantime_seconds" class="form-control" value="{{ settings.bantime_seconds }}" required min="1">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">How long an automatically banned IP remains blocked.</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="maxretry">Max Retry <span style="color: var(--status-offline);">*</span></label>
+                    <input type="number" id="maxretry" name="maxretry" class="form-control" value="{{ settings.maxretry }}" required min="1">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">How many failed attempts are allowed before ban.</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="findtime_seconds">Max Retry Duration (seconds) <span style="color: var(--status-offline);">*</span></label>
+                    <input type="number" id="findtime_seconds" name="findtime_seconds" class="form-control" value="{{ settings.findtime_seconds }}" required min="1">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Observation window for failed attempts.</div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+                <i class="fa-solid fa-save"></i> Save & Apply Configuration
+            </button>
+        </form>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Whitelist Panel -->
+    <div class="panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2><i class="fa-solid fa-list-check" style="color: var(--status-online);"></i> Fail2Ban Whitelist</h2>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Addresses here are never automatically banned by Fail2Ban.</p>
+        
+        <form action="{{ url_for('sip_security_whitelist_add') }}" method="POST" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="value" class="form-control" placeholder="IP Address or CIDR (e.g. 192.168.1.0/24)" required>
+            <button type="submit" class="btn btn-secondary">Add</button>
+        </form>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Network / IP</th>
+                    <th style="width: 80px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in whitelists %}
+                <tr>
+                    <td>{{ w.value }}</td>
+                    <td>
+                        <form action="{{ url_for('sip_security_whitelist_remove', id=w.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Remove whitelist entry?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger btn-sm" title="Remove"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">No whitelist entries</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Blacklist Panel -->
+    <div class="panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2><i class="fa-solid fa-ban" style="color: var(--status-offline);"></i> Manual SIP Blacklist</h2>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Manually ban an IP/Subnet for a specific duration.</p>
+        
+        <form action="{{ url_for('sip_security_blacklist_add') }}" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="value" class="form-control" placeholder="IP Address or CIDR" required>
+            <select name="duration" class="form-control">
+                <option value="3600">1 Hour</option>
+                <option value="86400">1 Day</option>
+                <option value="604800">1 Week</option>
+                <option value="2592000">1 Month</option>
+            </select>
+            <input type="text" name="reason" class="form-control" placeholder="Reason (Optional)" style="grid-column: 1 / 2;">
+            <button type="submit" class="btn btn-secondary" style="grid-column: 2 / 3;">Ban Address</button>
+        </form>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Network / IP</th>
+                    <th>Expires</th>
+                    <th style="width: 80px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in blacklists %}
+                {% if b.status == 'active' %}
+                <tr>
+                    <td>{{ b.value }}</td>
+                    <td>{{ b.expires_at }}</td>
+                    <td>
+                        <form action="{{ url_for('sip_security_blacklist_remove', id=b.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Remove manual ban?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-success btn-sm" title="Unban"><i class="fa-solid fa-unlock"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endif %}
+                {% else %}
+                <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No active manual bans</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-list" style="color: var(--primary);"></i> Active Auto Bans & History</h2>
+    </div>
+    
+    <div style="margin-bottom: 1rem;">
+        <h3>Currently Banned IPs in Fail2Ban</h3>
+        <ul style="list-style: none; padding: 0; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            {% for ip in status.banned_ips %}
+            <li style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 0.5rem 1rem; border-radius: 4px; display: flex; align-items: center; gap: 1rem;">
+                <span style="font-family: monospace; color: var(--status-offline);">{{ ip }}</span>
+                <form action="{{ url_for('sip_security_unban') }}" method="POST" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="ip" value="{{ ip }}">
+                    <button type="submit" class="btn btn-success btn-sm" title="Unban Now" onclick="return confirm('Unban {{ ip }} now?');"><i class="fa-solid fa-unlock"></i></button>
+                </form>
+            </li>
+            {% else %}
+            <li style="color: var(--text-muted);">No IPs currently banned by Fail2Ban.</li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <hr style="border-color: var(--border-color); margin: 2rem 0;">
+    
+    <h3>Security Event History</h3>
+    <table class="data-table" style="margin-top: 1rem;">
+        <thead>
+            <tr>
+                <th>Date / Time</th>
+                <th>Event Type</th>
+                <th>Source IP</th>
+                <th>Actor</th>
+                <th>Status</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in events %}
+            <tr>
+                <td>{{ e.created_at }}</td>
+                <td>{{ e.event_type }}</td>
+                <td style="font-family: monospace;">{{ e.source_ip or '-' }}</td>
+                <td>{{ e.actor_username or e.actor_type }}</td>
+                <td>
+                    <span class="badge {% if e.status == 'success' %}badge-success{% else %}badge-info{% endif %}">{{ e.status }}</span>
+                </td>
+                <td>{{ e.reason or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No events found</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+/* Switch toggle styles */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+}
+input:checked + .slider {
+  background-color: var(--status-online);
+}
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+.slider.round {
+  border-radius: 34px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+</style>
+{% endblock %}

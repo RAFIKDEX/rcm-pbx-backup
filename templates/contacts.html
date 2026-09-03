@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Contacts{% endblock %}
+
+{% block content %}
+<style>
+    .directory-page { color: var(--text-main); }
+    .directory-header { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin-bottom:1.35rem; }
+    .directory-eyebrow { color:var(--primary); font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin-bottom:.35rem; }
+    .directory-header h1 { margin:0; color: var(--text-main); font-size:1.65rem; font-weight:750; }
+    .directory-header p { margin:.4rem 0 0; color:var(--text-muted); font-size:.88rem; }
+    .directory-actions { display:flex; gap:.55rem; flex-wrap:wrap; justify-content:flex-end; }
+    .directory-actions .btn { white-space:nowrap; }
+    .directory-link { background:transparent; border:1px solid var(--border-color); color:var(--text-muted); text-decoration:none; }
+    .directory-link:hover { color: var(--text-main); border-color:var(--primary); background:rgba(0,173,181,.08); }
+    .directory-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.85rem; margin-bottom:1.1rem; }
+    .directory-stat { display:flex; align-items:center; gap:.75rem; min-width:0; padding:.9rem 1rem; background:var(--panel-dark); border:1px solid var(--border-color); border-radius:12px; }
+    .directory-stat-icon { width:38px; height:38px; display:grid; place-items:center; flex:0 0 auto; border-radius:10px; background:rgba(0,173,181,.12); color:var(--primary); }
+    .directory-stat-label { color:var(--text-muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+    .directory-stat-value { margin-top:.18rem; color: var(--text-main); font-size:1.35rem; font-weight:750; line-height:1; }
+    .directory-panel { background:var(--panel-dark); border:1px solid var(--border-color); border-radius:14px; overflow:hidden; }
+    .directory-toolbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; padding:.9rem 1rem; border-bottom:1px solid var(--border-color); }
+    .directory-tabs { display:flex; align-items:center; gap:.25rem; flex-wrap:wrap; }
+    .directory-tab { padding:.5rem .7rem; border:1px solid transparent; border-radius:8px; color:var(--text-muted); background:transparent; cursor:pointer; font:inherit; font-size:.82rem; font-weight:700; }
+    .directory-tab:hover { color: var(--text-main); background:rgba(255,255,255,.04); }
+    .directory-tab.active { color: var(--text-main); background:rgba(0,173,181,.13); border-color:rgba(0,173,181,.3); }
+    .directory-tab-count { display:inline-grid; min-width:20px; height:20px; place-items:center; margin-left:.25rem; padding:0 .3rem; border-radius:10px; color:var(--text-muted); background:rgba(148,163,184,.13); font-size:.68rem; }
+    .directory-filters { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    .directory-search { position:relative; min-width:230px; }
+    .directory-search i { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); color:var(--text-dark); pointer-events:none; }
+    .directory-search .form-control { padding-left:2.1rem; }
+    .directory-control { min-height:38px; padding:.55rem .75rem; background: var(--bg-dark); border:1px solid var(--border-color); border-radius:8px; color:var(--text-main); font:inherit; font-size:.82rem; }
+    .directory-control:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-glow); }
+    .directory-result-count { color:var(--text-muted); font-size:.76rem; white-space:nowrap; }
+    .directory-table-wrap { overflow-x:auto; }
+    .directory-table { width:100%; min-width:760px; border-collapse:collapse; }
+    .directory-table th { padding:.65rem .85rem; color:var(--text-muted); background:rgba(255,255,255,.018); font-size:.68rem; font-weight:750; letter-spacing:.05em; text-align:left; text-transform:uppercase; white-space:nowrap; }
+    .directory-table td { padding:.72rem .85rem; border-top:1px solid rgba(148,163,184,.09); color:var(--text-main); font-size:.84rem; vertical-align:middle; }
+    .directory-table tbody tr:hover { background:rgba(255,255,255,.025); }
+    .directory-person { display:flex; align-items:center; gap:.65rem; min-width:185px; }
+    .directory-avatar { width:34px; height:34px; display:grid; place-items:center; flex:0 0 auto; border-radius:9px; color: var(--text-main); background:linear-gradient(135deg,var(--primary),#2563eb); font-weight:800; }
+    .directory-avatar.external { background:linear-gradient(135deg,#10b981,#0f766e); }
+    .directory-name { color: var(--text-main); font-weight:700; }
+    .directory-meta { margin-top:.14rem; color:var(--text-dark); font-size:.72rem; }
+    .directory-number { color: var(--text-main); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.82rem; }
+    .directory-secondary { color:var(--text-muted); font-size:.78rem; line-height:1.45; }
+    .directory-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.25rem .5rem; border:1px solid var(--border-color); border-radius:999px; color:var(--text-muted); font-size:.68rem; font-weight:750; white-space:nowrap; }
+    .directory-badge.internal { color:#8bd8ff; border-color:rgba(56,189,248,.25); background:rgba(14,165,233,.1); }
+    .directory-badge.external { color:#86efac; border-color:rgba(74,222,128,.22); background:rgba(34,197,94,.1); }
+    .directory-badge.synced { color:#86efac; border-color:rgba(74,222,128,.22); background:rgba(34,197,94,.08); }
+    .directory-actions-cell { text-align:right; white-space:nowrap; }
+    .directory-icon-btn { width:30px; height:30px; padding:0; border:1px solid var(--border-color); border-radius:7px; background:rgba(255,255,255,.025); color:var(--text-muted); cursor:pointer; }
+    .directory-icon-btn:hover { color: var(--text-main); border-color:var(--primary); }
+    .directory-icon-btn.danger:hover { color:#fecaca; border-color:#ef4444; }
+    .directory-empty { padding:3rem 1rem; color:var(--text-muted); text-align:center; }
+    .directory-empty i { display:block; margin-bottom:.55rem; color:var(--text-dark); font-size:1.45rem; }
+    .directory-empty strong { display:block; margin-bottom:.2rem; color: var(--text-main); }
+    .contact-dialog { display:none; position:fixed; inset:0; z-index:10000; align-items:center; justify-content:center; padding:1rem; }
+    .contact-dialog.is-open { display:flex; }
+    .contact-dialog-backdrop { position:absolute; inset:0; background:rgba(11,15,25,.82); backdrop-filter:blur(5px); }
+    .contact-dialog-card { position:relative; width:min(560px,100%); max-height:calc(100vh - 2rem); overflow:auto; background:var(--panel-dark); border:1px solid var(--border-color); border-radius:14px; box-shadow:0 22px 60px rgba(0,0,0,.55); animation:contactDialogIn .18s ease-out; }
+    @keyframes contactDialogIn { from { transform:translateY(-10px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+    .contact-dialog-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:1rem 1.15rem; border-bottom:1px solid var(--border-color); }
+    .contact-dialog-head h2 { margin:0; color: var(--text-main); font-size:1.05rem; }
+    .contact-dialog-head p { margin:.25rem 0 0; color:var(--text-muted); font-size:.78rem; }
+    .contact-dialog-close { width:30px; height:30px; border:1px solid var(--border-color); border-radius:7px; background:transparent; color:var(--text-muted); cursor:pointer; }
+    .contact-dialog-close:hover { color: var(--text-main); border-color:var(--primary); }
+    .contact-dialog-body { padding:1.15rem; }
+    .contact-dialog-footer { display:flex; justify-content:flex-end; gap:.5rem; padding:.9rem 1.15rem; border-top:1px solid var(--border-color); }
+    .contact-dialog .form-group { margin-bottom:1rem; }
+    .contact-dialog .form-group label { text-transform:none; letter-spacing:0; }
+    .contact-dialog .form-control { padding:.7rem .8rem; }
+    .contact-dialog-note { margin-bottom:1rem; padding:.7rem .8rem; border:1px solid rgba(0,173,181,.22); border-radius:9px; color:var(--text-muted); background:rgba(0,173,181,.06); font-size:.78rem; }
+    .contact-switch { display:flex; align-items:center; gap:.6rem; color:var(--text-main); font-size:.84rem; cursor:pointer; }
+    .contact-switch input { width:16px; height:16px; accent-color:var(--primary); }
+    .contact-toast { position:fixed; right:1.25rem; bottom:1.25rem; z-index:10001; display:none; min-width:260px; }
+    body.contact-dialog-open { overflow:hidden; }
+    @media (max-width:900px) { .directory-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .directory-header { align-items:flex-start; flex-direction:column; } .directory-actions { justify-content:flex-start; } }
+    @media (max-width:600px) { .directory-summary { gap:.55rem; } .directory-stat { padding:.75rem; } .directory-toolbar { align-items:stretch; } .directory-tabs, .directory-filters, .directory-search, .directory-search .form-control { width:100%; } .directory-filters .directory-control { flex:1; } .directory-result-count { width:100%; } }
+</style>
+
+<div class="directory-page">
+    <header class="directory-header">
+        <div>
+            <div class="directory-eyebrow"><i class="fa-solid fa-address-book"></i> Phone directory</div>
+            <h1>Contacts</h1>
+            <p>Internal extensions and external numbers in one simple directory.</p>
+        </div>
+        <div class="directory-actions">
+            <a href="{{ url_for('ldap_settings') }}" class="btn directory-link"><i class="fa-solid fa-network-wired"></i> LDAP settings</a>
+            {% if has_permission('extensions', 'update') %}<button type="button" class="btn btn-info" data-open-contact-modal><i class="fa-solid fa-plus"></i> Add external contact</button>{% endif %}
+        </div>
+    </header>
+
+    <section class="directory-summary" aria-label="Contact summary">
+        <div class="directory-stat"><div class="directory-stat-icon"><i class="fa-solid fa-address-book"></i></div><div><div class="directory-stat-label">All contacts</div><div class="directory-stat-value">{{ contact_stats.total }}</div></div></div>
+        <div class="directory-stat"><div class="directory-stat-icon"><i class="fa-solid fa-phone"></i></div><div><div class="directory-stat-label">Internal</div><div class="directory-stat-value">{{ contact_stats.internal }}</div></div></div>
+        <div class="directory-stat"><div class="directory-stat-icon"><i class="fa-solid fa-globe"></i></div><div><div class="directory-stat-label">External</div><div class="directory-stat-value">{{ contact_stats.external }}</div></div></div>
+        <div class="directory-stat"><div class="directory-stat-icon"><i class="fa-solid fa-tower-broadcast"></i></div><div><div class="directory-stat-label">LDAP synced</div><div class="directory-stat-value">{{ contact_stats.synced }}</div></div></div>
+    </section>
+
+    <section class="directory-panel">
+        <div class="directory-toolbar">
+            <div class="directory-tabs" role="tablist" aria-label="Contact type">
+                <button type="button" class="directory-tab active" data-contact-filter="all" role="tab" aria-selected="true">All <span class="directory-tab-count">{{ contact_stats.total }}</span></button>
+                <button type="button" class="directory-tab" data-contact-filter="internal" role="tab" aria-selected="false">Internal <span class="directory-tab-count">{{ contact_stats.internal }}</span></button>
+                <button type="button" class="directory-tab" data-contact-filter="external" role="tab" aria-selected="false">External <span class="directory-tab-count">{{ contact_stats.external }}</span></button>
+            </div>
+            <div class="directory-filters">
+                <div class="directory-search"><i class="fa-solid fa-magnifying-glass"></i><label class="sr-only" for="contactsSearch">Search contacts</label><input id="contactsSearch" type="search" class="form-control directory-control" placeholder="Search by name or number"></div>
+                <select id="contactsSyncFilter" class="directory-control" aria-label="Filter LDAP status"><option value="all">All LDAP states</option><option value="synced">LDAP synced</option><option value="not-synced">Not synced</option></select>
+                <span id="contactsCount" class="directory-result-count">{{ contact_stats.total }} shown</span>
+            </div>
+        </div>
+        <div class="directory-table-wrap">
+            <table class="directory-table" id="contactsTable">
+                <thead><tr><th>Contact</th><th>Number</th><th>Extra</th><th>Type</th><th>LDAP</th><th>Actions</th></tr></thead>
+                <tbody>
+                {% for contact in internal_contacts %}
+                <tr class="contact-row" data-contact-kind="internal" data-contact-sync="{{ 'synced' if contact.sync_ldap else 'not-synced' }}">
+                    <td><div class="directory-person"><div class="directory-avatar">{{ (contact.name or contact.ext or '?')[:1]|upper }}</div><div><div class="directory-name">{{ contact.name or 'Unnamed extension' }}</div><div class="directory-meta">Extension {{ contact.ext }}</div></div></div></td>
+                    <td><span class="directory-number">{{ contact.ext }}</span></td><td class="directory-secondary">{{ contact.mobile or '—' }}</td>
+                    <td><span class="directory-badge internal"><i class="fa-solid fa-phone"></i> Internal</span></td>
+                    <td>{% if contact.sync_ldap %}<span class="directory-badge synced"><i class="fa-solid fa-check"></i> Synced</span>{% else %}<span class="directory-badge"><i class="fa-solid fa-minus"></i> Off</span>{% endif %}</td>
+                    <td class="directory-actions-cell"><span class="directory-secondary">Extensions</span></td>
+                </tr>
+                {% endfor %}
+                {% for contact in external_contacts %}
+                <tr class="contact-row" data-contact-kind="external" data-contact-sync="{{ 'synced' if contact.sync_ldap else 'not-synced' }}">
+                    <td><div class="directory-person"><div class="directory-avatar external">{{ (contact.name or contact.number or '?')[:1]|upper }}</div><div><div class="directory-name">{{ contact.name or 'Unnamed contact' }}</div><div class="directory-meta">External contact</div></div></div></td>
+                    <td><span class="directory-number">{{ contact.number }}</span></td><td class="directory-secondary">{% if contact.mobile %}{{ contact.mobile }}{% endif %}{% if contact.mobile and contact.other %}<br>{% endif %}{% if contact.other %}{{ contact.other }}{% endif %}{% if not contact.mobile and not contact.other %}—{% endif %}</td>
+                    <td><span class="directory-badge external"><i class="fa-solid fa-globe"></i> External</span></td>
+                    <td>{% if contact.sync_ldap %}<span class="directory-badge synced"><i class="fa-solid fa-check"></i> Synced</span>{% else %}<span class="directory-badge"><i class="fa-solid fa-minus"></i> Off</span>{% endif %}</td>
+                    <td class="directory-actions-cell">
+                        {% if has_permission('extensions', 'update') %}<button type="button" class="directory-icon-btn edit-external-btn" data-id="{{ contact.id }}" data-name="{{ contact.name or '' }}" data-number="{{ contact.number or '' }}" data-mobile="{{ contact.mobile or '' }}" data-other="{{ contact.other or '' }}" data-sync="{{ contact.sync_ldap|int }}" title="Edit contact" aria-label="Edit contact"><i class="fa-solid fa-pen"></i></button>{% endif %}
+                        {% if has_permission('extensions', 'delete') %}<button type="button" class="directory-icon-btn danger delete-external-btn" data-id="{{ contact.id }}" data-name="{{ contact.name or contact.number }}" title="Delete contact" aria-label="Delete contact"><i class="fa-solid fa-trash"></i></button>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div id="contactsEmpty" class="directory-empty" hidden><i class="fa-solid fa-user-slash"></i><strong>No contacts found</strong><span>Change the search or filter and try again.</span></div>
+        </div>
+    </section>
+</div>
+
+{% if has_permission('extensions', 'update') %}
+<div class="contact-dialog" id="externalContactModal" aria-hidden="true">
+    <div class="contact-dialog-backdrop" data-close-contact-modal></div>
+    <div class="contact-dialog-card" role="dialog" aria-modal="true" aria-labelledby="externalContactModalTitle">
+        <form id="externalContactForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="contact-dialog-head"><div><h2 id="externalContactModalTitle">Add external contact</h2><p>Save a number for the shared phone directory.</p></div><button type="button" class="contact-dialog-close" data-close-contact-modal aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+            <div class="contact-dialog-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="id" id="contact_id">
+                <div class="contact-dialog-note"><i class="fa-solid fa-circle-info"></i> Required fields are marked with an asterisk.</div>
+                <div class="form-row"><div class="form-group"><label for="contact_name">Name *</label><input id="contact_name" name="name" class="form-control" maxlength="120" required></div><div class="form-group"><label for="contact_number">Primary number *</label><input id="contact_number" name="number" class="form-control" maxlength="40" required></div></div>
+                <div class="form-row"><div class="form-group"><label for="contact_mobile">Mobile <span class="directory-secondary">(optional)</span></label><input id="contact_mobile" name="mobile" class="form-control" maxlength="40"></div><div class="form-group"><label for="contact_other">Other <span class="directory-secondary">(optional)</span></label><input id="contact_other" name="other" class="form-control" maxlength="120"></div></div>
+                <label class="contact-switch"><input type="checkbox" id="contact_sync" name="sync_ldap" value="1"><span>Publish this contact in LDAP</span></label>
+            </div>
+            <div class="contact-dialog-footer"><button type="button" class="btn btn-secondary" data-close-contact-modal>Cancel</button><button type="submit" class="btn btn-info" id="contactSaveButton"><i class="fa-solid fa-check"></i> Save contact</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+<div id="contactToast" class="toast contact-toast" role="status"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+    const rows = [...document.querySelectorAll('.contact-row')];
+    const tabs = [...document.querySelectorAll('[data-contact-filter]')];
+    const search = document.getElementById('contactsSearch');
+    const syncFilter = document.getElementById('contactsSyncFilter');
+    const count = document.getElementById('contactsCount');
+    const empty = document.getElementById('contactsEmpty');
+    const toast = document.getElementById('contactToast');
+    let typeFilter = 'all';
+    function showToast(message, danger = false) { if (!toast) return; toast.className = `toast toast-${danger ? 'danger' : 'success'} contact-toast`; toast.textContent = message; toast.style.display = 'flex'; window.setTimeout(() => { toast.style.display = 'none'; }, 3200); }
+    function applyFilters() { const query = (search?.value || '').trim().toLowerCase(); const sync = syncFilter?.value || 'all'; let visible = 0; rows.forEach(row => { const show = (typeFilter === 'all' || row.dataset.contactKind === typeFilter) && (sync === 'all' || row.dataset.contactSync === sync) && (!query || row.innerText.toLowerCase().includes(query)); row.hidden = !show; if (show) visible += 1; }); if (count) count.textContent = `${visible} shown`; if (empty) empty.hidden = visible !== 0; }
+    tabs.forEach(tab => tab.addEventListener('click', () => { typeFilter = tab.dataset.contactFilter; tabs.forEach(item => { const active = item === tab; item.classList.toggle('active', active); item.setAttribute('aria-selected', active ? 'true' : 'false'); }); applyFilters(); }));
+    search?.addEventListener('input', applyFilters); syncFilter?.addEventListener('change', applyFilters);
+
+    const dialog = document.getElementById('externalContactModal'); const form = document.getElementById('externalContactForm'); const saveButton = document.getElementById('contactSaveButton');
+    function closeDialog() { dialog?.classList.remove('is-open'); dialog?.setAttribute('aria-hidden', 'true'); document.body.classList.remove('contact-dialog-open'); }
+    function openDialog(editButton) { if (!dialog || !form) return; form.reset(); document.getElementById('contact_id').value = editButton?.dataset.id || ''; document.getElementById('contact_name').value = editButton?.dataset.name || ''; document.getElementById('contact_number').value = editButton?.dataset.number || ''; document.getElementById('contact_mobile').value = editButton?.dataset.mobile || ''; document.getElementById('contact_other').value = editButton?.dataset.other || ''; document.getElementById('contact_sync').checked = editButton ? editButton.dataset.sync === '1' : true; document.getElementById('externalContactModalTitle').textContent = editButton ? 'Edit external contact' : 'Add external contact'; dialog.classList.add('is-open'); dialog.setAttribute('aria-hidden', 'false'); document.body.classList.add('contact-dialog-open'); window.setTimeout(() => document.getElementById('contact_name')?.focus(), 50); }
+    document.querySelector('[data-open-contact-modal]')?.addEventListener('click', () => openDialog());
+    dialog?.querySelectorAll('[data-close-contact-modal]').forEach(button => button.addEventListener('click', closeDialog));
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && dialog?.classList.contains('is-open')) closeDialog(); });
+    document.querySelectorAll('.edit-external-btn').forEach(button => button.addEventListener('click', () => openDialog(button)));
+    document.querySelectorAll('.delete-external-btn').forEach(button => button.addEventListener('click', async () => { if (!confirm(`Delete ${button.dataset.name || 'this contact'}?`)) return; const body = new FormData(); body.append('csrf_token', '{{ csrf_token() }}'); try { const response = await fetch(`/contacts/external/delete/${encodeURIComponent(button.dataset.id)}`, { method:'POST', body }); const result = await response.json(); if (!response.ok || !result.success) throw new Error(result.error || 'Delete failed'); showToast('Contact deleted'); window.setTimeout(() => location.reload(), 450); } catch (error) { showToast(error.message || 'Unable to delete contact', true); } }));
+    form?.addEventListener('submit', async event => { event.preventDefault(); if (!form.reportValidity()) return; saveButton.disabled = true; saveButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; try { const response = await fetch('/contacts/external/save', { method:'POST', body:new FormData(form) }); const result = await response.json(); if (!response.ok || !result.success) throw new Error(result.error || 'Save failed'); closeDialog(); showToast('Contact saved'); window.setTimeout(() => location.reload(), 450); } catch (error) { showToast(error.message || 'Unable to save contact', true); } finally { saveButton.disabled = false; saveButton.innerHTML = '<i class="fa-solid fa-check"></i> Save contact'; } });
+    applyFilters();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+
+{% block title %}Survey Analytics: {{ survey.name }}{% endblock %}
+
+{% block content %}
+<div class="q-studio">
+    <!-- Header Card -->
+    <div class="q-header-card">
+        <div class="header-content">
+            <div class="header-icon-wrap" style="background: linear-gradient(135deg, #c084fc 0%, #9333ea 100%); box-shadow: 0 10px 20px rgba(147, 51, 234, 0.3);">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <div>
+                <h1 class="header-title">Survey Analytics: {{ survey.name }}</h1>
+                <div class="header-subtitle">Analyze customer satisfaction trends, agent performance, and response breakdowns.</div>
+            </div>
+        </div>
+        <a href="{{ url_for('survey_list') }}" class="btn-action btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back to Studio
+        </a>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="q-section border-glow-blue" style="padding: 1.5rem 2rem;">
+        <form method="GET" action="" id="filter-form" style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="flex: 1; min-width: 300px;">
+                <label class="q-label" style="margin-bottom: 0.75rem;"><i class="fa-solid fa-clock-rotate-left"></i> Time Range</label>
+                <div class="time-filter-pills">
+                    <input type="hidden" name="time_filter" id="time_filter_input" value="{{ time_filter }}">
+                    <button type="button" class="filter-pill {% if time_filter == 'today' %}active{% endif %}" onclick="setTimeFilter('today')">Today</button>
+                    <button type="button" class="filter-pill {% if time_filter == '7days' %}active{% endif %}" onclick="setTimeFilter('7days')">7 Days</button>
+                    <button type="button" class="filter-pill {% if time_filter == '30days' %}active{% endif %}" onclick="setTimeFilter('30days')">30 Days</button>
+                    <button type="button" class="filter-pill {% if time_filter == 'custom' %}active{% endif %}" onclick="setTimeFilter('custom')">Custom</button>
+                </div>
+            </div>
+            
+            <div id="custom-date-fields" style="display: {% if time_filter == 'custom' %}flex{% else %}none{% endif %}; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                <div class="q-group" style="margin: 0; width: 220px;">
+                    <label class="q-label"><i class="fa-regular fa-calendar"></i> Start Date</label>
+                    <input type="datetime-local" name="start" value="{{ start }}" class="q-input" style="padding: 0.75rem 1rem;">
+                </div>
+                <div class="q-group" style="margin: 0; width: 220px;">
+                    <label class="q-label"><i class="fa-regular fa-calendar"></i> End Date</label>
+                    <input type="datetime-local" name="end" value="{{ end }}" class="q-input" style="padding: 0.75rem 1rem;">
+                </div>
+                <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 0.75rem 1.5rem; height: 46px;">
+                    <i class="fa-solid fa-filter"></i> Apply
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Level 1: Queue Performance (Default View) -->
+        <div id="view-queues" class="q-section dashboard-card border-glow-green" style="display: block;">
+            <div class="q-section-title" style="color: #6ee7b7;">
+                <div class="title-icon" style="background: rgba(16, 185, 129, 0.2); color: #34d399;"><i class="fa-solid fa-users-viewfinder"></i></div>
+                Survey Report (Queues)
+            </div>
+            <div class="table-container">
+                <table class="q-table">
+                    <thead>
+                        <tr>
+                            <th>Queue</th>
+                            <th class="text-center" style="width: 80px;">0</th>
+                            <th class="text-center" style="width: 80px;">1</th>
+                            <th class="text-center" style="width: 80px;">2</th>
+                            <th class="text-center" style="width: 80px;">3</th>
+                            <th class="text-center" style="width: 80px;">4</th>
+                            <th class="text-center" style="width: 80px;">5</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set qs = {} %}
+                        {% for qr in queue_ratings %}
+                            {% if qr.queue not in qs %}{% set _ = qs.update({qr.queue: {0:0, 1:0, 2:0, 3:0, 4:0, 5:0}}) %}{% endif %}
+                            {% set _ = qs[qr.queue].update({qr.rating: qs[qr.queue][qr.rating] + qr.count}) %}
+                        {% endfor %}
+                        {% for q, stats in qs.items() %}
+                        <tr>
+                            <td style="font-weight: 700; font-size: 1.05rem;">
+                                <a href="javascript:void(0)" onclick="showAgents('{{ q }}')" class="drill-link">{{ q }}</a>
+                            </td>
+                            {% for r in range(6) %}
+                            <td class="text-center">
+                                {% if stats[r] > 0 %}
+                                <a href="javascript:void(0)" onclick="drilldownQueueRating('{{ q }}', {{ r }})" class="drill-link-score score-val-{{ r }}">{{ stats[r] }}</a>
+                                {% else %}
+                                <span class="zero-score">0</span>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="empty-cell">
+                            <i class="fa-solid fa-inbox" style="font-size: 2rem; color: #475569; margin-bottom: 0.5rem; display: block;"></i>
+                            No queue data in this period
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Level 2: Agent Performance & Customer Journeys (Hidden by Default) -->
+        <div id="view-agents-container" style="display: none;">
+            <div class="q-section dashboard-card border-glow-blue" style="margin-bottom: 2rem;">
+                <div class="q-section-title" style="color: #60a5fa; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div class="title-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;"><i class="fa-solid fa-headset"></i></div>
+                        Agents in Queue: <span id="current-queue-name" style="color: #f8fafc; margin-left: 0.25rem;"></span>
+                    </div>
+                    <button class="btn-action btn-secondary" onclick="showQueues()" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                        <i class="fa-solid fa-arrow-left"></i> Back to Queues
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="q-table">
+                        <thead>
+                            <tr>
+                                <th>Agent</th>
+                                <th class="text-center" style="width: 80px;">0</th>
+                                <th class="text-center" style="width: 80px;">1</th>
+                                <th class="text-center" style="width: 80px;">2</th>
+                                <th class="text-center" style="width: 80px;">3</th>
+                                <th class="text-center" style="width: 80px;">4</th>
+                                <th class="text-center" style="width: 80px;">5</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agents-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Customer Journeys Card -->
+            <div class="q-section dashboard-card border-glow-purple">
+                <div class="q-section-title" style="color: #c084fc;">
+                    <div class="title-icon" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;"><i class="fa-solid fa-users"></i></div>
+                    Customer Journeys
+                </div>
+                <div class="table-container">
+                    <table class="q-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Customer Number</th>
+                                <th>Agent</th>
+                                <th class="text-center" style="width: 70px;">Q1</th>
+                                <th class="text-center" style="width: 70px;">Q2</th>
+                                <th class="text-center" style="width: 70px;">Q3</th>
+                                <th class="text-center" style="width: 70px;">Q4</th>
+                                <th class="text-center" style="width: 70px;">Q5</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Drilldown Modal -->
+<div id="drilldown-modal" class="modal-backdrop">
+    <div class="modal-window">
+        <div class="modal-header">
+            <h2 id="drilldown-title" style="margin: 0; color: #f8fafc; font-size: 1.25rem; display: flex; align-items: center;">
+                <div class="title-icon" style="background: rgba(139, 92, 246, 0.2); color: #c084fc; margin-right: 0.75rem; width: 32px; height: 32px; font-size: 0.9rem;"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+                Detailed Responses
+            </h2>
+            <button onclick="document.getElementById('drilldown-modal').style.display='none'" class="btn-close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body" style="padding: 0;">
+            <table class="q-table" style="width: 100%; border: none; margin: 0;">
+                <thead style="background: var(--bg-dark); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px);">
+                    <tr>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Queue</th>
+                        <th>Agent</th>
+                        <th>Q#</th>
+                        <th class="text-center">Score</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="drilldown-body">
+                    <!-- Populated via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const agentRatingsData = {{ agent_ratings|tojson }};
+    const extensionMap = {{ extension_map|tojson }};
+    const agentsByQueue = {};
+    
+    agentRatingsData.forEach(r => {
+        if (!agentsByQueue[r.queue]) agentsByQueue[r.queue] = {};
+        if (!agentsByQueue[r.queue][r.agent]) agentsByQueue[r.queue][r.agent] = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0};
+        agentsByQueue[r.queue][r.agent][r.rating] += r.count;
+    });
+
+    function setTimeFilter(val) {
+        document.getElementById('time_filter_input').value = val;
+        if (val !== 'custom') {
+            document.getElementById('filter-form').submit();
+        } else {
+            // Update UI for custom but don't submit yet
+            document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.filter-pill:last-child').classList.add('active');
+            document.getElementById('custom-date-fields').style.display = 'flex';
+        }
+    }
+
+    function showQueues() {
+        document.getElementById('view-agents-container').style.display = 'none';
+        document.getElementById('view-queues').style.display = 'block';
+    }
+    
+    function showAgents(queue) {
+        document.getElementById('view-queues').style.display = 'none';
+        document.getElementById('view-agents-container').style.display = 'block';
+        document.getElementById('current-queue-name').innerText = queue;
+        
+        const tbody = document.getElementById('agents-tbody');
+        tbody.innerHTML = '';
+        
+        const agents = agentsByQueue[queue] || {};
+        let hasAgents = false;
+        
+        for (const [agent, stats] of Object.entries(agents)) {
+            hasAgents = true;
+            let displayName = extensionMap[agent] || agent;
+            
+            let rowHTML = `<tr>
+                <td style="font-weight: 700; font-size: 1.05rem; color: #f1f5f9;">${displayName}</td>`;
+            
+            for (let i = 0; i <= 5; i++) {
+                if (stats[i] > 0) {
+                    rowHTML += `<td class="text-center">
+                        <a href="javascript:void(0)" onclick="drilldownAgentRating('${queue}', '${agent}', ${i})" class="drill-link-score score-val-${i}">${stats[i]}</a>
+                    </td>`;
+                } else {
+                    rowHTML += `<td class="text-center"><span class="zero-score">0</span></td>`;
+                }
+            }
+            rowHTML += `</tr>`;
+            tbody.innerHTML += rowHTML;
+        }
+        
+        if (!hasAgents) {
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-cell">
+                <i class="fa-solid fa-inbox" style="font-size: 2rem; color: #475569; margin-bottom: 0.5rem; display: block;"></i>
+                No agent data for this queue
+            </td></tr>`;
+        }
+        
+        loadCustomerJourneys(queue);
+    }
+    
+    function loadCustomerJourneys(queue) {
+        const ctbody = document.getElementById('customers-tbody');
+        ctbody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 3rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: #c084fc; margin-bottom: 0.5rem;"></i><br>Loading customer journeys...</td></tr>`;
+        
+        let url = `{{ url_for('survey_drilldown', survey_id=survey.id) }}?queue=${encodeURIComponent(queue)}`;
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                ctbody.innerHTML = '';
+                if (data.results.length === 0) {
+                    ctbody.innerHTML = `<tr><td colspan="9" class="empty-cell">
+                        <i class="fa-solid fa-inbox" style="font-size: 2rem; color: #475569; margin-bottom: 0.5rem; display: block;"></i>
+                        No customer data found for this queue.
+                    </td></tr>`;
+                    return;
+                }
+                
+                // Group by timestamp and customer_number
+                const journeys = {};
+                data.results.forEach(r => {
+                    let key = r.timestamp + '_' + r.customer_number;
+                    if (!journeys[key]) {
+                        journeys[key] = {
+                            date: r.timestamp,
+                            customer: r.customer_number || '-',
+                            agent: r.agent || '-',
+                            q1: '-', q2: '-', q3: '-', q4: '-', q5: '-',
+                            reason: '-'
+                        };
+                    }
+                    if (r.question_number >= 1 && r.question_number <= 5) {
+                        journeys[key]['q' + r.question_number] = r.rating;
+                    }
+                    if (r.rating == 0 && r.reason) {
+                        journeys[key].reason = r.reason;
+                    }
+                });
+                
+                Object.values(journeys).forEach(j => {
+                    const tr = document.createElement('tr');
+                    
+                    let getScoreBadge = (score) => {
+                        if (score === '-') return '<span style="color: #475569;">-</span>';
+                        if (score == 0) return `<span class="score-badge score-0" style="width:28px;height:28px;font-size:0.8rem;">0</span>`;
+                        if (score <= 2) return `<span class="score-badge score-low" style="width:28px;height:28px;font-size:0.8rem;">${score}</span>`;
+                        if (score == 3) return `<span class="score-badge score-mid" style="width:28px;height:28px;font-size:0.8rem;">${score}</span>`;
+                        return `<span class="score-badge score-high" style="width:28px;height:28px;font-size:0.8rem;">${score}</span>`;
+                    };
+                    
+                    let reasonHTML = '<span style="color: #64748b;">-</span>';
+                    if (j.reason && j.reason !== '-') {
+                        if (['NO_RESPONSE', 'INVALID_DTMF', 'CUSTOMER_HANGUP', 'CALLBACK_NO_ANSWER'].includes(j.reason)) {
+                            const reasonMap = {
+                                'NO_RESPONSE': 'No Response',
+                                'INVALID_DTMF': 'Invalid DTMF',
+                                'CUSTOMER_HANGUP': 'Customer Hangup',
+                                'CALLBACK_NO_ANSWER': 'Callback No Answer'
+                            };
+                            reasonHTML = `<span style="color: #ef4444; font-weight: 500;">${reasonMap[j.reason]}</span>`;
+                        } else {
+                            let filename = j.reason.split('/').pop();
+                            reasonHTML = `<audio controls style="height: 36px; max-width: 240px; border-radius: 8px; outline: none;"><source src="{{ url_for('survey_list') }}reason/${filename}" type="audio/wav"></audio>`;
+                        }
+                    }
+                    
+                    tr.innerHTML = `
+                        <td style="color: #94a3b8; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;">${j.date}</td>
+                        <td style="font-weight: 700; color: #f1f5f9;">${j.customer}</td>
+                        <td style="color: #cbd5e1;">${j.agent}</td>
+                        <td class="text-center">${getScoreBadge(j.q1)}</td>
+                        <td class="text-center">${getScoreBadge(j.q2)}</td>
+                        <td class="text-center">${getScoreBadge(j.q3)}</td>
+                        <td class="text-center">${getScoreBadge(j.q4)}</td>
+                        <td class="text-center">${getScoreBadge(j.q5)}</td>
+                        <td>${reasonHTML}</td>
+                    `;
+                    ctbody.appendChild(tr);
+                });
+            })
+            .catch(err => {
+                ctbody.innerHTML = `<tr><td colspan="9" class="empty-cell" style="color: #ef4444;">Error loading data.</td></tr>`;
+                console.error(err);
+            });
+    }
+
+    function drilldownQueueRating(queue, rating) {
+        let url = `{{ url_for('survey_drilldown', survey_id=survey.id) }}?queue=${encodeURIComponent(queue)}&rating=${rating}`;
+        openDrilldownModal(url, `Queue ${queue} &mdash; Score: <span style='color:#fbbf24'>${rating}</span>`);
+    }
+    
+    function drilldownAgentRating(queue, agent, rating) {
+        let url = `{{ url_for('survey_drilldown', survey_id=survey.id) }}?queue=${encodeURIComponent(queue)}&agent=${encodeURIComponent(agent)}&rating=${rating}`;
+        let displayName = extensionMap[agent] || agent;
+        openDrilldownModal(url, `Agent ${displayName} &mdash; Score: <span style='color:#fbbf24'>${rating}</span>`);
+    }
+
+    function openDrilldownModal(url, tTitleSuffix) {
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('drilldown-body');
+                tbody.innerHTML = '';
+                
+                if (data.results.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="empty-cell" style="padding: 4rem !important;">No responses found for this filter.</td></tr>`;
+                } else {
+                    data.results.forEach(row => {
+                        const tr = document.createElement('tr');
+                        
+                        let scoreBadge = '';
+                        if (row.rating == 0) scoreBadge = `<span class="score-badge score-0">0</span>`;
+                        else if (row.rating <= 2) scoreBadge = `<span class="score-badge score-low">${row.rating}</span>`;
+                        else if (row.rating == 3) scoreBadge = `<span class="score-badge score-mid">${row.rating}</span>`;
+                        else scoreBadge = `<span class="score-badge score-high">${row.rating}</span>`;
+                        
+                        let reasonHTML = '<span style="color: #64748b;">-</span>';
+                        if (row.reason) {
+                            if (['NO_RESPONSE', 'INVALID_DTMF', 'CUSTOMER_HANGUP', 'CALLBACK_NO_ANSWER'].includes(row.reason)) {
+                                const reasonMap = {
+                                    'NO_RESPONSE': 'No Response',
+                                    'INVALID_DTMF': 'Invalid DTMF',
+                                    'CUSTOMER_HANGUP': 'Customer Hangup',
+                                    'CALLBACK_NO_ANSWER': 'Callback No Answer'
+                                };
+                                reasonHTML = `<span style="color: #ef4444; font-weight: 500;">${reasonMap[row.reason]}</span>`;
+                            } else {
+                                let filename = row.reason.split('/').pop();
+                                reasonHTML = `<audio controls style="height: 36px; max-width: 240px; border-radius: 8px; outline: none;"><source src="{{ url_for('survey_list') }}reason/${filename}" type="audio/wav"></audio>`;
+                            }
+                        }
+                        
+                        tr.innerHTML = `
+                            <td style="color: #94a3b8; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;">${row.timestamp}</td>
+                            <td style="font-weight: 600; color: #e2e8f0;">${row.customer_number || '-'}</td>
+                            <td style="color: #cbd5e1;">${row.queue || '-'}</td>
+                            <td style="color: #f1f5f9; font-weight: 500;">${row.agent || '-'}</td>
+                            <td style="color: #94a3b8; font-weight: 600;">Q${row.question_number}</td>
+                            <td class="text-center">${scoreBadge}</td>
+                            <td>${reasonHTML}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+                
+                let tTitle = "Detailed Responses &mdash; " + tTitleSuffix;
+                document.getElementById('drilldown-title').innerHTML = `<div class="title-icon" style="background: rgba(139, 92, 246, 0.2); color: #c084fc; margin-right: 0.75rem; width: 32px; height: 32px; font-size: 0.9rem;"><i class="fa-solid fa-magnifying-glass-chart"></i></div>` + tTitle;
+                document.getElementById('drilldown-modal').style.display = 'flex';
+            });
+    }
+</script>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+    .time-filter-pills {
+        display: flex;
+        background: var(--bg-dark);
+        border: 1px solid rgba(51, 65, 85, 0.5);
+        border-radius: 12px;
+        padding: 0.35rem;
+        gap: 0.35rem;
+    }
+    
+    .filter-pill {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: inherit;
+    }
+    
+    .filter-pill:hover {
+        color: #f1f5f9;
+        background: var(--border-color);
+    }
+    
+    .filter-pill.active {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .q-studio {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding-bottom: 4rem;
+        font-family: 'Outfit', sans-serif;
+    }
+    
+    /* Header Styles */
+    .q-header-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 2.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    .q-header-card::before {
+        content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(192, 132, 252, 0.05) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .header-content { display: flex; align-items: center; gap: 1.5rem; z-index: 1; }
+    .header-icon-wrap {
+        width: 64px; height: 64px; border-radius: 16px;
+        display: flex; justify-content: center; align-items: center;
+        font-size: 2rem; color: white;
+    }
+    .header-title {
+        margin: 0; font-size: 2rem; font-weight: 800;
+        background: linear-gradient(to right, #f8fafc, #cbd5e1);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        letter-spacing: -0.5px;
+    }
+    .header-subtitle { color: #94a3b8; font-size: 1rem; margin-top: 0.5rem; font-weight: 400; }
+
+    /* Sections */
+    .q-section {
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        backdrop-filter: blur(12px);
+    }
+    .border-glow-blue { border-color: rgba(59, 130, 246, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.2), 0 0 20px rgba(59, 130, 246, 0.1); }
+    .border-glow-green { border-color: rgba(16, 185, 129, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.2), 0 0 20px rgba(16, 185, 129, 0.1); }
+    .border-glow-purple { border-color: rgba(168, 85, 247, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.2), 0 0 20px rgba(168, 85, 247, 0.1); }
+    
+    .q-section-title {
+        font-size: 1.25rem; font-weight: 700; color: #f1f5f9;
+        margin-bottom: 1.5rem; padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex; align-items: center; gap: 0.75rem;
+    }
+    .title-icon {
+        width: 36px; height: 36px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--border-color); border: 1px solid var(--border-color);
+    }
+    
+    .dashboard-grid { display: block; }
+    .dashboard-card { margin-bottom: 0; display: flex; flex-direction: column; animation: fadeIn 0.4s ease-out; }
+
+    /* Inputs */
+    .q-group { margin-bottom: 1.5rem; }
+    .q-label { font-size: 0.9rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.5rem; display: inline-block; letter-spacing: 0.5px; }
+    .q-input {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        color: #f8fafc;
+        padding: 0.85rem 1.25rem;
+        border-radius: 12px;
+        font-size: 1rem;
+        outline: none;
+        transition: all 0.3s;
+        width: 100%;
+        box-sizing: border-box;
+        font-family: 'Outfit', sans-serif;
+    }
+    .q-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,0.15); background: var(--bg-dark); }
+    
+    /* Table */
+    .table-container { overflow-x: auto; margin: -1rem; padding: 1rem; }
+    .q-table { width: 100%; text-align: left; border-collapse: collapse; min-width: 700px; }
+    .q-table th { 
+        padding: 1rem; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; 
+        letter-spacing: 0.05em; border-bottom: 1px solid var(--border-color); font-weight: 700;
+    }
+    .q-table td { 
+        padding: 1.15rem 1rem; border-bottom: 1px solid var(--border-color); 
+        vertical-align: middle; transition: background 0.2s;
+    }
+    .q-table tr:last-child td { border-bottom: none; }
+    .q-table tr:hover td { background: var(--border-color); }
+    .text-center { text-align: center; }
+    
+    .empty-cell { text-align: center; color: #64748b; font-style: italic; padding: 3rem !important; }
+    
+    .drill-link { 
+        color: #f8fafc; text-decoration: none; border-bottom: 1px dashed rgba(255,255,255,0.3); 
+        transition: all 0.2s; padding-bottom: 2px;
+    }
+    .drill-link:hover { color: #38bdf8; border-color: #38bdf8; }
+    
+    .drill-link-score { 
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px; border-radius: 10px;
+        text-decoration: none; font-weight: 800; font-size: 1rem; transition: all 0.2s;
+    }
+    .drill-link-score:hover { transform: translateY(-2px) scale(1.05); }
+    .score-val-0 { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .score-val-1, .score-val-2 { background: rgba(249, 115, 22, 0.15); color: #fdba74; border: 1px solid rgba(249, 115, 22, 0.3); }
+    .score-val-3 { background: rgba(234, 179, 8, 0.15); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.3); }
+    .score-val-4, .score-val-5 { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .zero-score { color: #475569; font-weight: 600; }
+    
+    /* Buttons */
+    .btn-premium {
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem;
+        padding: 0.85rem 1.75rem; border-radius: 12px; font-weight: 600; font-size: 1rem;
+        text-decoration: none; transition: all 0.3s; border: none; cursor: pointer;
+    }
+    .btn-action {
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+        padding: 0.75rem 1.25rem; border-radius: 10px; font-weight: 600; font-size: 0.95rem;
+        text-decoration: none; transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
+    }
+    .btn-secondary { background: var(--border-color); border-color: var(--border-color); color: #e2e8f0; }
+    .btn-secondary:hover { background: var(--border-color); color: var(--text-main); transform: translateY(-1px); }
+    
+    /* Modal */
+    .modal-backdrop {
+        display: none; position: fixed; inset: 0; background: var(--bg-dark);
+        backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;
+        padding: 2rem; animation: fadeIn 0.2s ease-out;
+    }
+    .modal-window {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+        border: 1px solid var(--border-color); border-radius: 20px;
+        width: 100%; max-width: 1100px; max-height: 85vh; display: flex; flex-direction: column;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+    }
+    .modal-header {
+        padding: 1.75rem 2rem; border-bottom: 1px solid var(--border-color);
+        display: flex; justify-content: space-between; align-items: center; background: var(--bg-dark);
+    }
+    .modal-body { overflow-y: auto; flex: 1; }
+    .modal-body::-webkit-scrollbar { width: 8px; }
+    .modal-body::-webkit-scrollbar-track { background: var(--bg-dark); }
+    .modal-body::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+    .modal-body::-webkit-scrollbar-thumb:hover { background: var(--border-color); }
+    
+    .btn-close {
+        background: var(--border-color); border: none; color: #cbd5e1; width: 36px; height: 36px;
+        border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s; font-size: 1.1rem;
+    }
+    .btn-close:hover { background: rgba(239, 68, 68, 0.2); color: #fca5a5; transform: rotate(90deg); }
+    
+    .score-badge { 
+        display: inline-flex; align-items: center; justify-content: center; 
+        width: 32px; height: 32px; border-radius: 10px; font-weight: 800; font-size: 0.95rem; 
+    }
+    .score-badge.score-0 { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); }
+    .score-badge.score-low { background: linear-gradient(135deg, #f97316, #ea580c); color: white; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3); }
+    .score-badge.score-mid { background: linear-gradient(135deg, #eab308, #ca8a04); color: white; box-shadow: 0 4px 10px rgba(234, 179, 8, 0.3); }
+    .score-badge.score-high { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}

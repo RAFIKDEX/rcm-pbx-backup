@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+
+{% block title %}IVR Auto-Attendant Menus - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    .ivr-list-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: nowrap;
+    }
+    .ivr-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-width: 86px;
+        height: 34px;
+        padding: 0.35rem 0.65rem;
+        justify-content: center;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+    .ivr-action-btn i {
+        width: 14px;
+        text-align: center;
+    }
+    .ivr-delete-form {
+        display: inline-flex;
+        margin: 0;
+    }
+    .ivr-info-btn {
+        background: rgba(0, 173, 181, 0.1);
+        color: var(--primary);
+        border-color: rgba(0, 173, 181, 0.2);
+    }
+    @media (max-width: 900px) {
+        .ivr-list-actions {
+            flex-wrap: wrap;
+        }
+        .ivr-action-btn {
+            min-width: 78px;
+        }
+    }
+
+    .dtmf-pill {
+        font-size: 0.75rem;
+        background: rgba(0, 173, 181, 0.08);
+        border: 1px solid rgba(0, 173, 181, 0.18);
+        color: var(--text-muted);
+        padding: 0.2rem 0.45rem;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin: 0.2rem;
+    }
+    .dtmf-key {
+        background: var(--primary);
+        color: #0f172a;
+        font-weight: 800;
+        font-family: 'Orbitron', monospace;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+    }
+    .ivr-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: var(--bg-dark);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    .ivr-modal-backdrop.active { display: flex; }
+    .ivr-modal {
+        width: min(760px, 100%);
+        max-height: 85vh;
+        overflow: auto;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+        padding: 1.25rem;
+    }
+    .ivr-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 1rem;
+    }
+    .route-map-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 0.75rem;
+    }
+    .route-map-item {
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0.85rem;
+    }
+</style>
+
+<div class="header-panel">
+    <div>
+        <h1>IVR / Auto-Attendant Menus</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage IVR menus, prompts, timeouts and routing rules</div>
+    </div>
+    <div class="action-buttons" style="gap: 0.75rem;">
+        {% if can_view('ivr') %}
+        <a href="{{ url_for('ivr_export') }}" class="btn btn-secondary" style="text-decoration: none;" title="Export IVRs to Excel">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('ivr_import') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+        {% endif %}
+        {% if can_create('ivr') %}
+        <a href="{{ url_for('ivr_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Create IVR
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-robot" style="color: var(--primary);"></i> Active Auto-Attendants</h2>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Total Configured: <strong style="color: var(--text-main);">{{ ivrs|length }}</strong></span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table" style="border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">Extension</th>
+                        <th>Menu Name</th>
+                        <th>Prompt / Timing</th>
+                        <th>Failover</th>
+                        {% if can_view('ivr') or can_edit('ivr') or can_delete('ivr') %}
+                        <th style="text-align: right; width: 280px;">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not ivrs %}
+                    <tr>
+                        <td colspan="{{ 5 if (can_view('ivr') or can_edit('ivr') or can_delete('ivr')) else 4 }}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                            <i class="fa-solid fa-robot" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                            No IVR menus found.
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for ivr in ivrs %}
+                    <tr>
+                        <td>
+                            {% if can_edit('ivr') %}
+                            <a href="{{ url_for('ivr_edit', num=ivr.num) }}" style="font-family: 'Orbitron', monospace; font-size: 1.1rem; color: #38bdf8; font-weight: 800; text-decoration: none;">{{ ivr.num }}</a>
+                            {% else %}
+                            <span style="font-family: 'Orbitron', monospace; font-size: 1.1rem; color: #38bdf8; font-weight: 800;">{{ ivr.num }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: var(--text-main); font-size: 1rem;">{{ ivr.name }}</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem;">
+                                {% if ivr.dial_extension %}<span class="dtmf-pill">Dial Ext</span>{% endif %}
+                                {% if ivr.replace_display_name %}<span class="dtmf-pill">DisplayName</span>{% endif %}
+                                {% if ivr.auto_record %}<span class="dtmf-pill">Record</span>{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div style="color: #e2e8f0; font-size: 0.9rem;"><i class="fa-solid fa-volume-high" style="color:#94a3b8;"></i> {{ ivr.prompt_name or ivr.prompt_id or 'default' }}</div>
+                            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.25rem;">Menu {{ ivr.timeout }}s / Digit {{ ivr.digit_timeout if ivr.digit_timeout is defined else 3 }}s / {{ ivr.loops }} loops</div>
+                        </td>
+                        <td>
+                            <span style="text-transform: capitalize; color: #94a3b8;">{{ ivr.fail_mode }}</span>
+                            {% if ivr.fail_ext %}<code>{{ ivr.fail_ext }}</code>{% endif %}
+                        </td>
+                        {% if can_view('ivr') or can_edit('ivr') or can_delete('ivr') %}
+                        <td style="text-align: right;">
+                            <div class="list-row-actions ivr-list-actions">
+                                {% if can_view('ivr') %}
+                                <button type="button" class="list-action-btn list-action-info ivr-action-btn ivr-info-btn" title="Routing Info" aria-label="Routing info for IVR {{ ivr.num }}" onclick="openIvrInfo('ivr-info-{{ ivr.num }}')">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                </button>
+                                {% endif %}
+                                {% if can_edit('ivr') %}
+                                <a href="{{ url_for('ivr_edit', num=ivr.num) }}" class="list-action-btn list-action-edit ivr-action-btn" title="Edit IVR" aria-label="Edit IVR {{ ivr.num }}">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                                {% endif %}
+                                {% if can_delete('ivr') %}
+                                <form action="{{ url_for('ivr_delete', num=ivr.num) }}" method="POST" class="ivr-delete-form" onsubmit="return confirm('Are you sure you want to delete IVR Menu {{ ivr.num }} ({{ ivr.name }})?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="list-action-btn list-action-delete ivr-action-btn" title="Delete IVR" aria-label="Delete IVR {{ ivr.num }}">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            <div class="ivr-modal-backdrop" id="ivr-info-{{ ivr.num }}" onclick="closeIvrInfo(event, 'ivr-info-{{ ivr.num }}')">
+                                <div class="ivr-modal" onclick="event.stopPropagation()">
+                                    <div class="ivr-modal-head">
+                                        <div>
+                                            <div style="font-weight:800; font-size:1.1rem; color: var(--text-main);">{{ ivr.num }} - {{ ivr.name }}</div>
+                                            <div style="font-size:0.8rem; color:#94a3b8;">Routing Map</div>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="hideIvrInfo('ivr-info-{{ ivr.num }}')">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </div>
+                                    <div class="route-map-grid">
+                                        {% for m in ivr.mappings %}
+                                        <div class="route-map-item">
+                                            <div class="dtmf-pill" style="margin:0 0 0.45rem 0;"><span class="dtmf-key">{{ m.key }}</span><span>Key Press</span></div>
+                                            <div style="color:#e2e8f0; font-weight:700;">{% if m.dest_type %}{{ m.dest_type|title }}{% else %}Destination{% endif %}</div>
+                                            <div style="color:#94a3b8; margin-top:0.2rem;">{{ m.dest }}</div>
+                                        </div>
+                                        {% endfor %}
+                                        {% for m in ivr.ultra_numbers or [] %}
+                                        <div class="route-map-item">
+                                            <div class="dtmf-pill" style="margin:0 0 0.45rem 0;"><span class="dtmf-key">{{ m.number }}</span><span>Ultra Number</span></div>
+                                            <div style="color:#e2e8f0; font-weight:700;">{% if m.dest_type %}{{ m.dest_type|title }}{% else %}Destination{% endif %}</div>
+                                            <div style="color:#94a3b8; margin-top:0.2rem;">{{ m.dest }}</div>
+                                        </div>
+                                        {% endfor %}
+                                        {% if not ivr.mappings and not ivr.ultra_numbers %}
+                                        <div style="color:#64748b; font-style:italic;">No routing map configured.</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+    </div>
+</div>
+<script>
+    function openIvrInfo(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.add('active');
+    }
+    function hideIvrInfo(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.remove('active');
+    }
+    function closeIvrInfo(event, id) {
+        if (event.target && event.target.id === id) hideIvrInfo(id);
+    }
+</script>
+{% endblock %}

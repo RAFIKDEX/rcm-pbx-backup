@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+
+{% block title %}MOH Tracks: {{ class_name }} - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    .audio-preview-container {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .audio-player-control {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background-color: var(--primary);
+        border: none;
+        color: #fff;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .audio-player-control:hover {
+        transform: scale(1.08);
+        background-color: var(--primary-light);
+    }
+    
+    .audio-player-info {
+        flex: 1;
+    }
+    
+    .audio-player-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #fff;
+    }
+    
+    .audio-player-sub {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 0.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>MOH Class: {{ class_name }}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Directory: /var/lib/asterisk/moh/rcm/{{ class_name }}/</div>
+    </div>
+    <div>
+        <a href="{{ url_for('media_center', tab='moh') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Media Center
+        </a>
+    </div>
+</div>
+
+<!-- Audio Player Preview Container (Hidden until played) -->
+<div class="audio-preview-container" id="playerContainer" style="display: none;">
+    <button class="audio-player-control" onclick="togglePlayback()" id="playPauseBtn">
+        <i class="fa-solid fa-play"></i>
+    </button>
+    <div class="audio-player-info">
+        <div class="audio-player-title" id="playerTitle">Select a track to play preview</div>
+        <div class="audio-player-sub" id="playerSub">-</div>
+    </div>
+    <audio id="audioElement" style="display: none;" onended="onAudioEnded()"></audio>
+</div>
+
+<!-- Upload Tracks Panel -->
+<div class="panel" style="margin-bottom: 1.5rem;">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary);"></i> Upload Audio Tracks</h2>
+    </div>
+    
+    <form action="{{ url_for('media_moh_tracks_upload', class_name=class_name) }}" method="POST" enctype="multipart/form-data" style="margin-top: 1rem;">
+        <div style="display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <label for="tracks">Select Audio Files</label>
+                <input type="file" id="tracks" name="tracks" class="form-control" accept=".wav,.mp3,.gsm,.ogg" multiple required>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">You can select multiple files. Allowed: wav, mp3, gsm, ogg</span>
+            </div>
+            <button type="submit" class="btn btn-info" style="height: 40px;"><i class="fa-solid fa-upload"></i> Upload & Convert</button>
+        </div>
+    </form>
+</div>
+
+<!-- Tracks Table -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-music" style="color: var(--primary);"></i> Converted WAV Tracks</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Format</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not tracks %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-compact-disc" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No audio tracks found in this MOH class folder.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for t in tracks %}
+                <tr>
+                    <td><strong>{{ t.name }}</strong></td>
+                    <td><code>{{ t.size }}</code></td>
+                    <td><span class="badge badge-gray" style="background-color: rgba(234, 179, 8, 0.1); color: #facc15; border-color: rgba(234, 179, 8, 0.2);">WAV (8000Hz Mono)</span></td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            <button onclick="playTrack('{{ t.name }}')" class="btn btn-info btn-sm">
+                                <i class="fa-solid fa-circle-play"></i> Play
+                            </button>
+                            <button onclick="openRenameModal('{{ t.name }}')" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen"></i> Rename
+                            </button>
+                            <form action="{{ url_for('media_moh_track_delete', class_name=class_name, filename=t.name) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete track {{ t.name }}? This will permanently delete the file.');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- RENAME MOH TRACK MODAL -->
+<div id="renameTrackModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;"><i class="fa-solid fa-pen" style="color: var(--primary);"></i> Rename MOH Track</h2>
+        
+        <form action="{{ url_for('media_moh_track_rename', class_name=class_name) }}" method="POST">
+            <input type="hidden" id="rename_old_file" name="old_file">
+            
+            <div class="form-group">
+                <label for="rename_new_name">New Track Name <span style="color:#ff4a4a;">*</span></label>
+                <input type="text" id="rename_new_name" name="new_name" class="form-control" required>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.5rem; padding-top: 1rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-circle-check"></i> Rename</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Audio Player Controls
+    let currentTrack = null;
+    const audio = document.getElementById("audioElement");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const playerContainer = document.getElementById("playerContainer");
+    const playerTitle = document.getElementById("playerTitle");
+    const playerSub = document.getElementById("playerSub");
+
+    function playTrack(filename) {
+        playerContainer.style.display = "flex";
+        
+        if (currentTrack === filename) {
+            togglePlayback();
+            return;
+        }
+        
+        currentTrack = filename;
+        playerTitle.textContent = filename;
+        playerSub.textContent = "MOH Track Playback";
+        
+        audio.src = `/media_proxy?kind=moh_track&class={{ class_name }}&file=${filename}`;
+        audio.play()
+            .then(() => {
+                playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            })
+            .catch(err => {
+                console.error("Audio playback error:", err);
+                alert("Failed to play track. Verify the file exists.");
+                stopAudio();
+            });
+    }
+
+    function togglePlayback() {
+        if (!audio.src) return;
+        
+        if (audio.paused) {
+            audio.play();
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        } else {
+            audio.pause();
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        }
+    }
+
+    function stopAudio() {
+        audio.pause();
+        audio.src = "";
+        currentTrack = null;
+        playerContainer.style.display = "none";
+    }
+
+    function onAudioEnded() {
+        playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+    }
+
+    // Modal controls
+    function openRenameModal(filename) {
+        document.getElementById("rename_old_file").value = filename;
+        // strip .wav from input name
+        const rawName = filename.substring(0, filename.lastIndexOf('.')) || filename;
+        document.getElementById("rename_new_name").value = rawName;
+        document.getElementById("renameTrackModal").style.display = "block";
+    }
+
+    function closeModal() {
+        document.getElementById("renameTrackModal").style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById("renameTrackModal");
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
+{% endblock %}

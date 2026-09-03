@@ -1,0 +1,387 @@
+{% extends 'base.html' %}
+{% block title %}Manual Cleanup - RCM 7021{% endblock %}
+{% block content %}
+
+
+
+
+<style>
+    .page-hero { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(15, 23, 42, 0.8) 100%); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .page-title { margin: 0; color: #f8fafc; font-size: 1.8rem; font-weight: 700; }
+    .page-desc { color: #94a3b8; margin-top: 0.5rem; font-size: 0.95rem; }
+    .back-btn { background: var(--border-color); border: 1px solid var(--border-color); color: #cbd5e1; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 600; }
+    .back-btn:hover { background: var(--border-color); color: white; border-color: var(--border-color); }
+    
+    .config-panel { background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .section-title { color: #f8fafc; font-size: 1.2rem; font-weight: 600; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; }
+    
+    .custom-check-label { display: flex; align-items: center; gap: 10px; color: #e2e8f0; font-size: 1rem; cursor: pointer; padding: 0.75rem; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.2s; }
+    .custom-check-label:hover { background: var(--border-color); }
+    
+    .input-label { display: block; color: #94a3b8; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .modern-input, .modern-select { width: 100%; padding: 0.8rem 1rem; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.3s; box-sizing: border-box; }
+    .modern-input:focus, .modern-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+    
+    .per-cat-row { background: rgba(0,0,0,0.2); padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1rem; display: flex; gap: 1.5rem; align-items: center; border: 1px solid var(--border-color); }
+    .per-cat-title { color: #f8fafc; font-weight: 600; width: 180px; margin: 0; }
+    
+    .primary-btn { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 1rem 2rem; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1rem; width: 100%; transition: all 0.3s; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+    .primary-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6); }
+    .danger-btn { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 1rem 2rem; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1rem; transition: all 0.3s; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+    .danger-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6); }
+    
+    #progress_bar_container { background: rgba(0,0,0,0.3); border-radius: 10px; height: 12px; overflow: hidden; margin-bottom: 10px; }
+    #progress_bar { background: linear-gradient(90deg, #3b82f6, #60a5fa); height: 100%; width: 0%; border-radius: 10px; transition: width 0.3s; }
+    
+    .preview-card { background: var(--panel-dark); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+    .preview-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px dashed rgba(255,255,255,0.1); }
+    .preview-row:last-child { border-bottom: none; }
+
+    /* --- Light Mode Fixes --- */
+    [data-theme="light"] .cleanup-header {
+        background: linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(255, 255, 255, 0.95) 100%);
+    }
+    [data-theme="light"] .cleanup-header h1,
+    [data-theme="light"] .wizard-step h3,
+    [data-theme="light"] .rule-card h4,
+    [data-theme="light"] .preview-row span:last-child {
+        color: #0f172a !important;
+    }
+    [data-theme="light"] .cleanup-header p,
+    [data-theme="light"] .rule-desc,
+    [data-theme="light"] .preview-row span:first-child {
+        color: #475569 !important;
+    }
+    [data-theme="light"] .wizard-step {
+        background: #ffffff;
+    }
+    [data-theme="light"] .rule-card,
+    [data-theme="light"] .preview-card {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+</style>
+
+
+<div class="page-hero">
+    <div>
+        <h1 class="page-title"><i class="fa-solid fa-broom" style="margin-right: 10px; color: #3b82f6;"></i> Manual Cleanup Wizard</h1>
+        <p class="page-desc">Safely analyze and selectively purge historical data to free up server space.</p>
+    </div>
+    <a href="/cleanup/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+</div>
+
+<div id="step-configure" class="config-panel">
+    <h3 class="section-title"><i class="fa-solid fa-layer-group" style="color: #60a5fa;"></i> 1. Select Categories</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <label class="custom-check-label"><input type="checkbox" id="chk_cdr" style="transform: scale(1.2);" checked> CDR Records</label>
+        <div style="display:flex; flex-direction:column;"><label class="custom-check-label"><input type="checkbox" id="chk_rec" style="transform: scale(1.2);" checked> Call Recordings</label><label style="margin-left:25px; margin-top:5px; font-size:0.9rem; color:#64748b;"><input type="checkbox" id="chk_rec_ext" style="transform:scale(1.1); margin-right:5px;"> Include External Storage</label></div>
+        <label class="custom-check-label"><input type="checkbox" id="chk_queue" style="transform: scale(1.2);" checked> Queue Statistics</label>
+        <label class="custom-check-label"><input type="checkbox" id="chk_oplog" style="transform: scale(1.2);" checked> Operation Log</label>
+        <label class="custom-check-label" style="grid-column: 1 / -1;"><input type="checkbox" id="chk_dex" style="transform: scale(1.2);"> DEX Phones (Inactive > 30 days)</label>
+    </div>
+    
+    <h3 class="section-title"><i class="fa-solid fa-filter" style="color: #a78bfa;"></i> 2. Cleanup Criteria</h3>
+    <div style="margin-bottom: 1.5rem;">
+        <label class="custom-check-label" style="background: transparent; border: none; padding: 0;">
+            <input type="radio" name="rule_mode" value="global" checked onclick="toggleRuleMode()" style="transform: scale(1.2);"> 
+            <span style="font-weight: 600;">Apply Same Rule To All Selected Categories</span>
+        </label>
+        <label class="custom-check-label" style="background: transparent; border: none; padding: 0;">
+            <input type="radio" name="rule_mode" value="per_category" onclick="toggleRuleMode()" style="transform: scale(1.2);"> 
+            <span style="font-weight: 600;">Configure Specific Rules Per Category</span>
+        </label>
+    </div>
+    
+    <!-- Global Mode -->
+    <div id="mode_global" style="background: rgba(0,0,0,0.15); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 2rem;">
+        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+            <div style="flex: 2; min-width: 250px;">
+                <label class="input-label">Retention Strategy</label>
+                <select id="rule_strategy" onchange="toggleGlobalVal()" class="modern-select">
+                    <option value="older_than_days">Older than X Days</option>
+                    <option value="date_range">Specific Date Range</option>
+                    <option value="keep_latest_records">Keep Latest X Records/Files</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 150px;" id="div_older">
+                <label id="lbl_global_val" class="input-label">Days</label>
+                <input type="number" id="rule_days" value="90" class="modern-input">
+            </div>
+            <div style="flex: 1; min-width: 150px; display: none;" id="div_range">
+                <label class="input-label">Up to Date</label>
+                <input type="date" id="rule_date" class="modern-input">
+            </div>
+        </div>
+    </div>
+
+    <!-- Per Category Mode -->
+    <div id="mode_per_category" style="display: none; margin-bottom: 2rem;">
+        <div class="per-cat-row">
+            <h4 class="per-cat-title"><i class="fa-solid fa-phone" style="color: #60a5fa; margin-right: 8px;"></i> CDR Records</h4>
+            <select id="rule_strat_cdr" class="modern-select" style="flex: 2;" onchange="toggleCatVal('cdr')"><option value="older_than_days">Older than (days)</option><option value="date_range">Date Range (up to)</option><option value="keep_latest_records">Keep latest (records)</option></select>
+            <input type="number" id="rule_val_cdr" value="180" class="modern-input" style="flex: 1;">
+            <input type="date" id="rule_date_cdr" class="modern-input" style="flex: 1; display: none;">
+        </div>
+        <div class="per-cat-row">
+            <h4 class="per-cat-title"><i class="fa-solid fa-microphone" style="color: #34d399; margin-right: 8px;"></i> Call Recordings</h4>
+            <select id="rule_strat_rec" class="modern-select" style="flex: 2;" onchange="toggleCatVal('rec')"><option value="older_than_days">Older than (days)</option><option value="date_range">Date Range (up to)</option><option value="keep_latest_records">Keep latest (files)</option></select>
+            <input type="number" id="rule_val_rec" value="90" class="modern-input" style="flex: 1;">
+            <input type="date" id="rule_date_rec" class="modern-input" style="flex: 1; display: none;">
+        </div>
+        <div class="per-cat-row">
+            <h4 class="per-cat-title"><i class="fa-solid fa-users" style="color: #a78bfa; margin-right: 8px;"></i> Queue Stats</h4>
+            <select id="rule_strat_queue" class="modern-select" style="flex: 2;" onchange="toggleCatVal('queue')"><option value="older_than_days">Older than (days)</option><option value="date_range">Date Range (up to)</option><option value="keep_latest_records">Keep latest (records)</option></select>
+            <input type="number" id="rule_val_queue" value="180" class="modern-input" style="flex: 1;">
+            <input type="date" id="rule_date_queue" class="modern-input" style="flex: 1; display: none;">
+        </div>
+        <div class="per-cat-row">
+            <h4 class="per-cat-title"><i class="fa-solid fa-list-check" style="color: #fbbf24; margin-right: 8px;"></i> Operation Log</h4>
+            <select id="rule_strat_oplog" class="modern-select" style="flex: 2;" onchange="toggleCatVal('oplog')"><option value="older_than_days">Older than (days)</option><option value="date_range">Date Range (up to)</option><option value="keep_latest_records">Keep latest (records)</option></select>
+            <input type="number" id="rule_val_oplog" value="30" class="modern-input" style="flex: 1;">
+            <input type="date" id="rule_date_oplog" class="modern-input" style="flex: 1; display: none;">
+        </div>
+    </div>
+    
+
+    <!-- Email Alert Config -->
+    <div style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-top: 2rem; margin-bottom: 2rem;">
+        <h3 class="section-title" style="margin-top: 0; color: #f8fafc;"><i class="fa-solid fa-envelope" style="color: #3b82f6;"></i> Email Notification</h3>
+        <div style="margin-bottom: 10px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:1rem; color:var(--text-main); cursor:pointer;">
+                <input type="checkbox" id="chk_email_alert" style="width:18px; height:18px;" onchange="document.getElementById('email_addr_container').style.display = this.checked ? 'block' : 'none';">
+                Send Email Report after cleanup completes
+            </label>
+        </div>
+        <div id="email_addr_container" style="display:none; margin-left: 26px;">
+            <label style="display:block; margin-bottom: 5px; color:var(--text-muted); font-size: 0.9rem;">Recipient Email Address</label>
+            <input type="email" id="email_addr_input" class="modern-input" style="max-width: 400px; width: 100%;" placeholder="admin@example.com">
+        </div>
+    </div>
+    
+    <button onclick="startAnalyze()" class="primary-btn"><i class="fa-solid fa-magnifying-glass" style="margin-right: 8px;"></i> Preview Deletions</button>
+</div>
+
+<div id="step-progress" style="display: none; background: var(--bg-dark); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 2rem; text-align: center;">
+    <h3 style="color: white; margin-top: 0; font-size: 1.5rem;">Analyzing System Data...</h3>
+    <p style="color: #94a3b8; margin-bottom: 20px;">Please wait while we scan your records.</p>
+    <div id="progress_bar_container">
+        <div id="progress_bar"></div>
+    </div>
+    <p id="progress_text" style="color: #60a5fa; font-weight: bold; margin-top: 10px;">0%</p>
+    <p id="progress_detail" style="color: #94a3b8; font-size: 0.9rem;"></p>
+    <button id="cancel_btn" onclick="cancelJob()" style="background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin-top: 15px; font-weight: 600;"><i class="fa-solid fa-xmark"></i> Cancel</button>
+</div>
+
+<div id="step-results" style="display: none; background: var(--bg-dark); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 2rem;">
+    <h3 style="color: #10b981; margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-clipboard-check"></i> Analysis Complete</h3>
+    <p style="color: #e2e8f0; margin-bottom: 20px; font-size: 1.1rem;">Review the items marked for deletion below. This action cannot be undone.</p>
+    
+    <div id="scan_results"></div>
+    
+    <div style="display: flex; gap: 15px; margin-top: 30px;">
+        <button onclick="executeCleanup()" class="danger-btn" style="flex: 1;"><i class="fa-solid fa-trash-can" style="margin-right: 8px;"></i> Confirm & Delete Permanently</button>
+        <button onclick="location.reload()" style="flex: 1; background: var(--border-color); color: white; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1rem; transition: all 0.2s;">Cancel & Restart</button>
+    </div>
+</div>
+
+<script>
+let currentJobId = null;
+let pollInterval = null;
+let currentConfig = null;
+
+function toggleRuleMode() {
+    let isGlobal = document.querySelector('input[name="rule_mode"][value="global"]').checked;
+    document.getElementById('mode_global').style.display = isGlobal ? 'block' : 'none';
+    document.getElementById('mode_per_category').style.display = isGlobal ? 'none' : 'block';
+}
+
+function toggleGlobalVal() {
+    let strategy = document.getElementById('rule_strategy').value;
+    document.getElementById('div_older').style.display = 'none';
+    document.getElementById('div_range').style.display = 'none';
+    
+    if (strategy === 'older_than_days') {
+        document.getElementById('div_older').style.display = 'block';
+        document.getElementById('lbl_global_val').innerText = 'Older than (Days)';
+    } else if (strategy === 'date_range') {
+        document.getElementById('div_range').style.display = 'block';
+    } else if (strategy === 'keep_latest_records') {
+        document.getElementById('div_older').style.display = 'block';
+        document.getElementById('lbl_global_val').innerText = 'Number of Records/Files to Keep';
+    }
+}
+
+function toggleCatVal(cat) {
+    let strat = document.getElementById('rule_strat_' + cat).value;
+    document.getElementById('rule_val_' + cat).style.display = (strat === 'date_range') ? 'none' : 'block';
+    document.getElementById('rule_date_' + cat).style.display = (strat === 'date_range') ? 'block' : 'none';
+}
+
+function buildConfig() {
+    let isGlobal = document.querySelector('input[name="rule_mode"][value="global"]').checked;
+    let config = {};
+    if (isGlobal) {
+        let strategy = document.getElementById('rule_strategy').value;
+        let value = document.getElementById('rule_days').value;
+        let toDate = document.getElementById('rule_date').value;
+        
+        let rule = {strategy: strategy, enabled: true};
+        if (strategy === 'date_range') { rule.to = toDate; rule.value = toDate; }
+        else { rule.value = value; rule.to = value; }
+
+        if(document.getElementById('chk_cdr').checked) config["CDR"] = rule;
+        if(document.getElementById('chk_rec').checked) {
+            let rec_rule = Object.assign({}, rule);
+            if(document.getElementById('chk_rec_ext')) rec_rule.include_external = document.getElementById('chk_rec_ext').checked;
+            config["Recordings"] = rec_rule;
+        }
+        if(document.getElementById('chk_queue').checked) config["Queue Statistics Reports"] = rule;
+        if(document.getElementById('chk_oplog').checked) config["Operation Log"] = rule;
+    } else {
+        const cats = ['cdr', 'rec', 'queue', 'oplog'];
+        const apiCats = ['CDR', 'Recordings', 'Queue Statistics Reports', 'Operation Log'];
+        
+        cats.forEach((cat, idx) => {
+            if (document.getElementById('chk_' + cat).checked) {
+                let strat = document.getElementById('rule_strat_' + cat).value;
+                let val = document.getElementById('rule_val_' + cat).value;
+                let dt = document.getElementById('rule_date_' + cat).value;
+                
+                let rule = {strategy: strat, enabled: true};
+                if(strat === 'date_range') { rule.value = dt; rule.to = dt; }
+                else { rule.value = val; rule.to = val; }
+                if (cat === 'rec' && document.getElementById('chk_rec_ext')) {
+                    rule.include_external = document.getElementById('chk_rec_ext').checked;
+                }
+                config[apiCats[idx]] = rule;
+            }
+        });
+    }
+    
+    if(document.getElementById('chk_dex').checked) {
+        config["Zero Config Files"] = {strategy: "older_than_days", value: 30, enabled: true};
+    }
+    if(document.getElementById('chk_email_alert').checked) {
+        config["EmailAlert"] = {
+            enabled: true,
+            email: document.getElementById('email_addr_input').value
+        };
+    }
+    return config;
+}
+
+function startAnalyze() {
+    currentConfig = buildConfig();
+    if(Object.keys(currentConfig).length === 0) {
+        alert("Please select at least one category to cleanup.");
+        return;
+    }
+    
+    document.getElementById('step-configure').style.display = 'none';
+    document.getElementById('step-progress').style.display = 'block';
+    
+    fetch('/cleanup/manual/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(currentConfig)
+    }).then(r => r.json()).then(res => {
+        currentJobId = res.job_id;
+        pollInterval = setInterval(pollJobStatus, 1000);
+    });
+}
+
+function pollJobStatus() {
+    if(!currentJobId) return;
+    
+    fetch('/cleanup/job/' + currentJobId)
+    .then(r => r.json())
+    .then(res => {
+        document.getElementById('progress_bar').style.width = res.progress_percent + '%';
+        document.getElementById('progress_text').innerText = res.progress_percent + '%';
+        if(res.details && res.details.phase) {
+            document.getElementById('progress_detail').innerText = res.details.phase;
+        }
+        
+        if (res.status === 'Completed' || res.status === 'Failed' || res.status === 'Cancelled' || res.status === 'Completed With Errors') {
+            clearInterval(pollInterval);
+            
+            if (res.status === 'Cancelled') {
+                alert("Operation cancelled.");
+                location.reload();
+            } else if (res.details && res.details.stats) {
+                showResults(res.details.stats);
+            } else if (res.status === 'Completed') {
+                // Done execute
+                document.getElementById('step-progress').innerHTML = `<h3 style="color:#10b981; font-size:2rem;"><i class="fa-solid fa-circle-check"></i> Cleanup Successful</h3><p style="color:#e2e8f0; font-size:1.1rem; margin-top:10px;">Successfully freed ${res.details.freed_bytes ? (res.details.freed_bytes/1048576).toFixed(2) : 0} MB of storage.</p><a href="/cleanup/" class="primary-btn" style="display:inline-block; margin-top:20px; text-decoration:none;">Back to Dashboard</a>`;
+            } else {
+                alert("Error: " + (res.details.error || "Unknown Error"));
+                location.reload();
+            }
+        }
+    });
+}
+
+function showResults(stats) {
+    document.getElementById('step-progress').style.display = 'none';
+    document.getElementById('step-results').style.display = 'block';
+    
+    let html = '';
+    let totalItems = 0;
+    
+    for (let cat in stats) {
+        let st = stats[cat];
+        totalItems += st.count;
+        if(st.count > 0) {
+            html += `
+            <div class="preview-card">
+                <h4 style="color: #60a5fa; margin-top: 0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;"><i class="fa-solid fa-folder-open" style="margin-right: 5px;"></i> ${cat.replace('_', ' ')}</h4>
+                <div class="preview-row">
+                    <span style="color: #94a3b8;">Items to Delete:</span>
+                    <span style="color: #f8fafc; font-weight: bold; font-size: 1.1rem;">${st.count}</span>
+                </div>
+                ${st.size !== undefined ? `<div class="preview-row"><span style="color: #94a3b8;">Estimated Space:</span><span style="color: #f8fafc; font-weight: bold;">${(st.size/1048576).toFixed(2)} MB</span></div>` : ''}
+                <div class="preview-row">
+                    <span style="color: #94a3b8;">Oldest Record:</span>
+                    <span style="color: #f8fafc; font-weight: bold;">${st.oldest || '-'}</span>
+                </div>
+            </div>`;
+        }
+    }
+    
+    if (totalItems === 0) {
+        html = '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 20px; border-radius: 8px; color: #34d399; text-align: center; font-size: 1.1rem;"><i class="fa-solid fa-face-smile" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i> Great news! There are no records matching your criteria that need to be deleted.</div>';
+        document.querySelector('#step-results .danger-btn').style.display = 'none';
+    }
+    
+    document.getElementById('scan_results').innerHTML = html;
+}
+
+function executeCleanup() {
+    if(!confirm("Are you absolutely sure? This will PERMANENTLY delete the data from the server.")) return;
+    
+    document.getElementById('step-results').style.display = 'none';
+    document.getElementById('step-progress').style.display = 'block';
+    
+    document.getElementById('progress_bar').style.width = '0%';
+    document.getElementById('progress_text').innerText = '0%';
+    document.getElementById('progress_bar').style.background = 'linear-gradient(90deg, #ef4444, #f43f5e)';
+    document.querySelector('#step-progress h3').innerText = "Deleting Data...";
+    
+    fetch('/cleanup/manual/execute/' + currentJobId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(currentConfig)
+    }).then(r => r.json()).then(res => {
+        pollInterval = setInterval(pollJobStatus, 1000);
+    });
+}
+
+function cancelJob() {
+    if(!currentJobId) return;
+    fetch('/cleanup/job/' + currentJobId + '/cancel', { method: 'POST' })
+    .then(r => r.json())
+    .then(res => { document.getElementById('progress_detail').innerText = "Cancelling..."; });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,2 @@
+www-data ALL=(root) NOPASSWD: /usr/bin/python3 /usr/local/bin/rcm_firewall_helper.py *
+www-data ALL=(root) NOPASSWD: /usr/sbin/nft list table inet rcm-firewall

@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block title %}Live Active Calls - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Live Call Monitoring</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Real-time call bridging and channel control (GMT+3)</div>
+    </div>
+    <div>
+        <button id="btn-hangup-all" class="btn btn-danger" style="padding: 0.75rem 1.5rem;">
+            <i class="fa-solid fa-phone-slash"></i> Terminate All Calls
+        </button>
+    </div>
+</div>
+
+<!-- Active Calls Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-headset" style="color: var(--primary);"></i> Current Call Bridges</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Caller</th>
+                    <th>Destination</th>
+                    <th>Status</th>
+                    <th>Call Source</th>
+                    <th>Duration</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="calls-table-body">
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+                        Connecting to Asterisk channel engine...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let activeCalls = [];
+    let localTimers = {}; // Store raw duration seconds to increment locally
+    let timerInterval = null;
+
+    // Format seconds to MM:SS
+    function formatDuration(totalSeconds) {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    // Local timer tick function
+    function startLocalTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        
+        timerInterval = setInterval(() => {
+            activeCalls.forEach(call => {
+                const chanId = call.channel;
+                if (localTimers[chanId] !== undefined && call.state.toLowerCase() === 'answered') {
+                    localTimers[chanId]++;
+                    const timerElem = document.getElementById(`timer-${escapeId(chanId)}`);
+                    if (timerElem) {
+                        timerElem.innerText = formatDuration(localTimers[chanId]);
+                    }
+                }
+            });
+        }, 1000);
+    }
+
+    // Helper to escape channel characters for element IDs
+    function escapeId(str) {
+        return str.replace(/[^a-zA-Z0-9]/g, '_');
+    }
+
+    // Load active calls list via API
+    async function fetchLiveCalls() {
+        try {
+            const response = await fetch('/api/live-calls');
+            if (!response.ok) throw new Error("API call failed");
+            const data = await response.json();
+            
+            // Sync local timers with incoming database timestamps
+            const newTimers = {};
+            data.forEach(call => {
+                const chanId = call.channel;
+                // Preserve local timer increment or take server value
+                newTimers[chanId] = localTimers[chanId] !== undefined ? Math.max(localTimers[chanId], call.duration_sec) : call.duration_sec;
+            });
+            localTimers = newTimers;
+            activeCalls = data;
+            
+            updateCallsTable(data);
+            startLocalTimer();
+        } catch (error) {
+            console.error("Error fetching live calls:", error);
+        }
+    }
+
+    // Render Calls Table
+    function updateCallsTable(calls) {
+        const tbody = document.getElementById('calls-table-body');
+        if (calls.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 4rem;">
+                        <i class="fa-solid fa-phone-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No active calls bridged currently.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        calls.forEach(call => {
+            const isAnswered = call.state.toLowerCase() === 'answered';
+            const badgeClass = isAnswered ? 'badge-registered' : 'badge-ringing';
+            const stateIcon = isAnswered ? '<i class="fa-solid fa-phone-flip"></i>' : '<i class="fa-solid fa-phone-volume fa-pulse"></i>';
+            const sourceIcon = call.source === 'Internal' ? '<i class="fa-solid fa-user-shield"></i> Internal' : '<i class="fa-solid fa-globe"></i> Trunk';
+            
+            html += `
+                <tr style="animation: fadeIn 0.3s ease-out;">
+                    <td><strong style="color: #fff; font-size: 1.05rem;">${call.caller}</strong></td>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">${call.callee}</strong></td>
+                    <td>
+                        <span class="badge ${badgeClass}">
+                            ${stateIcon} ${call.state}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.9rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.4rem;">
+                            ${sourceIcon}
+                        </span>
+                    </td>
+                    <td><code id="timer-${escapeId(call.channel)}" style="font-family: 'Orbitron', monospace; color: var(--primary); font-weight: bold; font-size: 1rem;">${formatDuration(localTimers[call.channel])}</code></td>
+                    <td style="text-align: right;">
+                        <button onclick="hangupChannel('${call.channel}')" class="btn btn-danger btn-sm" style="padding: 0.4rem 0.8rem;">
+                            <i class="fa-solid fa-phone-slash"></i> Hangup
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // Hang up a single channel
+    async function hangupChannel(channel) {
+        if (!confirm(`Are you sure you want to terminate this call session?`)) return;
+        try {
+            const response = await fetch('/api/hangup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ channel: channel })
+            });
+            if (response.ok) {
+                // Remove immediately from active calls array
+                activeCalls = activeCalls.filter(c => c.channel !== channel);
+                delete localTimers[channel];
+                updateCallsTable(activeCalls);
+                fetchLiveCalls(); // Sync
+            }
+        } catch (error) {
+            console.error("Error hanging up channel:", error);
+        }
+    }
+
+    // Hangup All Calls
+    document.getElementById('btn-hangup-all').addEventListener('click', async () => {
+        if (!confirm("🚨 DANGER: Are you sure you want to terminate ALL active calls on the server immediately?")) return;
+        try {
+            const response = await fetch('/api/hangup-all', {
+                method: 'POST'
+            });
+            if (response.ok) {
+                activeCalls = [];
+                localTimers = {};
+                updateCallsTable([]);
+                fetchLiveCalls();
+            }
+        } catch (error) {
+            console.error("Error hanging up all calls:", error);
+        }
+    });
+
+    // Auto refresh every 2.5 seconds to sync state with server
+    setInterval(fetchLiveCalls, 2500);
+
+    // Initial load
+    fetchLiveCalls();
+</script>
+{% endblock %}

@@ -1,0 +1,5 @@
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/rcm_add_ext.sh
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/rcm_edit_ext.sh
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/rcm_del_ext.sh
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/rcm_pjsip_status.sh
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/rcm_pjsip_reload.sh

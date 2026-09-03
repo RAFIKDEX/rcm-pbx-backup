@@ -1,0 +1,602 @@
+{% extends 'base.html' %}
+
+{% block title %}MOH Tracks: {{ class_name }} - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ====================================================
+       MOH TRACKS STUDIO GUI DESIGN SYSTEM
+       ==================================================== */
+
+    .media-hero {
+        background: linear-gradient(135deg, rgba(21, 29, 48, 0.85) 0%, rgba(11, 15, 25, 0.95) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.75rem 2rem;
+        margin-bottom: 1.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .media-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 350px;
+        height: 350px;
+        background: radial-gradient(circle, rgba(0, 173, 181, 0.12) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .media-hero-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .media-hero-icon {
+        width: 54px;
+        height: 54px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(0, 173, 181, 0.2), rgba(0, 173, 181, 0.05));
+        border: 1px solid rgba(0, 173, 181, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        color: var(--primary);
+        box-shadow: 0 0 20px rgba(0, 173, 181, 0.15);
+    }
+
+    .media-hero-text h1 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.65rem;
+        font-weight: 700;
+        color: var(--text-main);
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+
+    .media-hero-text p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    /* Ultra-Premium Studio Download Button */
+    .media-btn-download {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(6, 182, 212, 0.18) 100%);
+        border: 1px solid rgba(52, 211, 153, 0.45);
+        color: #34d399;
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 0.42rem 0.95rem;
+        border-radius: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 10px rgba(16, 185, 129, 0.12);
+        white-space: nowrap;
+    }
+
+    .media-btn-download i {
+        font-size: 0.88rem;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .media-btn-download:hover {
+        background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+        border-color: #6ee7b7;
+        color: var(--text-main); !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    .media-btn-download:hover i {
+        transform: translateY(2px);
+    }
+
+    .media-btn-download:active {
+        transform: translateY(0);
+    }
+
+    /* ====================================================
+       COMPACT STUDIO ACTION BUTTONS (UI Enhancements)
+       ==================================================== */
+    .media-action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 0.88rem;
+        text-decoration: none;
+        position: relative;
+        background: transparent;
+    }
+
+    .media-action-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .media-action-btn:active {
+        transform: translateY(0) scale(0.96);
+    }
+
+    /* Play Button (Cyan/Teal Theme) */
+    .media-action-btn.btn-play {
+        background: rgba(0, 173, 181, 0.14);
+        border-color: rgba(0, 173, 181, 0.35);
+        color: #00cbd3;
+    }
+    .media-action-btn.btn-play:hover {
+        background: linear-gradient(135deg, #00cbd3 0%, #008f96 100%);
+        border-color: #00cbd3;
+        color: #0b0f19 !important;
+        box-shadow: 0 5px 16px rgba(0, 173, 181, 0.4);
+    }
+
+    /* Download Button (Emerald/Green Theme) */
+    .media-action-btn.btn-download {
+        background: rgba(16, 185, 129, 0.14);
+        border-color: rgba(16, 185, 129, 0.35);
+        color: #34d399;
+    }
+    .media-action-btn.btn-download:hover {
+        background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+        border-color: #34d399;
+        color: var(--text-main); !important;
+        box-shadow: 0 5px 16px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Edit/Rename Button (Slate/Blue Theme) */
+    .media-action-btn.btn-edit {
+        background: rgba(148, 163, 184, 0.12);
+        border-color: rgba(148, 163, 184, 0.28);
+        color: #cbd5e1;
+    }
+    .media-action-btn.btn-edit:hover {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border-color: #60a5fa;
+        color: var(--text-main); !important;
+        box-shadow: 0 5px 16px rgba(59, 130, 246, 0.4);
+    }
+
+    /* Delete Button (Rose/Red Theme) */
+    .media-action-btn.btn-delete {
+        background: rgba(239, 68, 68, 0.14);
+        border-color: rgba(239, 68, 68, 0.35);
+        color: #f87171;
+    }
+    .media-action-btn.btn-delete:hover {
+        background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+        border-color: #f87171;
+        color: var(--text-main); !important;
+        box-shadow: 0 5px 16px rgba(239, 68, 68, 0.4);
+    }
+
+    /* Studio Audio Player Deck */
+    .audio-preview-container {
+        background: linear-gradient(135deg, rgba(0, 173, 181, 0.12), rgba(15, 23, 42, 0.95));
+        border: 1px solid rgba(0, 173, 181, 0.35);
+        border-radius: 14px;
+        padding: 1.15rem 1.5rem;
+        margin-bottom: 1.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        box-shadow: 0 12px 30px rgba(0, 173, 181, 0.12);
+        animation: slideDownFade 0.35s ease;
+    }
+
+    @keyframes slideDownFade {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .audio-player-left {
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+        flex: 1;
+    }
+
+    .audio-player-control {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), #00cbd3);
+        border: none;
+        color: var(--text-main);
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 0 20px rgba(0, 173, 181, 0.4);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .audio-player-control:hover {
+        transform: scale(1.08);
+        box-shadow: 0 0 25px rgba(0, 173, 181, 0.6);
+    }
+
+    .audio-player-info {
+        flex: 1;
+    }
+
+    .audio-player-title {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: var(--text-main);
+        margin-bottom: 0.15rem;
+    }
+
+    .audio-player-sub {
+        font-size: 0.82rem;
+        color: #99f6e4;
+    }
+
+    .audio-visualizer {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        height: 32px;
+        padding: 0 0.5rem;
+    }
+
+    .eq-bar {
+        width: 4px;
+        background: linear-gradient(to top, var(--primary), #67e8f9);
+        border-radius: 2px;
+        height: 6px;
+        transition: height 0.2s ease;
+    }
+
+    .is-playing .eq-bar:nth-child(1) { animation: bounceEq 0.7s infinite alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(2) { animation: bounceEq 0.5s infinite 0.1s alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(3) { animation: bounceEq 0.8s infinite 0.2s alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(4) { animation: bounceEq 0.6s infinite 0.15s alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(5) { animation: bounceEq 0.9s infinite 0.3s alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(6) { animation: bounceEq 0.65s infinite 0.05s alternate ease-in-out; }
+
+    @keyframes bounceEq {
+        0% { height: 6px; }
+        100% { height: 28px; }
+    }
+
+    .audio-player-close {
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .audio-player-close:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.4);
+        color: #f87171;
+    }
+
+    .upload-box {
+        background: linear-gradient(135deg, rgba(21, 29, 48, 0.6), rgba(11, 15, 25, 0.8));
+        border: 1px dashed rgba(0, 173, 181, 0.4);
+        border-radius: 14px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .upload-box:hover {
+        border-color: var(--primary);
+        background: rgba(0, 173, 181, 0.05);
+    }
+
+    .track-icon-box {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(234, 179, 8, 0.12);
+        color: #facc15;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        font-size: 1.05rem;
+    }
+
+    .modal-content {
+        background: linear-gradient(145deg, #131b2e, #0c111e);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="media-hero">
+    <div class="media-hero-title">
+        <div class="media-hero-icon">
+            <i class="fa-solid fa-list-music"></i>
+        </div>
+        <div class="media-hero-text">
+            <h1>MOH Class: {{ class_name }}</h1>
+            <p>Directory Path: <code style="color: #67e8f9; background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 6px;">/var/lib/asterisk/moh/rcm/{{ class_name }}/</code></p>
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('media_center', tab='moh') }}" class="btn btn-secondary" style="text-decoration: none; padding: 0.75rem 1.25rem; border-radius: 10px;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Media Center
+        </a>
+    </div>
+</div>
+
+<!-- FLOATING STUDIO AUDIO PLAYER DECK -->
+<div class="audio-preview-container" id="playerContainer" style="display: none;">
+    <div class="audio-player-left">
+        <button class="audio-player-control" onclick="togglePlayback()" id="playPauseBtn" title="Play / Pause">
+            <i class="fa-solid fa-play"></i>
+        </button>
+        <div class="audio-player-info">
+            <div class="audio-player-title" id="playerTitle">Select a track to play preview</div>
+            <div class="audio-player-sub" id="playerSub">-</div>
+        </div>
+    </div>
+    
+    <div class="audio-visualizer" id="visualizerDeck">
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+    </div>
+
+    <button class="audio-player-close" onclick="stopAudio()" title="Close Preview">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
+    
+    <audio id="audioElement" style="display: none;" onended="onAudioEnded()"></audio>
+</div>
+
+<!-- Upload Tracks Panel -->
+{% if can_edit('music_on_hold') %}
+<div class="panel" style="margin-bottom: 1.75rem;">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary); margin-right: 0.5rem;"></i> Upload & Convert Audio Tracks</h2>
+    </div>
+    
+    <div class="upload-box">
+        <form action="{{ url_for('media_moh_tracks_upload', class_name=class_name) }}" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display: flex; gap: 1.25rem; align-items: end; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 260px;">
+                    <label for="tracks" style="font-weight: 600; margin-bottom: 0.5rem; display: block;">Select Audio Files (Multiple permitted)</label>
+                    <input type="file" id="tracks" name="tracks" class="form-control" accept=".wav,.mp3,.gsm,.ogg" multiple required style="padding: 0.75rem;">
+                    <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem; display: block;">
+                        <i class="fa-solid fa-circle-info" style="color: var(--primary); margin-right: 0.35rem;"></i>
+                        Supported: WAV, MP3, GSM, OGG. Converted automatically to Asterisk 8000 Hz Mono PCM.
+                    </span>
+                </div>
+                <button type="submit" class="btn btn-info" style="height: 46px; padding: 0 1.5rem; font-weight: 600; border-radius: 10px;">
+                    <i class="fa-solid fa-upload"></i> Upload & Convert
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Tracks Table -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-compact-disc" style="color: var(--primary); margin-right: 0.5rem;"></i> Converted WAV Playlist Tracks</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>File Size</th>
+                    <th>Audio Format</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not tracks %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3.5rem;">
+                        <i class="fa-solid fa-compact-disc" style="font-size: 2.8rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        <span style="font-size: 1.05rem; font-weight: 600;">No audio tracks found in this MOH class folder.</span>
+                        <p style="font-size: 0.85rem; color: var(--text-dark); margin-top: 0.25rem;">Select files above and click "Upload & Convert" to build your hold music playlist.</p>
+                    </td>
+                </tr>
+                {% endif %}
+                {% for t in tracks %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center;">
+                            <div class="track-icon-box">
+                                <i class="fa-solid fa-music"></i>
+                            </div>
+                            <div>
+                                <strong style="font-size: 0.96rem; color: var(--text-main);">{{ t.name }}</strong>
+                                <div style="font-size: 0.78rem; color: var(--text-dark);">Hold Track File</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><code style="background: rgba(0,0,0,0.3); padding: 0.25rem 0.6rem; border-radius: 6px;">{{ t.size }}</code></td>
+                    <td>
+                        <span class="badge" style="background: rgba(234, 179, 8, 0.12); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); padding: 0.35rem 0.75rem; border-radius: 8px; font-weight: 600; font-size: 0.78rem;">
+                            WAV (8000 Hz Mono PCM)
+                        </span>
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            {% if can_view('music_on_hold') %}
+                            <button onclick="playTrack('{{ t.name }}')" class="media-action-btn btn-play" title="Play Track">
+                                <i class="fa-solid fa-play"></i>
+                            </button>
+                            <a href="{{ url_for('media_moh_track_download', class_name=class_name, filename=t.name) }}" class="media-action-btn btn-download" title="Download Audio File">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                            {% endif %}
+                            {% if can_edit('music_on_hold') %}
+                            <button onclick="openRenameModal('{{ t.name }}')" class="media-action-btn btn-edit" title="Rename Track">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            {% endif %}
+                            {% if can_delete('music_on_hold') %}
+                            <form action="{{ url_for('media_moh_track_delete', class_name=class_name, filename=t.name) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete track {{ t.name }}? This will permanently delete the file.');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="media-action-btn btn-delete" title="Delete Track">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- RENAME MOH TRACK MODAL -->
+{% if can_edit('music_on_hold') %}
+<div id="renameTrackModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;">
+            <i class="fa-solid fa-pen-to-square" style="color: var(--primary); margin-right: 0.5rem;"></i> Rename MOH Track
+        </h2>
+        
+        <form action="{{ url_for('media_moh_track_rename', class_name=class_name) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="rename_old_file" name="old_file">
+            
+            <div class="form-group">
+                <label for="rename_new_name">New Track Name <span style="color:#ff4a4a;">*</span></label>
+                <input type="text" id="rename_new_name" name="new_name" class="form-control" required>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-circle-check"></i> Rename Track</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Audio Player Controls
+    let currentTrack = null;
+    const audio = document.getElementById("audioElement");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const playerContainer = document.getElementById("playerContainer");
+    const playerTitle = document.getElementById("playerTitle");
+    const playerSub = document.getElementById("playerSub");
+    const visualizerDeck = document.getElementById("visualizerDeck");
+
+    function playTrack(filename) {
+        playerContainer.style.display = "flex";
+        
+        if (currentTrack === filename) {
+            togglePlayback();
+            return;
+        }
+        
+        currentTrack = filename;
+        playerTitle.textContent = filename;
+        playerSub.textContent = "MOH Track Playback • PCM 8kHz WAV";
+        
+        audio.src = `/media_proxy?kind=moh_track&class={{ class_name }}&file=${filename}`;
+        audio.play()
+            .then(() => {
+                playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                if (visualizerDeck) visualizerDeck.classList.add("is-playing");
+            })
+            .catch(err => {
+                console.error("Audio playback error:", err);
+                alert("Failed to play track. Verify the file exists.");
+                stopAudio();
+            });
+    }
+
+    function togglePlayback() {
+        if (!audio.src) return;
+        
+        if (audio.paused) {
+            audio.play();
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            if (visualizerDeck) visualizerDeck.classList.add("is-playing");
+        } else {
+            audio.pause();
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            if (visualizerDeck) visualizerDeck.classList.remove("is-playing");
+        }
+    }
+
+    function stopAudio() {
+        audio.pause();
+        audio.src = "";
+        currentTrack = null;
+        playerContainer.style.display = "none";
+        if (visualizerDeck) visualizerDeck.classList.remove("is-playing");
+    }
+
+    function onAudioEnded() {
+        playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        if (visualizerDeck) visualizerDeck.classList.remove("is-playing");
+    }
+
+    // Modal controls
+    function openRenameModal(filename) {
+        document.getElementById("rename_old_file").value = filename;
+        const rawName = filename.substring(0, filename.lastIndexOf('.')) || filename;
+        document.getElementById("rename_new_name").value = rawName;
+        document.getElementById("renameTrackModal").style.display = "block";
+    }
+
+    function closeModal() {
+        document.getElementById("renameTrackModal").style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById("renameTrackModal");
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
+{% endblock %}

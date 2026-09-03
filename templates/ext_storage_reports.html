@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Reports Export{% endblock %}
+{% block content %}
+<h2 style="color: white; margin-bottom: 20px;"><i class="fa-solid fa-chart-pie" style="color: #3b82f6;"></i> Reports Export Engine</h2>
+<form method="POST" style="background: var(--bg-dark); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color); max-width: 600px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="margin-bottom: 1rem;">
+        <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Report Type</label>
+        <select name="report_type" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--border-color); border-radius: 6px;">
+            <option value="single_agent">Single Agent</option>
+            <option value="single_queue">Single Queue</option>
+            <option value="all_agents">All Agents</option>
+            <option value="all_queues">All Queues</option>
+        </select>
+    </div>
+    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <div style="flex: 1;">
+            <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Date From</label>
+            <input type="date" name="date_from" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--border-color); border-radius: 6px;">
+        </div>
+        <div style="flex: 1;">
+            <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Date To</label>
+            <input type="date" name="date_to" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--border-color); border-radius: 6px;">
+        </div>
+    </div>
+    <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Target Extension/Queue (if applicable)</label>
+        <input type="text" name="target_ext" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--border-color); border-radius: 6px;">
+    </div>
+    <button type="submit" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">Generate & Export</button>
+</form>
+{% endblock %}

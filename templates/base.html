@@ -1,0 +1,2133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <script>
+        // Global fetch interceptor for CSRF tokens
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = async function() {
+                let [resource, config] = arguments;
+                if (typeof resource === 'string' && config && config.method && !['GET', 'HEAD', 'OPTIONS'].includes(config.method.toUpperCase())) {
+                    config.headers = config.headers || {};
+                    config.headers['X-CSRFToken'] = '{{ csrf_token() }}';
+                }
+                return originalFetch(resource, config);
+            };
+        })();
+    </script>
+
+    <meta charset="UTF-8">
+    <!-- Theme Initialization -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('rcm_theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RCM 7021 Management System{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/Logo.png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/extension_portal.css') }}?v=1.3">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Modern alerts container */
+        .toast-container {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+        
+        .toast {
+            background-color: var(--panel-dark);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            min-width: 320px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            pointer-events: auto;
+            animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
+        }
+        
+        .toast-success {
+            border-left: 4px solid var(--status-registered);
+        }
+        
+        .toast-danger {
+            border-left: 4px solid var(--status-offline);
+        }
+        
+        .toast-info {
+            border-left: 4px solid var(--status-ringing);
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* Interactive Tabs Styling */
+        .tabs-header {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 1rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tab-btn:hover, .tab-btn.active {
+            color: var(--primary);
+        }
+        
+        .tab-btn.active {
+            border-bottom-color: var(--primary);
+            background-color: var(--border-color);
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Modals and popups */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(8px);
+        }
+        
+        .modal-content {
+            background-color: var(--panel-dark);
+            margin: 10% auto;
+            padding: 2.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            width: 90%;
+            max-width: 520px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            position: relative;
+            animation: modalSlideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes modalSlideDown {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 1.25rem;
+            right: 1.5rem;
+            font-size: 1.8rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .close-modal:hover {
+            color: var(--text-main);
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .switch-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            background-color: var(--border-color);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* Standard Native Checkbox */
+        .switch {
+            display: inline-flex;
+            align-items: center;
+        }
+        .switch input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary); /* Makes native checkbox blue on modern browsers */
+            margin: 0;
+            opacity: 1;
+            position: static;
+        }
+        .slider {
+            display: none !important; /* Hide the custom slider entirely */
+        }
+        
+        .fm-table {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            border-collapse: collapse;
+        }
+        
+        .fm-table th, .fm-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.5rem;
+        }
+
+        /* New Premium UI Elements */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--panel-dark);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .apply-changes-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: rgba(245, 158, 11, 0.05);
+            color: #888;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: not-allowed;
+            opacity: 0.5;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+        }
+        
+        .apply-changes-btn.active {
+            background-color: #f59e0b;
+            color: #0b0f19;
+            border-color: #f59e0b;
+            cursor: pointer;
+            opacity: 1;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.35);
+        }
+        
+        .apply-changes-btn.active:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.5);
+        }
+        
+        .apply-changes-btn.active:active {
+            transform: translateY(0);
+        }
+        
+        .pending-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background-color: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            color: #f59e0b;
+            font-size: 0.82rem;
+            font-weight: 700;
+            animation: pulseBanner 2s infinite;
+        }
+        
+        @keyframes pulseBanner {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.2); }
+            70% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+
+        /* Tooltip styling */
+        .tooltip-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 0.35rem;
+            color: var(--primary);
+            cursor: help;
+            font-size: 0.85rem;
+            width: 1.05rem;
+            height: 1.05rem;
+            border: 1px solid rgba(14, 165, 233, 0.45);
+            border-radius: 50%;
+            line-height: 1;
+            font-weight: 800;
+        }
+        .tooltip-container .tooltip-text {
+            visibility: hidden;
+            width: 220px;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            text-align: left;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s, visibility 0.2s;
+            font-size: 0.78rem;
+            font-family: var(--font-body);
+            font-weight: 500;
+            line-height: 1.4;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        .tooltip-container .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #0b0f19 transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .tooltip-container:focus .tooltip-text,
+        .tooltip-container:focus-visible .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Premium GUI enhancements */
+        .form-control {
+            transition: all 0.2s ease;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+            transform: translateY(-1px);
+        }
+        .btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.1);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+        .panel {
+            animation: fadeIn 0.4s ease-out;
+            transition: transform 0.3s ease;
+        }
+        .card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border-color: var(--primary);
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+        <!-- Left Sidebar Navigation -->
+        <aside class="sidebar" id="main-sidebar">
+            <script>
+                if (localStorage.getItem('sidebar_main_collapsed') === 'true' && window.innerWidth > 768) {
+                    document.getElementById('main-sidebar').classList.add('sidebar-collapsed', 'no-transition');
+                }
+            </script>
+            <div class="sidebar-brand">
+                <div class="brand-content">
+                    <h3 class="brand-title">RCM 7021</h3>
+                </div>
+                <button id="sidebarCollapseBtn" class="sidebar-collapse-btn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
+                    <i class="fa-solid fa-angles-left" id="sidebarCollapseIcon"></i>
+                </button>
+            </div>
+            
+            <ul class="sidebar-menu">
+                {% if session.get('user_type') == 'extension_user' %}
+                <li class="sidebar-category-header collapsible-header" data-group="extension-workspace-group" role="button" tabindex="0" aria-expanded="true" aria-controls="extension-workspace-group">
+                    <span class="category-label"><i class="fa-solid fa-briefcase"></i><span class="category-title">My Workspace</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="extension-workspace-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            <li class="{% if request.endpoint == 'extension_portal_dashboard' %}active{% endif %}">
+                                <a href="{{ url_for('extension_portal_dashboard') }}" data-tooltip="My Dashboard"><i class="fa-solid fa-house" style="color: #3b82f6;"></i> <span class="menu-text">My Dashboard</span></a>
+                            </li>
+                            <li class="{% if request.endpoint == 'extension_portal_my_extension' %}active{% endif %}">
+                                <a href="{{ url_for('extension_portal_my_extension') }}" data-tooltip="My Extension"><i class="fa-solid fa-phone" style="color: #10b981;"></i> <span class="menu-text">My Extension</span></a>
+                            </li>
+                            <li class="{% if request.endpoint in ['extension_portal_calls', 'extension_portal_calls_export'] %}active{% endif %}">
+                                <a href="{{ url_for('extension_portal_calls') }}" data-tooltip="My Calls"><i class="fa-solid fa-list" style="color: #f59e0b;"></i> <span class="menu-text">My Calls</span></a>
+                            </li>
+                            <li class="{% if request.endpoint in ['extension_portal_recordings', 'extension_portal_recording_file'] %}active{% endif %}">
+                                <a href="{{ url_for('extension_portal_recordings') }}" data-tooltip="My Recordings"><i class="fa-solid fa-microphone-lines" style="color: #ef4444;"></i> <span class="menu-text">My Recordings</span></a>
+                            </li>
+                            <li class="{% if request.endpoint == 'extension_portal_profile' %}active{% endif %}">
+                                <a href="{{ url_for('extension_portal_profile') }}" data-tooltip="Profile"><i class="fa-solid fa-user" style="color: #8b5cf6;"></i> <span class="menu-text">Profile</span></a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+                
+                <!-- SYSTEM STATUS -->
+                {% if can_access_module('dashboard') or can_access_module('active_calls') %}
+                <li class="sidebar-category-header collapsible-header" data-group="system-status-group" role="button" tabindex="0" aria-expanded="true" aria-controls="system-status-group">
+                    <span class="category-label"><i class="fa-solid fa-gauge"></i><span class="category-title">System Status</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="system-status-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if can_access_module('dashboard') %}
+                            <li class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                                <a href="{{ url_for('dashboard') }}" data-tooltip="Dashboard"><i class="fa-solid fa-chart-pie" style="color: #3b82f6;"></i> <span class="menu-text">Dashboard</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('active_calls') %}
+                            <li class="{% if request.endpoint == 'active_calls' %}active{% endif %}">
+                                <a href="{{ url_for('active_calls') }}" data-tooltip="Active Calls"><i class="fa-solid fa-headset" style="color: #10b981;"></i> <span class="menu-text">Active Calls</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+                <!-- CONSOLE -->
+                {% if is_con_agent() or is_con_supervisor() %}
+                <li class="sidebar-category-header collapsible-header" data-group="console-group" role="button" tabindex="0" aria-expanded="true" aria-controls="console-group">
+                    <span class="category-label"><i class="fa-solid fa-laptop-code"></i><span class="category-title">Call Center Console</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="console-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if is_con_agent() %}
+                            <li class="{% if request.endpoint == 'con_bp.con_agent' %}active{% endif %}">
+                                <a href="{{ url_for('con_bp.con_agent') }}" data-tooltip="CON Agent"><i class="fa-solid fa-headset" style="color: #6366f1;"></i> <span class="menu-text">CON Agent</span></a>
+                            </li>
+                            {% endif %}
+                            {% if is_con_supervisor() %}
+                            <li class="{% if request.endpoint == 'con_bp.con_supervisor' %}active{% endif %}">
+                                <a href="{{ url_for('con_bp.con_supervisor') }}" data-tooltip="CON Supervisor"><i class="fa-solid fa-eye" style="color: #f59e0b;"></i> <span class="menu-text">CON Supervisor</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+                <!-- EXTENSIONS & TRUNKS -->
+                {% if can_access_module('extensions') or can_access_module('trunks') or can_access_module('inbound_routes') or can_access_module('outbound_routes') %}
+                <li class="sidebar-category-header collapsible-header" data-group="extensions-trunks-group" role="button" tabindex="0" aria-expanded="true" aria-controls="extensions-trunks-group">
+                    <span class="category-label"><i class="fa-solid fa-phone"></i><span class="category-title">Extensions & Trunks</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="extensions-trunks-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if can_access_module('extensions') %}
+                            <li class="{% if request.endpoint in ['extensions', 'extensions_add', 'extensions_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('extensions') }}" data-tooltip="Extensions"><i class="fa-solid fa-users-gear" style="color: #0ea5e9;"></i> <span class="menu-text">Extensions</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('trunks') %}
+                            <li class="{% if request.endpoint in ['trunks', 'trunks_add', 'trunks_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('trunks') }}" data-tooltip="Trunks"><i class="fa-solid fa-server" style="color: #a855f7;"></i> <span class="menu-text">Trunks</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('inbound_routes') %}
+                            <li class="{% if request.endpoint in ['inbound_routes_list', 'inbound_route_add', 'inbound_route_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('inbound_routes_list') }}" data-tooltip="Inbound Routes"><i class="fa-solid fa-phone-volume" style="color: #3b82f6;"></i> <span class="menu-text">Inbound Routes</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('outbound_routes') %}
+                            <li class="{% if request.endpoint == 'call_routes' %}active{% endif %}">
+                                <a href="{{ url_for('call_routes') }}" data-tooltip="Outbound Routes"><i class="fa-solid fa-route" style="color: #f59e0b;"></i> <span class="menu-text">Outbound Routes</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+
+                <!-- CALL FEATURES -->
+                {% if can_access_module('voice_prompts') or can_access_module('system_prompts') or can_access_module('moh') or can_access_module('announcements') or can_access_module('paging') or can_access_module('ring_groups') or can_access_module('pickup_groups') or can_access_module('speed_dial') or can_access_module('feature_codes') %}
+                <li class="sidebar-category-header collapsible-header" data-group="call-features-group" role="button" tabindex="0" aria-expanded="true" aria-controls="call-features-group">
+                    <span class="category-label"><i class="fa-solid fa-wand-magic-sparkles"></i><span class="category-title">Call Features</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="call-features-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if can_access_module('voice_prompts') %}
+                            <li class="{% if request.endpoint == 'media_center' and request.args.get('tab', 'prompts') == 'prompts' %}active{% endif %}">
+                                <a href="{{ url_for('media_center', tab='prompts') }}" data-tooltip="Voice Prompts"><i class="fa-solid fa-volume-high" style="color: #14b8a6;"></i> <span class="menu-text">Voice Prompts</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('system_prompts') %}
+                            <li class="{% if request.endpoint == 'media_center' and request.args.get('tab') == 'system' %}active{% endif %}">
+                                <a href="{{ url_for('media_center', tab='system') }}" data-tooltip="System Prompts"><i class="fa-solid fa-gear" style="color: #a78bfa;"></i> <span class="menu-text">System Prompts</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('moh') %}
+                            <li class="{% if (request.endpoint == 'media_center' and request.args.get('tab') == 'moh') or request.endpoint == 'moh_tracks' %}active{% endif %}">
+                                <a href="{{ url_for('media_center', tab='moh') }}" data-tooltip="Music On Hold"><i class="fa-solid fa-music" style="color: #eab308;"></i> <span class="menu-text">Music On Hold</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('announcements') %}
+                            <li class="{% if request.endpoint in ['announcement_list', 'announcement_add', 'announcement_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('announcement_list') }}" data-tooltip="Announcements"><i class="fa-solid fa-bullhorn" style="color: #fb923c;"></i> <span class="menu-text">Announcements</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('paging') %}
+                            <li class="{% if request.endpoint in ['paging_list', 'paging_add', 'paging_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('paging_list') }}" data-tooltip="Intercom & Paging"><i class="fa-solid fa-broadcast-tower" style="color: #10b981;"></i> <span class="menu-text">Intercom & Paging</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('ring_groups') %}
+                            <li class="{% if request.endpoint in ['ringgroup_list', 'ringgroup_add', 'ringgroup_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('ringgroup_list') }}" data-tooltip="Call Groups"><i class="fa-solid fa-people-group" style="color: #06b6d4;"></i> <span class="menu-text">Call Groups</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('pickup_groups') %}
+                            <li class="{% if request.endpoint in ['pickup_groups_list', 'pickup_groups_add', 'pickup_groups_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('pickup_groups_list') }}" data-tooltip="Pickup Groups"><i class="fa-solid fa-hand-holding-hand" style="color: #3b82f6;"></i> <span class="menu-text">Pickup Groups</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('speed_dial') %}
+                            <li class="{% if request.endpoint in ['speed_dial_list', 'speed_dial_add', 'speed_dial_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('speed_dial_list') }}" data-tooltip="Speed Dial"><i class="fa-solid fa-phone-flip" style="color: #8b5cf6;"></i> <span class="menu-text">Speed Dial</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('feature_codes') %}
+                            <li class="{% if request.endpoint in ['feature_codes'] %}active{% endif %}">
+                                <a href="{{ url_for('feature_codes') }}" data-tooltip="Feature Codes"><i class="fa-solid fa-hashtag" style="color: #ec4899;"></i> <span class="menu-text">Feature Codes</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+                <!-- CALL CENTER -->
+                {% if can_access_module('ivr') or can_access_module('queues') or reporting_scope_has_access('queue_live') or reporting_scope_has_access('queue_stats') %}
+                <li class="sidebar-category-header collapsible-header" data-group="call-center-group" role="button" tabindex="0" aria-expanded="true" aria-controls="call-center-group">
+                    <span class="category-label"><i class="fa-solid fa-headset"></i><span class="category-title">Call Center</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="call-center-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if can_access_module('ivr') %}
+                            <li class="{% if request.endpoint in ['ivr_list', 'ivr_add', 'ivr_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('ivr_list') }}" data-tooltip="IVR"><i class="fa-solid fa-robot" style="color: #6366f1;"></i> <span class="menu-text">IVR</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('queues') %}
+                            <li class="{% if request.endpoint in ['queue_list', 'queue_add', 'queue_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('queue_list') }}" data-tooltip="Queue"><i class="fa-solid fa-lines-leaning" style="color: #f43f5e;"></i> <span class="menu-text">Queue</span></a>
+                            </li>
+                            <li class="{% if request.endpoint and request.endpoint.startswith('survey_') %}active{% endif %}">
+                                <a href="{{ url_for('survey_list') }}" data-tooltip="Survey"><i class="fa-solid fa-square-poll-vertical" style="color: #10b981;"></i> <span class="menu-text">Survey</span></a>
+                            </li>
+                            {% endif %}
+                            {% if reporting_scope_has_access('queue_live') %}
+                            <li class="{% if request.endpoint == 'queue_live' %}active{% endif %}">
+                                <a href="{{ url_for('queue_live') }}" data-tooltip="Live Queue"><i class="fa-solid fa-gauge-high" style="color: #10b981;"></i> <span class="menu-text">Live Queue</span></a>
+                            </li>
+                            {% endif %}
+                            {% if reporting_scope_has_access('queue_stats') %}
+                            <li class="{% if request.endpoint == 'queue_stats' %}active{% endif %}">
+                                <a href="{{ url_for('queue_stats') }}" data-tooltip="Queue Statistics"><i class="fa-solid fa-chart-line" style="color: #3b82f6;"></i> <span class="menu-text">Queue Statistics</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+                <!-- CONTACTS & LDAP -->
+                {% if can_access_module('extensions') %}
+                <li class="sidebar-category-header collapsible-header" data-group="contacts-ldap-group" role="button" tabindex="0" aria-expanded="true" aria-controls="contacts-ldap-group">
+                    <span class="category-label"><i class="fa-solid fa-address-book"></i><span class="category-title">Contacts & LDAP</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="contacts-ldap-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            <li class="{% if request.endpoint == 'contacts_list' %}active{% endif %}">
+                                <a href="{{ url_for('contacts_list') }}" data-tooltip="Contacts"><i class="fa-solid fa-users" style="color: #10b981;"></i> <span class="menu-text">Contacts</span></a>
+                            </li>
+                            <li class="{% if request.endpoint == 'ldap_settings' %}active{% endif %}">
+                                <a href="{{ url_for('ldap_settings') }}" data-tooltip="LDAP Settings"><i class="fa-solid fa-network-wired" style="color: #6366f1;"></i> <span class="menu-text">LDAP</span></a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+                <!-- DEX -->
+                {% if can_access_module('dex_phones') or can_access_module('dex_models') or can_access_module('dex_config') %}
+                <li class="sidebar-category-header collapsible-header" data-group="dex-group" role="button" tabindex="0" aria-expanded="true" aria-controls="dex-group">
+                    <span class="category-label"><i class="fa-solid fa-mobile-screen-button"></i><span class="category-title">DEX</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="dex-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if can_access_module('dex_phones') %}
+                            <li class="{% if request.endpoint in ['dex_phones', 'dex_phone_add', 'dex_phone_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('dex_phones') }}" data-tooltip="DEX Phone"><i class="fa-solid fa-mobile-screen-button" style="color: #38bdf8;"></i> <span class="menu-text">DEX Phone</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('dex_models') %}
+                            <li class="{% if request.endpoint in ['dex_models', 'dex_model_add', 'dex_model_view', 'dex_model_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('dex_models') }}" data-tooltip="DEX Model"><i class="fa-solid fa-layer-group" style="color: #a78bfa;"></i> <span class="menu-text">DEX Model</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('dex_config') %}
+                            <li class="{% if request.endpoint == 'dex_config' %}active{% endif %}">
+                                <a href="{{ url_for('dex_config') }}" data-tooltip="DEX Config"><i class="fa-solid fa-sliders" style="color: #34d399;"></i> <span class="menu-text">DEX Config</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+                <!-- PBX SETTINGS -->
+                {% if can_access_module('global_settings') or can_access_module('operation_log') or can_access_module('time_conditions') or can_access_module('users') or can_access_module('privileges') %}
+                <li class="sidebar-category-header collapsible-header" data-group="pbx-settings-group" role="button" tabindex="0" aria-expanded="true" aria-controls="pbx-settings-group">
+                    <span class="category-label"><i class="fa-solid fa-gears"></i><span class="category-title">PBX Settings</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="pbx-settings-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if can_access_module('global_settings') %}
+                            <li class="{% if request.endpoint == 'pbx_settings' %}active{% endif %}">
+                                <a href="{{ url_for('pbx_settings') }}" data-tooltip="Global Settings"><i class="fa-solid fa-sliders" style="color: #64748b;"></i> <span class="menu-text">Global Settings</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('operation_log') %}
+                            <li class="{% if request.endpoint == 'pbx_operation_log' %}active{% endif %}">
+                                <a href="{{ url_for('pbx_operation_log') }}" data-tooltip="Operation Log"><i class="fa-solid fa-clock-rotate-left" style="color: #0ea5e9;"></i> <span class="menu-text">Operation Log</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('global_settings') %}
+                            <li>
+                                <a href="javascript:void(0)" onclick="showNotification('Incoming caller blacklist features are managed via dialplan routing rules.', 'info')" data-tooltip="Blacklist">
+                                    <i class="fa-solid fa-ban" style="color: #ef4444;"></i> <span class="menu-text">Blacklist</span> <span class="sidebar-badge coming-soon">Soon</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('time_conditions') %}
+                            <li class="{% if request.endpoint in ['time_conditions_list', 'office_time_add', 'office_time_edit', 'holiday_add', 'holiday_edit'] %}active{% endif %}">
+                                <a href="{{ url_for('time_conditions_list') }}" data-tooltip="Time Conditions"><i class="fa-solid fa-calendar-days" style="color: #10b981;"></i> <span class="menu-text">Time Conditions</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('global_settings') %}
+                            <li class="{% if request.blueprint == 'cleanup_bp' %}active{% endif %}">
+                                <a href="/cleanup/" data-tooltip="System Cleaner">
+                                    <i class="fa-solid fa-broom" style="color: #a855f7;"></i> <span class="menu-text">System Cleaner</span>
+                                </a>
+                            </li>
+                            <li class="{% if request.blueprint == 'ext_storage_bp' %}active{% endif %}">
+                                <a href="/external-storage/" data-tooltip="External Storage">
+                                    <i class="fa-solid fa-hard-drive" style="color: #3b82f6;"></i> <span class="menu-text">External Storage</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('users') %}
+                            <li class="{% if request.endpoint in ['users_list', 'user_add', 'user_edit', 'user_delete', 'user_toggle'] %}active{% endif %}">
+                                <a href="{{ url_for('users_list') }}" data-tooltip="Users Management"><i class="fa-solid fa-users" style="color: #6366f1;"></i> <span class="menu-text">Users</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('privileges') %}
+                            <li class="{% if request.endpoint in ['privileges_list', 'privilege_save', 'privilege_delete', 'privilege_duplicate'] %}active{% endif %}">
+                                <a href="{{ url_for('privileges_list') }}" data-tooltip="Privileges Management"><i class="fa-solid fa-key" style="color: #f59e0b;"></i> <span class="menu-text">Privileges</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+                <!-- SYSTEM SETTINGS -->
+                {% if can_access_module('time_settings') or can_access_module('network_settings') or can_access_module('firewall') or can_access_module('mail_server') or can_access_module('network_troubleshooting') %}
+                <li class="sidebar-category-header collapsible-header" data-group="system-settings-group" role="button" tabindex="0" aria-expanded="true" aria-controls="system-settings-group">
+                    <span class="category-label"><i class="fa-solid fa-screwdriver-wrench"></i><span class="category-title">System Settings</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="system-settings-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if can_access_module('time_settings') %}
+                            <li class="{% if request.endpoint == 'time_settings' %}active{% endif %}">
+                                <a href="{{ url_for('time_settings') }}" data-tooltip="Time Settings"><i class="fa-solid fa-clock" style="color: #a855f7;"></i> <span class="menu-text">Time Settings</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('network_settings') %}
+                            <li class="{% if request.endpoint == 'network_settings' %}active{% endif %}">
+                                <a href="{{ url_for('network_settings') }}" data-tooltip="Network Settings"><i class="fa-solid fa-network-wired" style="color: #06b6d4;"></i> <span class="menu-text">Network Settings</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('firewall') %}
+                            <li class="{% if request.endpoint == 'security' %}active{% endif %}">
+                                <a href="{{ url_for('security') }}" data-tooltip="Firewall Settings"><i class="fa-solid fa-shield-halved" style="color: #ef4444;"></i> <span class="menu-text">Firewall Settings</span></a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('firewall') %}
+                            <li class="{% if request.endpoint == 'sip_security' %}active{% endif %}">
+                                <a href="{{ url_for('sip_security') }}" data-tooltip="SIP Security Settings">
+                                    <i class="fa-solid fa-lock" style="color: #3b82f6;"></i> <span class="menu-text">SIP Security Settings</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('mail_server') %}
+                            <li class="{% if request.endpoint == 'mail_settings' %}active{% endif %}">
+                                <a href="{{ url_for('mail_settings') }}" data-tooltip="Mail Server Settings">
+                                    <i class="fa-solid fa-envelope" style="color: #14b8a6;"></i> <span class="menu-text">Mail Server Settings</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if can_access_module('network_troubleshooting') %}
+                            <li><a href="{{ url_for('network_troubleshooting') }}" data-tooltip="Network Troubleshooting"><i class="fa-solid fa-screwdriver-wrench" style="color: #fb923c;"></i> <span class="menu-text">Network Troubleshooting</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
+                <!-- REPORTS -->
+                {% if reporting_scope_has_access('cdr_reports') or reporting_scope_has_access('call_records') %}
+                <li class="sidebar-category-header collapsible-header" data-group="reports-group" role="button" tabindex="0" aria-expanded="true" aria-controls="reports-group">
+                    <span class="category-label"><i class="fa-solid fa-chart-simple"></i><span class="category-title">Reports</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="reports-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            {% if reporting_scope_has_access('call_records') %}
+                            <li class="{% if request.endpoint == 'call_records' %}active{% endif %}">
+                                <a href="{{ url_for('call_records') }}" data-tooltip="Call Records"><i class="fa-solid fa-microphone-lines" style="color: #ef4444;"></i> <span class="menu-text">Call Records</span></a>
+                            </li>
+                            {% endif %}
+                            {% if reporting_scope_has_access('cdr_reports') %}
+                            <li class="{% if request.endpoint == 'cdr_page' %}active{% endif %}">
+                                <a href="{{ url_for('cdr_page') }}" data-tooltip="Call Detail Records"><i class="fa-solid fa-receipt" style="color: #10b981;"></i> <span class="menu-text">Call Detail Records</span></a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+            </ul>
+            
+            <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                {% if has_permission('system_reboot', 'execute') %}
+                <a href="javascript:void(0)" onclick="openMachineRebootModal()" class="reboot-link" data-tooltip="Reboot Server">
+                    <i class="fa-solid fa-server"></i> <span class="menu-text">Reboot System</span>
+                </a>
+                {% endif %}
+                {% if has_permission('asterisk_restart', 'execute') %}
+                <a href="javascript:void(0)" onclick="openSystemRebootModal()" class="reboot-link" data-tooltip="Restart Asterisk">
+                    <i class="fa-solid fa-power-off"></i> <span class="menu-text">Restart Asterisk</span>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="signout-link" data-tooltip="Sign Out">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> <span class="menu-text">Sign Out</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content (order: 1 in css puts it on the left) -->
+        <main class="main-content">
+            <!-- Global Apply Changes Top Bar -->
+            <div class="top-bar">
+                <div style="display: flex; align-items: center; gap: 1.5rem;">
+                    <button id="mobileMenuBtn" class="mobile-menu-btn" title="Open Menu" aria-label="Open Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" style="display: flex; align-items: center; text-decoration: none;">
+                        <img src="/Logo.png" alt="Logo" style="max-height: 42px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4)); transition: transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    </a>
+                    {% if has_pending_changes %}
+                    <div class="pending-banner" id="pendingBanner">
+                        <i class="fa-solid fa-triangle-exclamation fa-fade"></i>
+                        <span>New configuration changes are pending</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 1rem;">
+
+                    <!-- Theme Toggle Button -->
+                    <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Light/Dark Mode" aria-label="Toggle Theme" style="background: var(--panel-dark); border: 1px solid var(--border-color); border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                        <i class="fa-solid fa-moon" id="themeIcon"></i>
+                    </button>
+                    
+                    {% if session.get('logged_in') and session.get('username') %}
+                    <button type="button" class="user-profile-pill" onclick="openMyProfileModal()">
+                        <div class="user-profile-avatar">
+                            {{ session.get('username')[0]|upper if session.get('username') else 'U' }}
+                        </div>
+                        <div class="user-profile-text">
+                            <div class="user-profile-name">{{ session.get('username') }}</div>
+                            <div class="user-profile-role">{{ session.get('role', 'agent') }}</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down user-profile-arrow"></i>
+                    </button>
+                    {% endif %}
+                    <button id="applyChangesBtn" class="apply-changes-btn {% if has_pending_changes %}active{% endif %}" {% if not has_pending_changes %}disabled{% endif %}>
+                        <i class="fa-solid fa-circle-check"></i> Apply Changes
+                    </button>
+                </div>
+            </div>
+
+            <!-- Toast Notifications Container -->
+            <div class="toast-container" id="toast-container">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="toast toast-{{ category if category != 'error' else 'danger' }}">
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    {% if category == 'success' %}
+                                        <i class="fa-solid fa-circle-check" style="color: var(--status-registered); font-size: 1.25rem;"></i>
+                                    {% elif category in ['error', 'danger'] %}
+                                        <i class="fa-solid fa-circle-exclamation" style="color: var(--status-offline); font-size: 1.25rem;"></i>
+                                    {% else %}
+                                        <i class="fa-solid fa-circle-info" style="color: var(--status-ringing); font-size: 1.25rem;"></i>
+                                    {% endif %}
+                                    <span style="font-size: 0.9rem; font-weight: 500;">{{ message }}</span>
+                                </div>
+                                <button class="close-modal" style="position: static; font-size: 1.2rem; background: none; border: none; cursor: pointer;" onclick="this.parentElement.remove()">&times;</button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    
+    <!-- My Profile & Security Self-Service Modal -->
+    <div id="myProfileModal" class="modal" style="display: none; z-index: 10020; background: rgba(11, 15, 25, 0.92);">
+        <div class="modal-content" style="max-width: 520px; border-radius: 18px; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0,0,0,0.7); padding: 0; overflow: hidden; background: var(--panel-dark);">
+            <div style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.85), rgba(30, 58, 138, 0.95)); padding: 1.5rem 1.75rem; border-bottom: 1px solid rgba(56, 189, 248, 0.25); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.85rem;">
+                    <div style="width: 46px; height: 46px; border-radius: 14px; background: var(--border-color); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: var(--text-main);">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h2 style="color: var(--text-main); margin: 0; font-size: 1.25rem; font-weight: 700;">My Account & Security</h2>
+                        <div style="color: #bae6fd; font-size: 0.82rem; margin-top: 0.15rem;">Manage your user credentials and email address</div>
+                    </div>
+                </div>
+                <button type="button" class="close-modal" onclick="closeMyProfileModal()" style="position: static; font-size: 1.6rem; color: #bae6fd; background: none; border: none; cursor: pointer;">&times;</button>
+            </div>
+            
+            <div style="padding: 1.5rem 1.75rem;">
+                <!-- Profile Tabs -->
+                <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                    <button type="button" id="tab_btn_profile_info" class="btn btn-info btn-sm" onclick="switchProfileTab('info')" style="padding: 0.45rem 1.1rem; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 0.45rem;">
+                        <i class="fa-solid fa-id-badge"></i> Account Profile
+                    </button>
+                    <button type="button" id="tab_btn_profile_password" class="btn btn-secondary btn-sm" onclick="switchProfileTab('password')" style="padding: 0.45rem 1.1rem; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 0.45rem;">
+                        <i class="fa-solid fa-key"></i> Change Password
+                    </button>
+                </div>
+                
+                <!-- Profile Info Tab -->
+                <div id="tab_content_profile_info">
+                    <div style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; display: block; font-weight: 600;">Active Username</span>
+                            <span id="profile_display_username" style="font-size: 1.15rem; font-weight: 700; color: var(--text-main);">{{ session.get('username', 'User') }}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; display: block; font-weight: 600;">Assigned Role</span>
+                            <span id="profile_display_role" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase;">{{ session.get('role', 'agent') }}</span>
+                        </div>
+                    </div>
+                    
+                    <form action="{{ url_for('profile_update_email') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="form-group" style="margin-bottom: 1.25rem;">
+                            <label for="profile_email" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.4rem; display: block; font-size: 0.9rem;">
+                                Registered Email Address <span style="color: #94a3b8; font-size: 0.8rem; font-weight: normal;">(Used for OTP & Password Resets)</span>
+                            </label>
+                            <input type="email" class="form-control" name="email" id="profile_email" required placeholder="user@company.com" style="border-radius: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.65rem 0.85rem; width: 100%;">
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" onclick="closeMyProfileModal()" style="padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 600;">Close</button>
+                            <button type="submit" class="btn btn-info" style="padding: 0.55rem 1.4rem; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);">
+                                <i class="fa-solid fa-envelope"></i> Update Email
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Change Password Tab -->
+                <div id="tab_content_profile_password" style="display: none;">
+                    <form action="{{ url_for('profile_change_password') }}" method="POST" onsubmit="return validateProfilePasswordChange()">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label for="prof_current_password" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem; display: block; font-size: 0.9rem;">
+                                Current Password <span style="color: #ef4444;">*</span>
+                            </label>
+                            <input type="password" class="form-control" name="current_password" id="prof_current_password" required placeholder="Enter current password" style="border-radius: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.6rem 0.85rem; width: 100%;">
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label for="prof_new_password" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem; display: block; font-size: 0.9rem;">
+                                New Password <span style="color: #ef4444;">*</span> <span style="color: #94a3b8; font-size: 0.8rem;">(Min 6 chars)</span>
+                            </label>
+                            <input type="password" class="form-control" name="new_password" id="prof_new_password" required minlength="6" placeholder="At least 6 characters" onkeyup="checkProfPasswordStrength(this.value)" style="border-radius: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.6rem 0.85rem; width: 100%;">
+                            <div id="prof_pw_meter_bar" style="height: 5px; background: var(--border-color); border-radius: 3px; margin-top: 0.4rem; overflow: hidden;">
+                                <div id="prof_pw_meter_fill" style="height: 100%; width: 0%; transition: all 0.3s ease;"></div>
+                            </div>
+                            <div id="prof_pw_meter_text" style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.2rem;">Enter password to test strength</div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 1.25rem;">
+                            <label for="prof_confirm_password" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem; display: block; font-size: 0.9rem;">
+                                Confirm New Password <span style="color: #ef4444;">*</span>
+                            </label>
+                            <input type="password" class="form-control" name="confirm_password" id="prof_confirm_password" required minlength="6" placeholder="Repeat new password" style="border-radius: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.6rem 0.85rem; width: 100%;">
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" onclick="closeMyProfileModal()" style="padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 600;">Cancel</button>
+                            <button type="submit" class="btn btn-warning" style="background: #f59e0b; border-color: #f59e0b; color: #000; padding: 0.55rem 1.4rem; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);">
+                                <i class="fa-solid fa-shield-halved"></i> Update Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Apply Changes Confirmation Modal -->
+    <div id="applyChangesModal" class="modal" style="display: none; z-index: 10000;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-modal" onclick="closeApplyChangesModal()">&times;</span>
+            <h2 style="font-family: 'Orbitron', sans-serif; color: #f59e0b; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; font-size: 1.25rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Apply Changes
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+                The following configuration changes will be applied to the live system:
+            </p>
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; max-height: 180px; overflow-y: auto; margin-bottom: 1.5rem;">
+                <ul id="pendingChangesList" style="margin: 0; padding-left: 1.25rem; color: var(--text-main); line-height: 1.6; font-size: 0.88rem; text-align: left;">
+                    <!-- Filled dynamically -->
+                </ul>
+            </div>
+            <div class="form-actions" style="margin: 0; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeApplyChangesModal()">Cancel</button>
+                <button type="button" class="btn btn-info" style="background-color: #f59e0b; border-color: #f59e0b; color: #0b0f19; font-weight: bold;" onclick="submitApplyChanges()">
+                    <i class="fa-solid fa-check"></i> Continue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div id="progressModal" class="modal" style="display: none; z-index: 10001; background: rgba(11, 15, 25, 0.9);">
+        <div class="modal-content" style="max-width: 450px; text-align: center; padding: 2.5rem 2rem;">
+            <div style="font-size: 3rem; color: var(--primary); margin-bottom: 1.5rem;" id="progressIcon">
+                <i class="fa-solid fa-spinner fa-spin-pulse"></i>
+            </div>
+            <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; margin-bottom: 1.5rem;" id="progressTitle">Applying changes...</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; align-items: start; max-width: 300px; margin: 0 auto; text-align: left;" id="progressSteps">
+                <!-- Filled dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto remove toasts after 5 seconds
+        setTimeout(() => {
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(toast => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            });
+        }, 5000);
+
+        // Client-side notification helper
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.style.pointerEvents = 'auto';
+            
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="` + (type === 'danger' ? 'fa-solid fa-circle-xmark' : type === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-info') + `" style="color: ` + (type === 'danger' ? 'var(--status-offline)' : type === 'success' ? 'var(--status-registered)' : 'var(--status-ringing)') + `; font-size: 1.2rem;"></i>
+                    <span style="font-weight: 500; font-size: 0.9rem;">` + message + `</span>
+                </div>
+                <i class="fa-solid fa-xmark" style="cursor: pointer; color: var(--text-muted);" onclick="this.parentElement.remove()"></i>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Global Apply Changes Logic
+        const pendingChanges = {{ pending_changes|tojson if pending_changes else '[]' }};
+
+        const applyBtn = document.getElementById("applyChangesBtn");
+        if (applyBtn) {
+            applyBtn.addEventListener("click", function() {
+                if (this.classList.contains("active")) {
+                    openApplyChangesModal();
+                }
+            });
+        }
+
+        function openApplyChangesModal() {
+            const list = document.getElementById("pendingChangesList");
+            list.innerHTML = "";
+            pendingChanges.forEach(change => {
+                const li = document.createElement("li");
+                li.textContent = change.description;
+                list.appendChild(li);
+            });
+            document.getElementById("applyChangesModal").style.display = "block";
+        }
+
+        function closeApplyChangesModal() {
+            document.getElementById("applyChangesModal").style.display = "none";
+        }
+
+        function submitApplyChanges() {
+            closeApplyChangesModal();
+            const progressModal = document.getElementById("progressModal");
+            progressModal.style.display = "block";
+            
+            const stepsDiv = document.getElementById("progressSteps");
+            stepsDiv.innerHTML = `
+                <div id="step-apply" style="display:flex; align-items:center; gap:0.75rem; color: var(--text-main);">
+                    <i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i>
+                    <span>Applying changes...</span>
+                </div>
+            `;
+            
+            fetch('/api/apply-changes', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': {{ csrf_token()|tojson }},
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(async res => {
+                    const contentType = res.headers.get('content-type') || '';
+                    const data = contentType.includes('application/json')
+                        ? await res.json()
+                        : { status: 'error', msg: await res.text() };
+                    if (!res.ok && data.status !== 'success') {
+                        data.status = 'error';
+                    }
+                    return data;
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById("step-apply").innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-registered);"></i> <span style="color: var(--status-registered);">Applying changes...</span>`;
+                        
+                        setTimeout(() => {
+                            stepsDiv.innerHTML += `
+                                <div id="step-pjsip" style="display:flex; align-items:center; gap:0.75rem; color: var(--text-main);">
+                                    <i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i>
+                                    <span>Reloading PJSIP...</span>
+                                </div>
+                            `;
+                        }, 500);
+                        
+                        setTimeout(() => {
+                            document.getElementById("step-pjsip").innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-registered);"></i> <span style="color: var(--status-registered);">Reloading PJSIP...</span>`;
+                            stepsDiv.innerHTML += `
+                                <div id="step-dialplan" style="display:flex; align-items:center; gap:0.75rem; color: var(--text-main);">
+                                    <i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i>
+                                    <span>Reloading Dialplan...</span>
+                                </div>
+                            `;
+                        }, 1200);
+
+                        setTimeout(() => {
+                            document.getElementById("step-dialplan").innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-registered);"></i> <span style="color: var(--status-registered);">Reloading Dialplan...</span>`;
+                            stepsDiv.innerHTML += `
+                                <div style="display:flex; align-items:center; gap:0.75rem; color: var(--status-registered); font-weight: bold; margin-top: 0.5rem;">
+                                    <i class="fa-solid fa-circle-check fa-bounce"></i>
+                                    <span>Completed successfully.</span>
+                                </div>
+                            `;
+                            document.getElementById("progressIcon").innerHTML = `<i class="fa-solid fa-circle-check fa-bounce" style="color: var(--status-registered);"></i>`;
+                            document.getElementById("progressTitle").textContent = "Success";
+                        }, 2000);
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3500);
+                    } else {
+                        showProgressError(data.msg || data.error || "Internal Server Error");
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showProgressError("Failed to communicate with API server.");
+                });
+        }
+
+        function showProgressError(msg) {
+            document.getElementById("progressIcon").innerHTML = `<i class="fa-solid fa-circle-xmark fa-shake" style="color: var(--status-offline);"></i>`;
+            document.getElementById("progressTitle").textContent = "Error";
+            const stepsDiv = document.getElementById("progressSteps");
+            stepsDiv.innerHTML = `
+                <div style="color: var(--status-offline); font-weight: bold; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <span>Failed to apply changes:</span>
+                    <code style="background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; font-size: 0.8rem; font-family: monospace; word-break: break-all;">${msg}</code>
+                </div>
+                <button class="btn btn-secondary btn-sm" style="margin-top: 1rem; width: 100%;" onclick="document.getElementById('progressModal').style.display='none'">Close</button>
+            `;
+        }
+
+        // Enterprise Sidebar Navigation & Accordion Logic
+        window.toggleSidebarGroup = function(groupId) {
+            const targetContainer = document.getElementById(groupId);
+            if (!targetContainer) return;
+
+            const allContainers = document.querySelectorAll('.sidebar-submenu-container');
+            const allHeaders = document.querySelectorAll('.collapsible-header');
+
+            const isCurrentlyExpanded = targetContainer.classList.contains('expanded');
+
+            // Accordion: Collapse all groups
+            allContainers.forEach(container => {
+                container.classList.remove('expanded');
+            });
+            allHeaders.forEach(header => {
+                header.classList.add('collapsed');
+                header.setAttribute('aria-expanded', 'false');
+            });
+
+            // If the clicked group was not expanded, expand it
+            if (!isCurrentlyExpanded) {
+                targetContainer.classList.add('expanded');
+                const matchingHeader = document.querySelector(`.collapsible-header[data-group="${groupId}"]`);
+                if (matchingHeader) {
+                    matchingHeader.classList.remove('collapsed');
+                    matchingHeader.setAttribute('aria-expanded', 'true');
+                }
+                localStorage.setItem('sidebar_active_group', groupId);
+            } else {
+                localStorage.removeItem('sidebar_active_group');
+            }
+
+            // If sidebar is collapsed on desktop, auto-expand it when clicking a category
+            const mainSidebar = document.getElementById('main-sidebar');
+            if (mainSidebar && mainSidebar.classList.contains('sidebar-collapsed') && window.innerWidth > 768) {
+                mainSidebar.classList.remove('sidebar-collapsed');
+                localStorage.setItem('sidebar_main_collapsed', 'false');
+            }
+        };
+
+        function updatePaginationFooter(totalRows, currentPage, limit, onPageChange) {
+            const totalPages = Math.max(1, Math.ceil(totalRows / limit));
+            const footer = document.getElementById("pagination-footer");
+            if (!footer) return;
+            
+            if (totalPages <= 1) {
+                footer.innerHTML = `
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">
+                        Showing all <strong style="color: var(--text-main);">${totalRows}</strong> records
+                    </div>
+                    <input type="hidden" id="current_page" value="1">
+                `;
+                return;
+            }
+            
+            let paginationButtons = "";
+            
+            // Previous Button
+            const prevDisabled = currentPage === 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+            paginationButtons += `
+                <button onclick="${onPageChange}(${currentPage - 1})" class="btn btn-secondary btn-sm" ${prevDisabled}>
+                    <i class="fa-solid fa-angle-left"></i> Previous
+                </button>
+            `;
+            
+            // Page Numbers
+            for (let p = 1; p <= totalPages; p++) {
+                if (p === currentPage) {
+                    paginationButtons += `<button class="btn btn-info btn-sm" style="font-weight: bold;">${p}</button>`;
+                } else if (p <= 3 || p >= totalPages - 2 || (p >= currentPage - 1 && p <= currentPage + 1)) {
+                    paginationButtons += `<button onclick="${onPageChange}(${p})" class="btn btn-secondary btn-sm">${p}</button>`;
+                } else if (p === 4 || p === totalPages - 3) {
+                    paginationButtons += `<span style="color: var(--text-dark); padding: 0.25rem 0.5rem;">...</span>`;
+                }
+            }
+            
+            // Next Button
+            const nextDisabled = currentPage === totalPages ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+            paginationButtons += `
+                <button onclick="${onPageChange}(${currentPage + 1})" class="btn btn-secondary btn-sm" ${nextDisabled}>
+                    Next <i class="fa-solid fa-angle-right"></i>
+                </button>
+            `;
+            
+            footer.innerHTML = `
+                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                    Showing page <strong style="color: var(--text-main);">${currentPage}</strong> of <strong style="color: var(--text-main);">${totalPages}</strong> (Total <strong style="color: var(--text-main);">${totalRows}</strong> records)
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    ${paginationButtons}
+                </div>
+                <input type="hidden" id="current_page" value="${currentPage}">
+            `;
+        }
+
+        // Initialize Sidebar State & Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const mainSidebar = document.getElementById('main-sidebar');
+            const collapseBtn = document.getElementById('sidebarCollapseBtn');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const allHeaders = document.querySelectorAll('.collapsible-header');
+            const allContainers = document.querySelectorAll('.sidebar-submenu-container');
+
+            // 1. Remove anti-flicker class after initial layout is computed
+            if (mainSidebar) {
+                setTimeout(() => {
+                    mainSidebar.classList.remove('no-transition');
+                }, 100);
+            }
+
+            // 2. Initialize Accordion state: Auto-expand section with active page, or restore from localStorage
+            let activeGroupId = null;
+            allContainers.forEach(container => {
+                if (container.querySelector('.active')) {
+                    activeGroupId = container.id;
+                }
+            });
+
+            if (!activeGroupId) {
+                activeGroupId = localStorage.getItem('sidebar_active_group') || 'system-status-group';
+            }
+
+            allContainers.forEach(container => {
+                const header = document.querySelector(`.collapsible-header[data-group="${container.id}"]`);
+                if (container.id === activeGroupId) {
+                    container.classList.add('expanded');
+                    if (header) {
+                        header.classList.remove('collapsed');
+                        header.setAttribute('aria-expanded', 'true');
+                    }
+                    localStorage.setItem('sidebar_active_group', activeGroupId);
+                } else {
+                    container.classList.remove('expanded');
+                    if (header) {
+                        header.classList.add('collapsed');
+                        header.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+
+            // 3. Category Header Click & Keyboard Support
+            allHeaders.forEach(header => {
+                const groupId = header.getAttribute('data-group');
+                header.addEventListener('click', () => toggleSidebarGroup(groupId));
+                header.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleSidebarGroup(groupId);
+                    }
+                });
+            });
+
+            // 4. Desktop Sidebar Collapse/Expand Button
+            if (collapseBtn && mainSidebar) {
+                const toggleMainSidebar = () => {
+                    const isCollapsed = mainSidebar.classList.toggle('sidebar-collapsed');
+                    localStorage.setItem('sidebar_main_collapsed', isCollapsed);
+                };
+                collapseBtn.addEventListener('click', toggleMainSidebar);
+                collapseBtn.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleMainSidebar();
+                    }
+                });
+            }
+
+            // 5. Mobile Slide-in Drawer & Overlay Support
+            if (mobileMenuBtn && mainSidebar && sidebarOverlay) {
+                const openMobileMenu = () => {
+                    mainSidebar.classList.add('mobile-open');
+                    sidebarOverlay.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                };
+                const closeMobileMenu = () => {
+                    mainSidebar.classList.remove('mobile-open');
+                    sidebarOverlay.classList.remove('active');
+                    document.body.style.overflow = '';
+                };
+
+                mobileMenuBtn.addEventListener('click', openMobileMenu);
+                sidebarOverlay.addEventListener('click', closeMobileMenu);
+
+                // Close mobile drawer when clicking any link inside
+                mainSidebar.querySelectorAll('a').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth <= 768) {
+                            closeMobileMenu();
+                        }
+                    });
+                });
+            }
+        });
+
+
+        // Reusable destinations data structure
+        const PBX_DESTINATIONS = {
+            extension: {{ extensions_list|tojson|safe if extensions_list else '[]' }},
+            queue: {{ queues_list|tojson|safe if queues_list else '[]' }},
+            ivr: {{ ivrs_list|tojson|safe if ivrs_list else '[]' }},
+            ringgroup: {{ ring_groups_list|tojson|safe if ring_groups_list else '[]' }},
+            announcement: {{ announcements_list|tojson|safe if announcements_list else '[]' }},
+            voicemail: {{ voicemails_list|tojson|safe if voicemails_list else '[]' }},
+            conference: {{ conferences_list|tojson|safe if conferences_list else '[]' }},
+            paging: {{ paging_list|tojson|safe if paging_list else '[]' }},
+            featurecode: {{ feature_codes_list|tojson|safe if feature_codes_list else '[]' }},
+            ext_outbound_map: {{ ext_outbound_map|tojson|safe if ext_outbound_map else '{}' }},
+            rg_outbound_map: {{ rg_outbound_map|tojson|safe if rg_outbound_map else '{}' }}
+        };
+
+        function renderDestinationSelector(container, typeName, valName, currentType, currentVal) {
+            if (typeof container === 'string') {
+                container = document.getElementById(container);
+            }
+            if (!container) return;
+
+            // Clear container
+            container.innerHTML = '';
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '0.5rem';
+
+            // Create Type Select
+            const typeSelect = document.createElement('select');
+            typeSelect.name = typeName;
+            typeSelect.className = 'form-control dest-type-select';
+            typeSelect.style.width = '100%';
+
+            const types = [
+                { value: 'hangup', label: 'Hangup Call' },
+                { value: 'extension', label: 'Extension' },
+                { value: 'internal', label: 'BY DID' },
+                { value: 'queue', label: 'Queue' },
+                { value: 'ivr', label: 'IVR / Auto-Attendant' },
+                { value: 'ringgroup', label: 'Ring Group' },
+                { value: 'announcement', label: 'Announcement' },
+                { value: 'voicemail', label: 'Voicemail' },
+                { value: 'conference', label: 'Conference' },
+                { value: 'external', label: 'External Number' }
+            ];
+
+            types.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.value;
+                opt.textContent = t.label;
+                if (currentType === t.value) {
+                    opt.selected = true;
+                }
+                typeSelect.appendChild(opt);
+            });
+
+            container.appendChild(typeSelect);
+
+            // Create Value Container
+            const valContainer = document.createElement('div');
+            valContainer.className = 'dest-val-container';
+            valContainer.style.width = '100%';
+            container.appendChild(valContainer);
+
+            function updateValueField() {
+                valContainer.innerHTML = '';
+                const selectedType = typeSelect.value;
+
+                if (selectedType === 'hangup') {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = valName;
+                    hiddenInput.value = 'hangup';
+                    valContainer.appendChild(hiddenInput);
+                } else if (selectedType === 'internal') {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = valName;
+                    hiddenInput.value = '__INBOUND_CALLEE__';
+                    valContainer.appendChild(hiddenInput);
+                } else if (PBX_DESTINATIONS[selectedType]) {
+                    const valSelect = document.createElement('select');
+                    valSelect.name = valName;
+                    valSelect.className = 'form-control dest-val-select';
+                    valSelect.required = true;
+
+                    const data = PBX_DESTINATIONS[selectedType];
+                    
+                    const emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.textContent = `-- Select ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} --`;
+                    valSelect.appendChild(emptyOpt);
+
+                    data.forEach(item => {
+                        const opt = document.createElement('option');
+                        let val = Array.isArray(item) ? item[0] : item.value;
+                        let lbl = Array.isArray(item) ? item[1] : item.label;
+                        opt.value = val;
+                        opt.textContent = lbl;
+                        if (currentVal && String(currentVal) === String(val)) {
+                            opt.selected = true;
+                        }
+                        valSelect.appendChild(opt);
+                    });
+
+                    valContainer.appendChild(valSelect);
+                } else if (selectedType === 'external') {
+                    let rawPhone = currentVal || '';
+                    let permType = 'default';
+                    let permId = '';
+                    if (rawPhone.includes('|ext:')) {
+                        const pts = rawPhone.split('|ext:');
+                        rawPhone = pts[0];
+                        permType = 'ext';
+                        permId = pts[1] || '';
+                    } else if (rawPhone.includes('|rg:')) {
+                        const pts = rawPhone.split('|rg:');
+                        rawPhone = pts[0];
+                        permType = 'default';
+                        permId = '';
+                    }
+
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = valName;
+                    hiddenInput.value = currentVal || '';
+                    valContainer.appendChild(hiddenInput);
+
+                    const extCard = document.createElement('div');
+                    extCard.style.cssText = 'background: rgba(0,0,0,0.25); border: 1px solid rgba(14,165,233,0.3); border-radius: 8px; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.65rem;';
+
+                    const phoneGrp = document.createElement('div');
+                    phoneGrp.innerHTML = `<label style="font-size: 0.82rem; color: #38bdf8; font-weight: 600; display: block; margin-bottom: 0.25rem;"><i class="fa-solid fa-phone"></i> Target External Phone Number</label>`;
+                    const phoneInput = document.createElement('input');
+                    phoneInput.type = 'text';
+                    phoneInput.className = 'form-control';
+                    phoneInput.placeholder = 'e.g. 01012345678 or +201012345678';
+                    phoneInput.value = rawPhone;
+                    phoneGrp.appendChild(phoneInput);
+                    extCard.appendChild(phoneGrp);
+
+                    const permGrp = document.createElement('div');
+                    permGrp.innerHTML = `<label style="font-size: 0.82rem; color: #a78bfa; font-weight: 600; display: block; margin-bottom: 0.35rem;"><i class="fa-solid fa-shield-halved"></i> Outbound Route Permission Level</label>`;
+
+                    const radioContainer = document.createElement('div');
+                    radioContainer.style.cssText = 'display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.4rem;';
+
+                    const uid = Math.random().toString(36).substring(2, 8);
+
+                    radioContainer.innerHTML = `
+                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: var(--text-main);">
+                            <input type="radio" name="perm_radio_${uid}" value="ext" ${permType === 'ext' ? 'checked' : ''}>
+                            Take Extension Permission
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: var(--text-main);">
+                            <input type="radio" name="perm_radio_${uid}" value="default" ${permType === 'default' ? 'checked' : ''}>
+                            Default Outbound
+                        </label>
+                    `;
+                    permGrp.appendChild(radioContainer);
+
+                    const extSelectHolder = document.createElement('div');
+                    extSelectHolder.style.display = (permType === 'ext') ? 'block' : 'none';
+                    const extSelect = document.createElement('select');
+                    extSelect.className = 'form-control';
+                    (PBX_DESTINATIONS.extension || []).forEach(e => {
+                        const opt = document.createElement('option');
+                        const val = Array.isArray(e) ? e[0] : e.value;
+                        const lbl = Array.isArray(e) ? e[1] : e.label;
+                        opt.value = val;
+                        opt.textContent = lbl;
+                        if (String(val) === String(permId)) opt.selected = true;
+                        extSelect.appendChild(opt);
+                    });
+                    extSelectHolder.appendChild(extSelect);
+                    permGrp.appendChild(extSelectHolder);
+
+                    extCard.appendChild(permGrp);
+                    valContainer.appendChild(extCard);
+
+                    const statusBox = document.createElement('div');
+                    statusBox.style.cssText = 'padding: 0.65rem 0.85rem; border-radius: 6px; font-size: 0.82rem; margin-top: 0.35rem; transition: all 0.2s;';
+                    extCard.appendChild(statusBox);
+
+                    function updateExternalHidden() {
+                        const num = phoneInput.value.trim();
+                        const checkedRadio = radioContainer.querySelector('input:checked');
+                        const mode = checkedRadio ? checkedRadio.value : 'default';
+                        extSelectHolder.style.display = (mode === 'ext') ? 'block' : 'none';
+
+                        let allowedRoutes = [];
+                        if (mode === 'ext' && extSelect.value) {
+                            hiddenInput.value = num ? (num + '|ext:' + extSelect.value) : '';
+                            allowedRoutes = (PBX_DESTINATIONS.ext_outbound_map || {})[extSelect.value] || [];
+                            if (allowedRoutes.length > 0) {
+                                statusBox.style.background = 'rgba(16, 185, 129, 0.15)';
+                                statusBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+                                statusBox.style.color = '#34d399';
+                                statusBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> <strong>Extension ${extSelect.value} Allowed:</strong> Outbound call will exit via route(s): <strong>${allowedRoutes.join(', ')}</strong>`;
+                            } else {
+                                statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                                statusBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                                statusBox.style.color = '#f87171';
+                                statusBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>Warning:</strong> Extension ${extSelect.value} is NOT allowed on any Outbound Route. Calls will be blocked!`;
+                            }
+                        } else {
+                            hiddenInput.value = num || '';
+                            statusBox.style.background = 'rgba(14, 165, 233, 0.15)';
+                            statusBox.style.border = '1px solid rgba(14, 165, 233, 0.4)';
+                            statusBox.style.color = '#38bdf8';
+                            statusBox.innerHTML = `<i class="fa-solid fa-circle-info"></i> Using default inbound transit trunk routing.`;
+                        }
+                    }
+
+                    phoneInput.addEventListener('input', updateExternalHidden);
+                    radioContainer.addEventListener('change', updateExternalHidden);
+                    extSelect.addEventListener('change', updateExternalHidden);
+                    updateExternalHidden();
+                } else {
+                    const textInput = document.createElement('input');
+                    textInput.type = 'text';
+                    textInput.name = valName;
+                    textInput.className = 'form-control';
+                    textInput.required = true;
+                    textInput.placeholder = 'e.g. Local/1000@context';
+
+                    if (currentVal && currentType === selectedType) {
+                        textInput.value = currentVal;
+                    }
+                    valContainer.appendChild(textInput);
+                }
+            }
+
+            typeSelect.addEventListener('change', updateValueField);
+            updateValueField();
+        }
+
+        function createHelpTooltip(text) {
+            const tooltip = document.createElement('span');
+            tooltip.className = 'tooltip-container';
+            tooltip.textContent = '!';
+
+            const tooltipText = document.createElement('span');
+            tooltipText.className = 'tooltip-text';
+            tooltipText.textContent = text;
+            tooltip.appendChild(tooltipText);
+            return tooltip;
+        }
+
+        function attachHelpTooltip(target, text) {
+            if (!target || !text || target.querySelector('.tooltip-container')) return false;
+            target.appendChild(createHelpTooltip(text.trim()));
+            return true;
+        }
+
+        function normalizeInlineHelpText() {
+            document.querySelectorAll('.form-group > small').forEach(help => {
+                const text = help.textContent.trim().replace(/\s+/g, ' ');
+                if (!text) return;
+                const group = help.closest('.form-group');
+                const label = group ? group.querySelector('label') : null;
+                if (attachHelpTooltip(label, text)) {
+                    help.remove();
+                }
+            });
+
+            document.querySelectorAll('.switch-desc').forEach(help => {
+                const text = help.textContent.trim().replace(/\s+/g, ' ');
+                if (!text) return;
+                const container = help.closest('.switch-info') || help.parentElement;
+                const title = container ? container.querySelector('.switch-title') : null;
+                if (attachHelpTooltip(title, text)) {
+                    help.remove();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', normalizeInlineHelpText);
+    </script>
+
+    <!-- Machine Reboot Modal -->
+    <div id="machineRebootModal" class="modal" style="display: none; z-index: 10011; background: rgba(11, 15, 25, 0.92);">
+        <div class="modal-content" style="max-width: 470px; text-align: center; padding: 2.25rem 1.75rem; border: 1px solid rgba(239, 68, 68, 0.45); box-shadow: 0 0 35px rgba(239, 68, 68, 0.2);">
+            <div style="width: 68px; height: 68px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #f87171; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 2rem;">
+                <i class="fa-solid fa-server"></i>
+            </div>
+            <h3 style="color: var(--text-main); font-size: 1.35rem; margin-bottom: 0.75rem;">System Reboot Confirmation</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.4rem;">
+                This will reboot the entire PBX server machine.<br><br>
+                <strong style="color: #fecaca;">All active calls will be dropped and the web portal will be unavailable until the server boots again.</strong>
+            </p>
+            <div id="machineRebootStatus" style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+                Checking active calls...
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button type="button" class="btn btn-secondary" onclick="closeMachineRebootModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="executeMachineReboot()" id="confirmMachineRebootBtn" style="background: #dc2626; border-color: #dc2626; color: var(--text-main); font-weight: 700;">
+                    <i class="fa-solid fa-power-off"></i> Reboot System
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asterisk Restart Modal -->
+    <div id="systemRebootModal" class="modal" style="display: none; z-index: 10010; background: rgba(11, 15, 25, 0.9);">
+        <div class="modal-content" style="max-width: 460px; text-align: center; padding: 2.25rem 1.75rem; border: 1px solid rgba(234, 179, 8, 0.4); box-shadow: 0 0 35px rgba(234, 179, 8, 0.2);">
+            <div style="width: 68px; height: 68px; border-radius: 50%; background: rgba(234, 179, 8, 0.15); color: #eab308; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 2rem;">
+                <i class="fa-solid fa-power-off"></i>
+            </div>
+            <h3 style="color: var(--text-main); font-size: 1.35rem; margin-bottom: 0.75rem;">Asterisk Restart Confirmation</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.75rem;">
+                This will run an Asterisk core reload, then restart the Asterisk service.<br><br>
+                <strong style="color: #fef08a;">Active calls will be dropped while Asterisk restarts. The web portal will stay open.</strong>
+            </p>
+            <div id="asteriskRestartStatus" style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+                Checking Asterisk status...
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button type="button" class="btn btn-secondary" onclick="closeSystemRebootModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="executeSystemReboot()" id="confirmRebootBtn" style="background: #eab308; border-color: #eab308; color: #0f172a; font-weight: 600;">
+                    <i class="fa-solid fa-rotate-right"></i> Core Reload & Restart
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const asteriskRestartToken = "{{ session.get('reboot_token', '') }}";
+        const machineRebootToken = "{{ session.get('machine_reboot_token', '') }}";
+
+        function openMachineRebootModal() {
+            document.getElementById('machineRebootModal').style.display = 'block';
+            const status = document.getElementById('machineRebootStatus');
+            status.textContent = 'Checking active calls...';
+            fetch('/system/asterisk-status', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                const calls = data.active_calls === null || data.active_calls === undefined ? 'Unknown' : data.active_calls;
+                status.innerHTML = `<strong style="color: var(--text-main);">Active calls:</strong> ${calls}`;
+            })
+            .catch(() => {
+                status.textContent = 'Unable to read active calls.';
+            });
+        }
+        function closeMachineRebootModal() {
+            document.getElementById('machineRebootModal').style.display = 'none';
+        }
+        function pollMachineAfterReboot(startedAt) {
+            fetch('/login', { cache: 'no-store' })
+            .then(res => {
+                if (res.ok && Date.now() - startedAt > 25000) {
+                    setAsteriskRestartProgress('System is back online', [
+                        '<i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> The PBX server responded successfully.',
+                        'Redirecting to login...'
+                    ], 'fa-solid fa-circle-check');
+                    setTimeout(() => { window.location.href = '/login'; }, 1200);
+                    return;
+                }
+                setTimeout(() => pollMachineAfterReboot(startedAt), 5000);
+            })
+            .catch(() => {
+                setTimeout(() => pollMachineAfterReboot(startedAt), 5000);
+            });
+        }
+        function executeMachineReboot() {
+            const btn = document.getElementById('confirmMachineRebootBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rebooting...';
+
+            fetch('/system/machine-reboot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ token: machineRebootToken })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    throw new Error(data.message || 'System reboot failed.');
+                }
+                closeMachineRebootModal();
+                const calls = data.active_calls === null || data.active_calls === undefined ? 'Unknown' : data.active_calls;
+                setAsteriskRestartProgress('Rebooting PBX server...', [
+                    '<i class="fa-solid fa-spinner fa-spin" style="color:#eab308;"></i> System reboot command accepted.',
+                    'The web portal will disconnect while the machine restarts.',
+                    `Active calls before reboot: ${calls}`
+                ], 'fa-solid fa-server fa-fade');
+                pollMachineAfterReboot(Date.now());
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-power-off"></i> Reboot System';
+                alert(err.message || 'Error connecting to server to initiate system reboot.');
+            });
+        }
+
+        function openSystemRebootModal() {
+            document.getElementById('systemRebootModal').style.display = 'block';
+            const status = document.getElementById('asteriskRestartStatus');
+            status.textContent = 'Checking Asterisk status...';
+            fetch('/system/asterisk-status', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    status.textContent = 'Unable to read Asterisk status.';
+                    return;
+                }
+                const calls = data.active_calls === null || data.active_calls === undefined ? 'Unknown' : data.active_calls;
+                const state = data.responsive ? 'Online' : 'Not responding';
+                status.innerHTML = `<strong style="color: var(--text-main);">Asterisk:</strong> ${state} &nbsp; | &nbsp; <strong style="color: var(--text-main);">Active calls:</strong> ${calls}`;
+            })
+            .catch(() => {
+                status.textContent = 'Unable to read Asterisk status.';
+            });
+        }
+        function closeSystemRebootModal() {
+            document.getElementById('systemRebootModal').style.display = 'none';
+        }
+        function setAsteriskRestartProgress(title, rows, iconClass) {
+            const progressModal = document.getElementById("progressModal");
+            if (!progressModal) return;
+            const progressTitle = document.getElementById("progressTitle");
+            const progressIcon = document.getElementById("progressIcon");
+            const progressSteps = document.getElementById("progressSteps");
+            if (progressTitle) progressTitle.textContent = title;
+            if (progressIcon) progressIcon.innerHTML = `<i class="${iconClass || 'fa-solid fa-spinner fa-spin-pulse'}"></i>`;
+            if (progressSteps) {
+                progressSteps.innerHTML = rows.map(row => `<div style="color: var(--text-muted); font-size: 0.9rem;">${row}</div>`).join('');
+            }
+            progressModal.style.display = "block";
+        }
+        function pollAsteriskAfterRestart(startedAt) {
+            fetch('/system/asterisk-status', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                const elapsed = Date.now() - startedAt;
+                if (data.status === 'success' && data.responsive && elapsed > 5000) {
+                    setAsteriskRestartProgress('Asterisk is online', [
+                        '<i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> Asterisk service responded successfully.',
+                        'You can close this dialog and continue using the PBX.'
+                    ], 'fa-solid fa-circle-check');
+                    setTimeout(() => {
+                        const progressModal = document.getElementById("progressModal");
+                        if (progressModal) progressModal.style.display = "none";
+                    }, 2500);
+                    return;
+                }
+                setTimeout(() => pollAsteriskAfterRestart(startedAt), 3000);
+            })
+            .catch(() => {
+                setTimeout(() => pollAsteriskAfterRestart(startedAt), 3000);
+            });
+        }
+        function executeSystemReboot() {
+            const btn = document.getElementById('confirmRebootBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Restarting...';
+            
+            fetch('/system/reboot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ token: asteriskRestartToken })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    throw new Error(data.message || 'Asterisk restart failed.');
+                }
+                closeSystemRebootModal();
+                const calls = data.active_calls === null || data.active_calls === undefined ? 'Unknown' : data.active_calls;
+                setAsteriskRestartProgress('Restarting Asterisk...', [
+                    '<i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> Core reload accepted.',
+                    '<i class="fa-solid fa-spinner fa-spin" style="color:#eab308;"></i> Restarting Asterisk service.',
+                    `Active calls before restart: ${calls}`
+                ], 'fa-solid fa-rotate-right fa-spin');
+                pollAsteriskAfterRestart(Date.now());
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Core Reload & Restart';
+                alert(err.message || 'Error connecting to server to initiate Asterisk restart.');
+            });
+        }
+
+        /* Profile Modal & Helpers */
+        function openMyProfileModal() {
+            document.getElementById('myProfileModal').style.display = 'flex';
+            switchProfileTab('info');
+            fetch('/api/profile/info')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.email !== undefined) {
+                        const emailInput = document.getElementById('profile_email');
+                        if (emailInput) emailInput.value = data.email || '';
+                    }
+                    if (data.role !== undefined) {
+                        const roleEl = document.getElementById('profile_display_role');
+                        if (roleEl) roleEl.textContent = data.privilege_name || data.role || 'Agent';
+                    }
+                })
+                .catch(e => console.error('Could not load profile details', e));
+        }
+
+        function closeMyProfileModal() {
+            document.getElementById('myProfileModal').style.display = 'none';
+        }
+
+        function switchProfileTab(tab) {
+            if (tab === 'info') {
+                document.getElementById('tab_content_profile_info').style.display = 'block';
+                document.getElementById('tab_content_profile_password').style.display = 'none';
+                document.getElementById('tab_btn_profile_info').className = 'btn btn-info btn-sm';
+                document.getElementById('tab_btn_profile_password').className = 'btn btn-secondary btn-sm';
+            } else {
+                document.getElementById('tab_content_profile_info').style.display = 'none';
+                document.getElementById('tab_content_profile_password').style.display = 'block';
+                document.getElementById('tab_btn_profile_info').className = 'btn btn-secondary btn-sm';
+                document.getElementById('tab_btn_profile_password').className = 'btn btn-info btn-sm';
+            }
+        }
+
+        function checkProfPasswordStrength(val) {
+            const fill = document.getElementById('prof_pw_meter_fill');
+            const txt = document.getElementById('prof_pw_meter_text');
+            if (!val) {
+                fill.style.width = '0%';
+                txt.textContent = 'Enter password to test strength';
+                txt.style.color = '#94a3b8';
+                return;
+            }
+            let score = 0;
+            if (val.length >= 6) score++;
+            if (val.length >= 10) score++;
+            if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+
+            if (score <= 1) {
+                fill.style.width = '25%';
+                fill.style.background = '#ef4444';
+                txt.textContent = 'Weak';
+                txt.style.color = '#ef4444';
+            } else if (score === 2 || score === 3) {
+                fill.style.width = '60%';
+                fill.style.background = '#f59e0b';
+                txt.textContent = 'Moderate';
+                txt.style.color = '#f59e0b';
+            } else {
+                fill.style.width = '100%';
+                fill.style.background = '#10b981';
+                txt.textContent = 'Strong & Secure';
+                txt.style.color = '#10b981';
+            }
+        }
+
+        function validateProfilePasswordChange() {
+            const np = document.getElementById('prof_new_password').value;
+            const cp = document.getElementById('prof_confirm_password').value;
+            if (np !== cp) {
+                alert('New password and confirmation do not match.');
+                return false;
+            }
+            if (np.length < 6) {
+                alert('Password must be at least 6 characters.');
+                return false;
+            }
+            return true;
+        }
+
+        window.addEventListener('click', function(e) {
+            if (e.target === document.getElementById('myProfileModal')) closeMyProfileModal();
+        });
+    </script>
+    {% block extra_scripts %}{% endblock %}
+<!-- Universal Import Modal -->
+<div id="universalImportModal" class="modal" style="display: none; z-index: 9999;">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="close-modal" onclick="closeUniversalImportModal()">&times;</span>
+        <h2 style="color: var(--text-main); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            Import Data
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Select or drag & drop your Excel or CSV file to import records instantly.</p>
+        
+        <form id="universalImportForm" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="import-drop-zone" id="importDropZone" style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 14px; padding: 3rem 2rem; text-align: center; cursor: pointer; transition: all 0.3s; background: var(--bg-dark); position: relative;">
+                <i class="fa-solid fa-file-excel" style="font-size: 3rem; color: #10b981; margin-bottom: 1rem; opacity: 0.8;"></i>
+                <h3 style="color: var(--text-main); margin-bottom: 0.5rem; font-size: 1.1rem;">Click to browse or drag file here</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Supports .xlsx and .csv files</p>
+                <input type="file" id="universal_import_file" name="import_file" accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+            </div>
+            
+            <div id="importFilePreview" style="display: none; margin-top: 1.5rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 1rem; border-radius: 8px; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fa-solid fa-file-circle-check" style="color: #10b981; font-size: 1.5rem;"></i>
+                    <div>
+                        <div id="importFileName" style="color: var(--text-main); font-weight: bold; font-size: 0.95rem;">filename.xlsx</div>
+                        <div id="importFileSize" style="color: #34d399; font-size: 0.8rem;">0 KB</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetUniversalImport()" style="padding: 0.35rem 0.75rem;"><i class="fa-solid fa-xmark"></i> Remove</button>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 2rem; border-top: none; padding-top: 0;">
+                <button type="button" class="btn btn-secondary" onclick="closeUniversalImportModal()">Cancel</button>
+                <button type="submit" class="btn btn-info" id="btn-universal-import-submit" disabled>
+                    <i class="fa-solid fa-file-import"></i> Upload & Import
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .import-drop-zone:hover, .import-drop-zone.dragover {
+        border-color: #3b82f6 !important;
+        background: rgba(59, 130, 246, 0.05) !important;
+    }
+</style>
+
+<script>
+    function openUniversalImportModal(actionUrl) {
+        const form = document.getElementById("universalImportForm");
+        if (form) form.action = actionUrl;
+        resetUniversalImport();
+        const modal = document.getElementById("universalImportModal");
+        if (modal) modal.style.display = "flex";
+    }
+    
+    function closeUniversalImportModal() {
+        const modal = document.getElementById("universalImportModal");
+        if (modal) modal.style.display = "none";
+    }
+    
+    function resetUniversalImport() {
+        const fileInput = document.getElementById("universal_import_file");
+        if (fileInput) fileInput.value = "";
+        
+        const dropZone = document.getElementById("importDropZone");
+        if (dropZone) dropZone.style.display = "block";
+        
+        const preview = document.getElementById("importFilePreview");
+        if (preview) preview.style.display = "none";
+        
+        const btn = document.getElementById("btn-universal-import-submit");
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-file-import"></i> Upload & Import';
+        }
+    }
+    
+    const uniFileInput = document.getElementById("universal_import_file");
+    if (uniFileInput) {
+        uniFileInput.addEventListener("change", function(e) {
+            if (this.files && this.files.length > 0) {
+                const file = this.files[0];
+                document.getElementById("importDropZone").style.display = "none";
+                document.getElementById("importFileName").innerText = file.name;
+                document.getElementById("importFileSize").innerText = (file.size / 1024).toFixed(1) + " KB";
+                document.getElementById("importFilePreview").style.display = "flex";
+                document.getElementById("btn-universal-import-submit").disabled = false;
+            }
+        });
+    }
+    
+    const uniForm = document.getElementById("universalImportForm");
+    if (uniForm) {
+        uniForm.addEventListener("submit", function() {
+            const btn = document.getElementById("btn-universal-import-submit");
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+            }
+        });
+    }
+    
+    const dropZone = document.getElementById('importDropZone');
+    if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); });
+        dropZone.addEventListener('drop', (e) => { dropZone.classList.remove('dragover'); });
+    }
+</script>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeBtn = document.getElementById('themeToggleBtn');
+            const themeIcon = document.getElementById('themeIcon');
+            
+            // Set initial icon
+            if (document.documentElement.getAttribute('data-theme') === 'light') {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                if (themeBtn) {
+                    themeBtn.style.background = '#ffffff';
+                    themeBtn.style.color = '#f59e0b';
+                    themeBtn.style.borderColor = '#cbd5e1';
+                }
+            } else {
+                if (themeBtn) {
+                    themeBtn.style.color = '#60a5fa'; // Light blue moon
+                }
+            }
+
+            if (themeBtn) {
+                themeBtn.addEventListener('click', () => {
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                    
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('rcm_theme', newTheme);
+                    
+                    // Update Icon
+                    if (newTheme === 'light') {
+                        themeIcon.classList.remove('fa-moon');
+                        themeIcon.classList.add('fa-sun');
+                        themeBtn.style.background = '#ffffff';
+                        themeBtn.style.color = '#f59e0b';
+                        themeBtn.style.borderColor = '#cbd5e1';
+                    } else {
+                        themeIcon.classList.remove('fa-sun');
+                        themeIcon.classList.add('fa-moon');
+                        themeBtn.style.background = 'rgba(30, 41, 59, 0.7)';
+                        themeBtn.style.color = '#60a5fa';
+                        themeBtn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                    }
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if route %}Edit Outbound Route - RCM 7021{% else %}Create Outbound Route - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if route %}Edit Outbound Route ({{ route.name }}){% else %}Create Outbound Route{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure outbound dialing rules, trunk failover sequences, and extension whitelists</div>
+    </div>
+    <div>
+        <a href="{{ url_for('call_routes') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Routes
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if route %}{{ url_for('outbound_route_edit', name=route.name) }}{% else %}{{ url_for('outbound_route_add') }}{% endif %}" method="POST" id="routeForm">
+        
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-route" style="color: var(--primary);"></i> Route Meta-Data</h2>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Route Name <span class="tooltip-container">!<span class="tooltip-text">A unique route identifier (letters, digits, dashes, underscores only).</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. international_route" required
+                       pattern="^[a-zA-Z0-9_-]+$" title="Only alphanumeric characters, dashes, and underscores are allowed."
+                       value="{% if route %}{{ route.name }}{% endif %}" {% if route %}readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+            </div>
+            <div class="form-group">
+                <label for="description">Route Description</label>
+                <input type="text" id="description" name="description" class="form-control" placeholder="e.g. Route for international calls"
+                       value="{% if route %}{{ route.description }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="panel-header" style="margin-top: 2rem;">
+            <h2><i class="fa-solid fa-calculator" style="color: var(--primary);"></i> Dial Patterns & Digit Manipulation</h2>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="prefix">Dial Pattern Prefix <span class="tooltip-container">!<span class="tooltip-text">Digits dialed BEFORE the number (e.g. dial 9 to reach this route).</span></span></label>
+                <input type="text" id="prefix" name="prefix" class="form-control" placeholder="e.g. 9"
+                       pattern="^[0-9]*$" title="Numeric digits only."
+                       value="{% if route %}{{ route.prefix or '' }}{% endif %}">
+            </div>
+            <div class="form-group">
+                <label for="match_pattern">Match Pattern / Dial Pattern <span class="tooltip-container">!<span class="tooltip-text">Pattern determining valid numbers (e.g. X. or _01XXXXXXXXX).</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="match_pattern" name="match_pattern" class="form-control" placeholder="e.g. X." required
+                       value="{% if route %}{{ route.match_pattern }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="strip">Strip Digits <span class="tooltip-container">!<span class="tooltip-text">Number of digits to strip from the beginning of dialed number.</span></span></label>
+                <input type="number" id="strip" name="strip" class="form-control" min="0" max="20"
+                       value="{% if route %}{{ route.strip }}{% else %}0{% endif %}">
+            </div>
+            <div class="form-group">
+                <label for="prepend">Prepend Digits <span class="tooltip-container">!<span class="tooltip-text">Digits to add to the front of dialed number before passing to trunk.</span></span></label>
+                <input type="text" id="prepend" name="prepend" class="form-control" placeholder="e.g. 00"
+                       pattern="^[0-9+]*$" title="Digits and '+' symbol only."
+                       value="{% if route %}{{ route.prepend or '' }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="pin">PIN Code / Authentication <span class="tooltip-container">!<span class="tooltip-text">Optional PIN required from caller before routing dials.</span></span></label>
+                <input type="text" id="pin" name="pin" class="form-control" placeholder="e.g. 1234"
+                       pattern="^[0-9]*$" title="Numeric digits only."
+                       value="{% if route %}{{ route.pin or '' }}{% endif %}">
+            </div>
+            <div class="form-group">
+                <label for="record">Record Outbound Calls</label>
+                <select id="record" name="record" class="form-control">
+                    <option value="off" {% if route and not route.record %}selected{% endif %}>Disabled (No recording)</option>
+                    <option value="on" {% if route and route.record %}selected{% endif %}>Enabled (MixMonitor)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="timeout">Trunk Ring Timeout (seconds)</label>
+                <input type="number" id="timeout" name="timeout" class="form-control" min="5" max="120"
+                       value="{% if route %}{{ route.timeout }}{% else %}30{% endif %}">
+            </div>
+            <div class="form-group">
+                <label for="time_limit_sec">Max Call Duration Limit (seconds) <span class="tooltip-container">!<span class="tooltip-text">Limit outbound call duration. 0 is unlimited.</span></span></label>
+                <input type="number" id="time_limit_sec" name="time_limit_sec" class="form-control" min="0"
+                       value="{% if route %}{{ route.time_limit_sec }}{% else %}0{% endif %}">
+            </div>
+        </div>
+
+        <div class="panel-header" style="margin-top: 2.5rem;">
+            <h2><i class="fa-solid fa-server" style="color: var(--primary);"></i> Trunk Sequence & Failover Priority</h2>
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+            Configure one or more outbound trunks. If the primary trunk is busy/offline, the system will fall back to priority trunks in sequence.
+        </div>
+
+        <div id="trunk-sequence-list" style="margin-bottom: 1rem;">
+            <!-- Dynamic rows injected here -->
+        </div>
+
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addTrunkRow()">
+            <i class="fa-solid fa-plus"></i> Add Priority Trunk
+        </button>
+
+        <div class="panel-header" style="margin-top: 2.5rem;">
+            <h2><i class="fa-solid fa-user-lock" style="color: var(--primary);"></i> Permission Selector & Whitelists</h2>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Permission Type</label>
+                <div style="display: flex; gap: 2rem; margin-top: 0.5rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="radio" name="permission_type" value="whitelist" onchange="togglePermissions()"
+                               {% if not route or route.permission_type == 'whitelist' %}checked{% endif %}>
+                        Whitelist Extensions
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="radio" name="permission_type" value="ring_group" onchange="togglePermissions()"
+                               {% if route and route.permission_type == 'ring_group' %}checked{% endif %}>
+                        Ring Group Membership
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="whitelist-selection" style="display: none; margin-top: 1rem;">
+            <label style="font-weight: bold; margin-bottom: 0.5rem; display: block; font-size: 0.9rem;">Select Whitelisted Extensions</label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: 8px; max-height: 250px; overflow-y: auto;">
+                {% for ext in extensions %}
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; color: var(--text-muted);">
+                    <input type="checkbox" name="allowed_extensions[]" value="{{ ext.ext }}"
+                           {% if route and ext.ext in route.allowed_extensions %}checked{% endif %}>
+                    {{ ext.ext }} - {{ ext.name }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="ring-group-selection" style="display: none; margin-top: 1rem;">
+            <div class="form-row">
+                <div class="form-group" style="max-width: 50%;">
+                    <label for="allowed_ring_groups">Allowed Ring Group</label>
+                    <select id="allowed_ring_groups" name="allowed_ring_groups[]" class="form-control">
+                        <option value="">-- Select Ring Group --</option>
+                        {% for rg in ring_groups %}
+                        <option value="{{ rg.id }}" {% if route and rg.id in route.allowed_ring_groups %}selected{% endif %}>
+                            {{ rg.id }} - {{ rg.name }} ({{ rg.strategy }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 3rem;">
+            <a href="{{ url_for('call_routes') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Outbound Route</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let trunkRowId = 0;
+    
+    function addTrunkRow(selectedTrunk = "") {
+        const container = document.getElementById("trunk-sequence-list");
+        trunkRowId++;
+        const row = document.createElement("div");
+        row.className = "form-row trunk-row";
+        row.style.alignItems = "center";
+        row.style.gap = "1rem";
+        row.style.marginBottom = "0.5rem";
+        
+        let selectHtml = `<select name="trunks[]" class="form-control trunk-select" style="flex: 1;" required>`;
+        selectHtml += `<option value="">-- Select Trunk --</option>`;
+        {% for trunk in trunks %}
+        selectHtml += `<option value="{{ trunk.name }}" ${selectedTrunk === '{{ trunk.name }}' ? 'selected' : ''}>{{ trunk.name }}</option>`;
+        {% endfor %}
+        selectHtml += `</select>`;
+        
+        row.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 1rem; width: 100%;">
+                <span class="trunk-index-label" style="font-family: 'Orbitron', sans-serif; font-weight: bold; width: 80px;">Trunk ${trunkRowId}:</span>
+                ${selectHtml}
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeTrunkRow(this)"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        `;
+        container.appendChild(row);
+        updateTrunkLabels();
+    }
+    
+    function removeTrunkRow(button) {
+        button.closest(".trunk-row").remove();
+        updateTrunkLabels();
+    }
+    
+    function updateTrunkLabels() {
+        const rows = document.querySelectorAll(".trunk-row");
+        trunkRowId = 0;
+        rows.forEach((row) => {
+            trunkRowId++;
+            row.querySelector(".trunk-index-label").textContent = `Trunk ${trunkRowId}:`;
+        });
+    }
+
+    function togglePermissions() {
+        const permType = document.querySelector('input[name="permission_type"]:checked').value;
+        const wlSec = document.getElementById("whitelist-selection");
+        const rgSec = document.getElementById("ring-group-selection");
+        
+        if (permType === "whitelist") {
+            wlSec.style.display = "block";
+            rgSec.style.display = "none";
+        } else {
+            wlSec.style.display = "none";
+            rgSec.style.display = "block";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Load initial trunks
+        let initialTrunks = [];
+        {% if route and route.trunks %}
+            initialTrunks = {{ route.trunks|tojson }};
+        {% endif %}
+        
+        if (initialTrunks.length > 0) {
+            initialTrunks.forEach(t => addTrunkRow(t));
+        } else {
+            addTrunkRow();
+        }
+        
+        togglePermissions();
+    });
+</script>
+{% endblock %}

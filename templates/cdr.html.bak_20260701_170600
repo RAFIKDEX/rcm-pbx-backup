@@ -1,0 +1,737 @@
+{% extends 'base.html' %}
+
+{% block title %}Call Detail Records (CDR) - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .resource-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .chart-panel {
+        background-color: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+    }
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.75rem;
+    }
+    .chart-header h3 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .chart-container {
+        position: relative;
+        height: 220px;
+        width: 100%;
+    }
+    .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+    .overview-card {
+        background-color: var(--panel-dark);
+        border-radius: 16px;
+        padding: 1.25rem;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 110px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .overview-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--border-color-hover);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+    .overview-title {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.75px;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .overview-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #fff;
+        margin-top: 0.5rem;
+    }
+    .overview-icon {
+        position: absolute;
+        right: -10px;
+        bottom: -10px;
+        font-size: 4rem;
+        color: rgba(255, 255, 255, 0.02);
+        pointer-events: none;
+    }
+    .form-control-inline {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: #fff;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    .form-control-inline:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    }
+    select.form-control-inline {
+        color-scheme: dark;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Call Detail Records (CDR)</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Analyze historical call statistics, search records, and playback voice recordings</div>
+    </div>
+</div>
+
+<!-- Filters Panel -->
+<div class="panel" style="padding: 1.5rem; margin-bottom: 2rem;">
+    <div style="display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-end;">
+        <!-- Date From -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="date_from" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Date From</label>
+            <input type="date" id="date_from" class="form-control-inline" onchange="refreshCdrTable(true)">
+        </div>
+
+        <!-- Date To -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="date_to" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Date To</label>
+            <input type="date" id="date_to" class="form-control-inline" onchange="refreshCdrTable(true)">
+        </div>
+
+        <!-- Extension filter -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="extension" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Extension</label>
+            <input type="text" id="extension" class="form-control-inline" placeholder="e.g. 3001" onkeyup="refreshCdrTable(true)" style="width: 130px;">
+        </div>
+
+        <!-- Status filter -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="status" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Disposition</label>
+            <select id="status" class="form-control-inline" onchange="refreshCdrTable(true)" style="width: 150px;">
+                <option value="">-- All Statuses --</option>
+                <option value="ANSWERED">ANSWERED</option>
+                <option value="NO ANSWER">NO ANSWER</option>
+                <option value="BUSY">BUSY</option>
+                <option value="FAILED">FAILED</option>
+            </select>
+        </div>
+
+        <!-- Global Search -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 200px;">
+            <label for="q" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Global Search</label>
+            <input type="text" id="q" class="form-control-inline" placeholder="Search callers, destinations, channel tags..." onkeyup="refreshCdrTable(true)">
+        </div>
+
+        <!-- Limit / Page sizing -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="per_page" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Per Page</label>
+            <select id="per_page" class="form-control-inline" onchange="refreshCdrTable(true)" style="width: 90px;">
+                <option value="10" selected>10</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+                <option value="70">70</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+
+        <!-- Reset Button -->
+        <div>
+            <button onclick="resetCdrFilters()" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Panel -->
+<div class="resource-grid">
+    <div class="chart-panel">
+        <div class="chart-header">
+            <h3><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Daily Call Distribution by Hour (GMT+3)</h3>
+            <span class="chart-value" id="total-chart-calls">0 calls</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="cdrChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Table Container -->
+<div id="cdrTableContainer">
+    <!-- Stats Cards Row -->
+    <div class="overview-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 2rem;">
+        <!-- Total Calls Today -->
+        <div class="overview-card" style="border-left: 4px solid var(--primary);">
+            <div class="overview-title"><i class="fa-solid fa-phone"></i> Total Calls Today</div>
+            <div class="overview-value" style="font-family: 'Orbitron', sans-serif;">{{ stats.total_calls }}</div>
+            <i class="fa-solid fa-phone overview-icon"></i>
+        </div>
+
+        <!-- Total Talk Time Today -->
+        <div class="overview-card" style="border-left: 4px solid #10b981;">
+            <div class="overview-title"><i class="fa-solid fa-clock"></i> Total Talk Time Today</div>
+            <div class="overview-value" style="font-family: 'Orbitron', sans-serif; font-size: 1.15rem;">{{ stats.total_talk_time }}</div>
+            <i class="fa-solid fa-clock overview-icon"></i>
+        </div>
+
+        <!-- Answered Ratio -->
+        <div class="overview-card" style="border-left: 4px solid #3b82f6;">
+            <div class="overview-title"><i class="fa-solid fa-circle-check"></i> Answered Rate</div>
+            <div class="overview-value" style="font-family: 'Orbitron', sans-serif;">{{ stats.answered_ratio }}%</div>
+            <i class="fa-solid fa-circle-check overview-icon"></i>
+        </div>
+
+        <!-- Missed/Failed Ratio -->
+        <div class="overview-card" style="border-left: 4px solid #ef4444;">
+            <div class="overview-title"><i class="fa-solid fa-circle-xmark"></i> Missed/Failed Rate</div>
+            <div class="overview-value" style="font-family: 'Orbitron', sans-serif;">{{ stats.missed_ratio }}%</div>
+            <i class="fa-solid fa-circle-xmark overview-icon"></i>
+        </div>
+    </div>
+
+    <!-- Hidden Chart Data Holder -->
+    <div id="chart-data-holder" data-hourly="{{ calls_by_hour|tojson }}" style="display: none;"></div>
+
+    <!-- Table Card -->
+    <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+            <h2 style="margin: 0;"><i class="fa-solid fa-table-list" style="color: var(--primary);"></i> CDR Records (<span id="total-filtered-count">0 total</span>)</h2>
+            <div>
+                <button onclick="triggerCsvExport()" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-file-csv"></i> Export CSV
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table" id="cdr-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"></th>
+                        <th>Date & Time</th>
+                        <th>Caller</th>
+                        <th>Destination</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Recording</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div id="pagination-footer" class="form-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; display: flex; border-top: 1px solid var(--border-color)"></div>
+    </div>
+</div>
+
+<!-- Call Details Modal -->
+<div id="callDetailsModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(5px);">
+    <div class="panel" style="margin: 10% auto; max-width: 500px; border: 1px solid var(--border-color); border-radius: 16px; background-color: var(--panel-dark); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color);">
+            <h2 style="margin: 0; font-size: 1.2rem; color: #fff; font-family: 'Orbitron', sans-serif;"><i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Call Lifecycle Details</h2>
+            <button onclick="closeModal('callDetailsModal')" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="padding: 1.5rem;" id="call-details-body">
+            <div style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                <p>Loading call details...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let cdrChart = null;
+    let playingAudioId = null;
+
+    function initCdrChart() {
+        const ctx = document.getElementById('cdrChart').getContext('2d');
+        const labels = Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`);
+        
+        cdrChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Call Volume',
+                    data: Array(24).fill(0),
+                    backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1.5,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b', font: { size: 10 } }
+                    },
+                    y: {
+                        min: 0,
+                        ticks: { color: '#64748b', font: { size: 10 }, stepSize: 1 },
+                        grid: { color: 'rgba(255, 255, 255, 0.03)' }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateCdrChart(hourlyData) {
+        if (!cdrChart) return;
+        cdrChart.data.datasets[0].data = hourlyData;
+        const total = hourlyData.reduce((a, b) => a + b, 0);
+        document.getElementById("total-chart-calls").innerText = `${total} call(s) today`;
+        cdrChart.update();
+    }
+
+    let current_page = 1;
+    function refreshCdrTable(resetPage = false) {
+        if (resetPage) {
+            current_page = 1;
+        } else {
+            const pageElem = document.getElementById("current_page");
+            if (pageElem) {
+                const pVal = parseInt(pageElem.value);
+                if (!isNaN(pVal)) current_page = pVal;
+            }
+        }
+        
+        const dateFrom = document.getElementById("date_from").value;
+        const dateTo = document.getElementById("date_to").value;
+        const extension = document.getElementById("extension").value;
+        const status = document.getElementById("status").value;
+        const q = document.getElementById("q").value;
+        const perPage = document.getElementById("per_page").value;
+        
+        const params = new URLSearchParams({
+            date_from: dateFrom,
+            date_to: dateTo,
+            extension: extension,
+            status: status,
+            q: q,
+            limit: perPage,
+            page: current_page
+        });
+        
+        const tbody = document.querySelector("#cdr-table tbody");
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                    Loading records...
+                </td>
+            </tr>
+        `;
+        
+        fetch('/api/cdr-list?' + params.toString())
+            .then(res => res.json())
+            .then(data => {
+                // If audio was playing, pause it before swapping content
+                if (playingAudioId) {
+                    const aud = document.getElementById('audio-' + playingAudioId);
+                    if (aud) aud.pause();
+                    playingAudioId = null;
+                }
+                
+                tbody.innerHTML = "";
+                document.getElementById("total-filtered-count").innerText = `${data.total_rows} total`;
+                
+                if (data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                                <i class="fa-solid fa-phone-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                                No CDR records found matching active filters.
+                            </td>
+                        </tr>
+                    `;
+                    updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'changeCdrPage');
+                    return;
+                }
+                
+                data.data.forEach(r => {
+                    const tr = document.createElement("tr");
+                    
+                    let statusBadge = "";
+                    if (r.status === 'ANSWERED') {
+                        statusBadge = `<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> ANSWERED</span>`;
+                    } else if (r.status === 'NO ANSWER') {
+                        statusBadge = `<span class="badge" style="background-color: rgba(234, 179, 8, 0.1); color: #eab308; border-color: rgba(234, 179, 8, 0.2);"><i class="fa-solid fa-circle-exclamation"></i> NO ANSWER</span>`;
+                    } else if (r.status === 'BUSY') {
+                        statusBadge = `<span class="badge" style="background-color: rgba(249, 115, 22, 0.1); color: #f97316; border-color: rgba(249, 115, 22, 0.2);"><i class="fa-solid fa-phone-flip"></i> BUSY</span>`;
+                    } else {
+                        statusBadge = `<span class="badge badge-offline"><i class="fa-solid fa-circle-xmark"></i> ${r.status}</span>`;
+                    }
+                    
+                    let recordingControls = "";
+                    if (r.recording) {
+                        recordingControls = `
+                            <audio id="audio-${r.uniqueid}" src="/recordings/play/${r.recording}" preload="none"></audio>
+                            <button class="btn btn-info btn-sm" onclick="togglePlayAudio('${r.uniqueid}')" id="btn-play-${r.uniqueid}" style="padding: 0.35rem 0.6rem;" title="Play Recording">
+                                <i class="fa-solid fa-play" id="icon-play-${r.uniqueid}"></i>
+                            </button>
+                            <a href="/recordings/play/${r.recording}" download class="btn btn-secondary btn-sm" style="padding: 0.35rem 0.6rem;" title="Download Recording">
+                                <i class="fa-solid fa-cloud-arrow-down"></i>
+                            </a>
+                        `;
+                    }
+                    
+                    tr.innerHTML = `
+                        <td style="width: 40px; text-align: center; vertical-align: middle;">
+                            <button class="btn btn-xs btn-secondary toggle-details-btn" onclick="toggleNestedEvents(this, '${r.uniqueid}')" style="padding: 0.2rem 0.4rem; background: transparent; border: none; color: var(--primary); font-size: 1rem;" title="Toggle Lifecycle Timeline">
+                                <i class="fa-solid fa-plus-circle"></i>
+                            </button>
+                        </td>
+                        <td><strong style="color: #fff; font-family: monospace;">${r.start_str}</strong></td>
+                        <td>${r.src}</td>
+                        <td>${r.dst}</td>
+                        <td><code>${r.duration_str}</code></td>
+                        <td>${statusBadge}</td>
+                        <td style="text-align: right;">
+                            <div style="display: inline-flex; align-items: center; gap: 0.5rem; justify-content: flex-end; width: 100%;">
+                                <button class="btn btn-secondary btn-sm" onclick="showCallDetails('${r.uniqueid}')" style="padding: 0.35rem 0.6rem; background-color: rgba(255,255,255,0.03); border: 1px solid var(--border-color);" title="Call Details">
+                                    <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Details
+                                </button>
+                                ${recordingControls}
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                    
+                    const detailsTr = document.createElement("tr");
+                    detailsTr.id = `nested-events-${r.uniqueid}`;
+                    detailsTr.className = "nested-events-row";
+                    detailsTr.style.display = "none";
+                    detailsTr.style.backgroundColor = "rgba(0, 0, 0, 0.25)";
+                    detailsTr.innerHTML = `
+                        <td colspan="7" style="padding: 0.75rem 1.25rem; border-top: 1px dashed rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="text-align: center; color: var(--text-muted); padding: 1rem;" class="nested-loader">
+                                <i class="fa-solid fa-spinner fa-spin" style="color: var(--primary); margin-right: 0.5rem;"></i> Loading events lifecycle...
+                            </div>
+                            <div class="nested-content" style="display: none;"></div>
+                        </td>
+                    `;
+                    tbody.appendChild(detailsTr);
+                });
+                
+                updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'changeCdrPage');
+            })
+            .catch(err => console.error("Error updating CDR table:", err));
+    }
+
+    function changeCdrPage(page) {
+        current_page = page;
+        const pageElem = document.getElementById("current_page");
+        if (pageElem) {
+            pageElem.value = page;
+        }
+        refreshCdrTable(false);
+    }
+
+    function resetCdrFilters() {
+        document.getElementById("date_from").value = "";
+        document.getElementById("date_to").value = "";
+        document.getElementById("extension").value = "";
+        document.getElementById("status").value = "";
+        document.getElementById("q").value = "";
+        document.getElementById("per_page").value = "10";
+        refreshCdrTable(true);
+    }
+
+    function triggerCsvExport() {
+        const dateFrom = document.getElementById("date_from").value;
+        const dateTo = document.getElementById("date_to").value;
+        const extension = document.getElementById("extension").value;
+        const status = document.getElementById("status").value;
+        const q = document.getElementById("q").value;
+        
+        const params = new URLSearchParams({
+            export: 1,
+            date_from: dateFrom,
+            date_to: dateTo,
+            extension: extension,
+            status: status,
+            q: q
+        });
+        
+        window.location.href = '/cdr?' + params.toString();
+    }
+
+    // Audio Playback handler
+    function togglePlayAudio(uid) {
+        const aud = document.getElementById('audio-' + uid);
+        const icon = document.getElementById('icon-play-' + uid);
+        const btn = document.getElementById('btn-play-' + uid);
+
+        if (!aud) return;
+
+        if (playingAudioId && playingAudioId !== uid) {
+            // Pause previously playing audio
+            const prevAud = document.getElementById('audio-' + playingAudioId);
+            const prevIcon = document.getElementById('icon-play-' + playingAudioId);
+            const prevBtn = document.getElementById('btn-play-' + playingAudioId);
+            if (prevAud) prevAud.pause();
+            if (prevIcon) {
+                prevIcon.classList.remove('fa-pause');
+                prevIcon.classList.add('fa-play');
+            }
+            if (prevBtn) {
+                prevBtn.classList.remove('btn-secondary');
+                prevBtn.classList.add('btn-info');
+            }
+        }
+
+        if (aud.paused) {
+            aud.play();
+            playingAudioId = uid;
+            icon.classList.remove('fa-play');
+            icon.classList.add('fa-pause');
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+            
+            aud.onended = () => {
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-info');
+                playingAudioId = null;
+            };
+        } else {
+            aud.pause();
+            icon.classList.remove('fa-pause');
+            icon.classList.add('fa-play');
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-info');
+            playingAudioId = null;
+        }
+    }
+
+    function toggleNestedEvents(btn, callid) {
+        const row = document.getElementById('nested-events-' + callid);
+        if (!row) return;
+        
+        const icon = btn.querySelector('i');
+        const isCollapsed = (row.style.display === 'none');
+        
+        if (isCollapsed) {
+            row.style.display = 'table-row';
+            icon.classList.remove('fa-plus-circle');
+            icon.classList.add('fa-minus-circle');
+            
+            const loader = row.querySelector('.nested-loader');
+            const content = row.querySelector('.nested-content');
+            
+            loader.style.display = 'block';
+            content.style.display = 'none';
+            
+            fetch('/api/calls/' + callid + '/events')
+                .then(res => res.json())
+                .then(data => {
+                    loader.style.display = 'none';
+                    if (!data || data.length === 0) {
+                        content.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 0.5rem;">No lifecycle events recorded for this call.</div>`;
+                        content.style.display = 'block';
+                        return;
+                    }
+                    
+                    let rowsHtml = '';
+                    data.forEach(ev => {
+                        let badgeStyle = 'background: rgba(255,255,255,0.05); color: #fff;';
+                        if (ev.event === 'ENTERQUEUE') {
+                            badgeStyle = 'background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.2);';
+                        } else if (ev.event === 'CONNECT') {
+                            badgeStyle = 'background: rgba(52, 211, 153, 0.1); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.2);';
+                        } else if (ev.event.startsWith('COMPLETE')) {
+                            badgeStyle = 'background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);';
+                        } else if (ev.event === 'ABANDON') {
+                            badgeStyle = 'background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);';
+                        } else if (ev.event === 'RINGNOANSWER' || ev.event === 'RINGCANCELED') {
+                            badgeStyle = 'background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2);';
+                        } else if (ev.event.startsWith('EXIT')) {
+                            badgeStyle = 'background: rgba(96, 165, 250, 0.1); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.2);';
+                        }
+                        
+                        rowsHtml += `
+                            <tr>
+                                <td style="padding: 0.4rem 0.75rem; font-family: monospace; font-size: 0.8rem; border-color: rgba(255,255,255,0.02);">${ev.timestamp}</td>
+                                <td style="padding: 0.4rem 0.75rem; border-color: rgba(255,255,255,0.02);"><span class="badge" style="padding: 0.15rem 0.4rem; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; ${badgeStyle}">${ev.event}</span></td>
+                                <td style="padding: 0.4rem 0.75rem; color: #fff; font-size: 0.85rem; border-color: rgba(255,255,255,0.02);">${ev.agent || '-'}</td>
+                                <td style="padding: 0.4rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: var(--text-muted); border-color: rgba(255,255,255,0.02);">${ev.position_duration || '-'}</td>
+                                <td style="padding: 0.4rem 0.75rem; font-size: 0.85rem; color: var(--text-muted); border-color: rgba(255,255,255,0.02);">${ev.reason || '-'}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    content.innerHTML = `
+                        <div style="background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
+                            <div style="font-family: 'Orbitron', sans-serif; font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.75px; text-transform: uppercase; padding: 0.25rem 0.5rem 0.5rem 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-solid fa-network-wired" style="color: var(--primary);"></i> Queue Event Lifecycle Timeline
+                            </div>
+                            <table class="table" style="margin-bottom: 0; background: transparent; font-size: 0.85rem; width: 100%;">
+                                <thead>
+                                    <tr style="background: rgba(255,255,255,0.01);">
+                                        <th style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.04);">Timestamp</th>
+                                        <th style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.04);">Event Type</th>
+                                        <th style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.04);">Agent/Extension</th>
+                                        <th style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.04);">Position/Duration</th>
+                                        <th style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.04);">Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    content.style.display = 'block';
+                })
+                .catch(err => {
+                    console.error("Error loading nested events:", err);
+                    loader.style.display = 'none';
+                    content.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Error loading timeline events.</div>`;
+                    content.style.display = 'block';
+                });
+        } else {
+            row.style.display = 'none';
+            icon.classList.remove('fa-minus-circle');
+            icon.classList.add('fa-plus-circle');
+        }
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    function showCallDetails(uid) {
+        document.getElementById("callDetailsModal").style.display = 'block';
+        const body = document.getElementById("call-details-body");
+        body.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                <p>Loading call details...</p>
+            </div>
+        `;
+        
+        fetch('/call-center/call-details/' + uid)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    body.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 2rem;"><i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; margin-bottom: 1rem;"></i><p>${data.message || 'Failed to load details'}</p></div>`;
+                    return;
+                }
+                
+                const c = data.call;
+                let timelineHtml = '';
+                
+                c.timeline.forEach((item, idx) => {
+                    let icon = 'fa-circle';
+                    let iconColor = 'var(--text-muted)';
+                    if (item.event === 'Entered Queue') { icon = 'fa-arrow-right-to-bracket'; iconColor = '#fbbf24'; }
+                    else if (item.event === 'Agent Ringing') { icon = 'fa-bell'; iconColor = '#60a5fa'; }
+                    else if (item.event === 'Answered') { icon = 'fa-circle-check'; iconColor = '#34d399'; }
+                    else if (item.event === 'Hangup') { icon = 'fa-phone-slash'; iconColor = '#ef4444'; }
+                    
+                    timelineHtml += `
+                        <div style="display: flex; gap: 1rem; position: relative; margin-bottom: 1.5rem;">
+                            ${idx < c.timeline.length - 1 ? `<div style="position: absolute; left: 11px; top: 24px; bottom: -20px; width: 2px; background: rgba(255,255,255,0.05);"></div>` : ''}
+                            <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; z-index: 1;">
+                                <i class="fa-solid ${icon}" style="font-size: 0.8rem; color: ${iconColor};"></i>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">${item.time}</div>
+                                <div style="font-weight: bold; color: #fff; margin-top: 0.1rem;">${item.event}</div>
+                                ${item.details ? `<div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">${item.details}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                body.innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+                        <div>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">CALLER</span>
+                            <strong style="color: #fff; font-size: 1rem;">${c.caller}</strong>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">QUEUE</span>
+                            <strong style="color: #fff; font-size: 1rem;">${c.queue_name || c.queue_id || 'Direct Call'}</strong>
+                        </div>
+                        <div style="margin-top: 0.5rem;">
+                            <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">AGENT</span>
+                            <strong style="color: #fff; font-size: 1rem;">${c.agent || 'None'}</strong>
+                        </div>
+                        <div style="margin-top: 0.5rem;">
+                            <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">STATUS</span>
+                            <strong style="color: ${c.status === 'ANSWERED' ? '#34d399' : '#ef4444'}; font-size: 1rem;">${c.status}</strong>
+                        </div>
+                    </div>
+                    
+                    <h3 style="font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 1rem; letter-spacing: 0.5px;">Call Timeline</h3>
+                    <div style="padding-left: 0.5rem;">
+                        ${timelineHtml || '<div style="color: var(--text-muted);">No timeline events recorded.</div>'}
+                    </div>
+                `;
+            })
+            .catch(err => {
+                console.error(err);
+                body.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 2rem;"><i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; margin-bottom: 1rem;"></i><p>Error fetching call details.</p></div>`;
+            });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        initCdrChart();
+        const holder = document.getElementById("chart-data-holder");
+        if (holder) {
+            const hourlyData = JSON.parse(holder.getAttribute("data-hourly"));
+            updateCdrChart(hourlyData);
+        }
+        
+        refreshCdrTable(true);
+        setInterval(refreshCdrTable, 5000);
+    });
+</script>
+{% endblock %}

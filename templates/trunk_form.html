@@ -1,0 +1,395 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if trunk %}Edit Trunk - RCM 7021{% else %}Add Trunk - RCM 7021{% endif %}{% endblock %}
+
+
+{% block content %}
+{% set selected_type = 'peer' %}
+{% if trunk and trunk.type == 'register' and trunk.register_mode == 'client' %}
+    {% set selected_type = 'register_client' %}
+{% elif trunk and trunk.type == 'register' and trunk.register_mode == 'server' %}
+    {% set selected_type = 'register_server' %}
+{% endif %}
+{% set selected_codecs = (trunk.codecs.split(',') if trunk and trunk.codecs else ['ulaw', 'alaw']) %}
+
+<div class="header-panel">
+    <div>
+        <h1>{% if trunk %}Edit Trunk ({{ trunk.name }}){% else %}Add SIP Trunk{% endif %}</h1>
+        <p class="text-muted">Configure SIP trunk connection details and advanced routing</p>
+    </div>
+</div>
+
+<div class="content-panel">
+    <div class="trunk-tabs">
+        <button class="trunk-tab active" data-target="general-page" onclick="showTrunkTab(this)"><i class="fa-solid fa-server"></i> General</button>
+        <button class="trunk-tab" data-target="network-page" onclick="showTrunkTab(this)"><i class="fa-solid fa-network-wired"></i> Network & Auth</button>
+        <button class="trunk-tab" data-target="advanced-page" onclick="showTrunkTab(this)"><i class="fa-solid fa-cogs"></i> Advanced SIP</button>
+    </div>
+
+    <form method="POST" autocomplete="off">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- PAGE 1: GENERAL -->
+        <div id="general-page" class="trunk-page active">
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-info-circle"></i> Basic Identity</h3>
+                
+                <div class="form-row">
+                    <div class="form-group" >
+                        <label>Enable Trunk</label>
+                        <div class="switch-group">
+                            <label class="switch">
+                                <input type="checkbox" name="enabled" {% if not trunk or trunk.enabled %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                            <div><strong>Active</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name">Trunk Name <span class="text-danger">*</span></label>
+                        <input type="text" id="name" name="name" class="form-control" required pattern="[A-Za-z0-9_]+" 
+                               title="Letters, numbers and underscores only"
+                               value="{{ trunk.name if trunk else '' }}" {% if trunk %}readonly{% endif %} placeholder="e.g. Provider_A">
+                    </div>
+                    <div class="form-group">
+                        <label for="type">Trunk Type</label>
+                        <select id="type" name="type" class="form-control" onchange="toggleType()">
+                            <option value="peer" {% if selected_type == 'peer' %}selected{% endif %}>Peer (IP Authentication)</option>
+                            <option value="register_client" {% if selected_type == 'register_client' %}selected{% endif %}>Register (Account Authentication)</option>
+                            <option value="register_server" {% if selected_type == 'register_server' %}selected{% endif %}>Register (Receive Registration)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-phone"></i> Media & Identity</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="caller_id">CallerID Number</label>
+                        <input type="text" id="caller_id" name="caller_id" class="form-control" placeholder="e.g. 5551234"
+                               value="{% if trunk %}{{ trunk.caller_id or '' }}{% endif %}">
+                        <small class="form-text">Default CallerID to send for outbound calls</small>
+                    </div>
+                </div>
+
+                
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="margin-bottom: 0.5rem; display: block;">Audio Codecs Prioritization</label>
+                    {% set all_audio_codecs = [('ulaw', 'G.711 U-Law'), ('alaw', 'G.711 A-Law'), ('g722', 'G.722 HD'), ('g729', 'G.729'), ('gsm', 'GSM'), ('opus', 'Opus')] %}
+                    <div class="dual-listbox">
+                        <div class="listbox-col">
+                            <label>Available Codecs</label>
+                            <select id="audio_codecs_available" multiple ondblclick="moveOptions('audio_codecs_available', 'audio_codecs_selected')">
+                                {% for codec, label in all_audio_codecs %}
+                                    {% if codec not in selected_codecs %}
+                                        <option value="{{ codec }}">{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="listbox-controls">
+                            <button type="button" onclick="moveOptions('audio_codecs_available', 'audio_codecs_selected')" title="Add Codec"><i class="fa-solid fa-arrow-right"></i></button>
+                            <button type="button" onclick="moveOptions('audio_codecs_selected', 'audio_codecs_available')" title="Remove Codec"><i class="fa-solid fa-arrow-left"></i></button>
+                        </div>
+                        <div class="listbox-col">
+                            <label>Selected & Prioritized</label>
+                            <select id="audio_codecs_selected" name="codecs[]" multiple ondblclick="moveOptions('audio_codecs_selected', 'audio_codecs_available')">
+                                {% for codec in selected_codecs %}
+                                    {% for c_id, c_label in all_audio_codecs %}
+                                        {% if c_id == codec %}
+                                            <option value="{{ c_id }}">{{ c_label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="listbox-controls">
+                            <button type="button" onclick="moveUp('audio_codecs_selected')" title="Move Priority Up"><i class="fa-solid fa-arrow-up"></i></button>
+                            <button type="button" onclick="moveDown('audio_codecs_selected')" title="Move Priority Down"><i class="fa-solid fa-arrow-down"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- PAGE 2: NETWORK & AUTH -->
+        <div id="network-page" class="trunk-page">
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-globe"></i> Server Connection</h3>
+                
+                <div class="form-row" id="server-row">
+                    <div class="form-group" >
+                        <label for="server_addr">Hostname or IP <span id="server-required" class="text-danger">*</span></label>
+                        <input type="text" id="server_addr" name="server_addr" class="form-control" placeholder="e.g. sip.provider.com"
+                               value="{% if trunk %}{{ trunk.server_addr or '' }}{% endif %}">
+                    </div>
+                    <div class="form-group" >
+                        <label for="server_port">Port</label>
+                        <input type="number" id="server_port" name="server_port" class="form-control" min="1" max="65535"
+                               value="{% if trunk %}{{ trunk.server_port }}{% else %}5060{% endif %}">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="outproxy_addr">Outbound Proxy (Optional)</label>
+                        <input type="text" id="outproxy_addr" name="outproxy_addr" class="form-control" placeholder="e.g. proxy.provider.com"
+                               value="{% if trunk %}{{ trunk.outproxy_addr or '' }}{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label for="outproxy_port">Proxy Port</label>
+                        <input type="number" id="outproxy_port" name="outproxy_port" class="form-control" min="1" max="65535" placeholder="e.g. 5060"
+                               value="{% if trunk and trunk.outproxy_port %}{{ trunk.outproxy_port }}{% endif %}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section" id="auth-row">
+                <h3 class="form-section-title"><i class="fa-solid fa-key"></i> Authentication</h3>
+                
+                <div class="form-row">
+                    <div class="form-group" id="username-group">
+                        <label for="username">Username / Account ID</label>
+                        <input type="text" id="username" name="username" class="form-control" placeholder="SIP Username"
+                               value="{% if trunk %}{{ trunk.username or '' }}{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label for="auth_id">Auth ID (If different)</label>
+                        <input type="text" id="auth_id" name="auth_id" class="form-control" placeholder="Optional"
+                               value="{% if trunk %}{{ trunk.auth_id or '' }}{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" class="form-control" placeholder="SIP Password"
+                               value="{% if trunk %}{{ trunk.password or '' }}{% endif %}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-shield-halved"></i> Transport & Security</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="transport">Transport Layer</label>
+                        <select id="transport" name="transport" class="form-control">
+                            <option value="transport-udp" {% if not trunk or trunk.transport == 'transport-udp' %}selected{% endif %}>UDP (Standard)</option>
+                            <option value="transport-tcp" {% if trunk and trunk.transport == 'transport-tcp' %}selected{% endif %}>TCP</option>
+                            <option value="transport-tls" {% if trunk and trunk.transport == 'transport-tls' %}selected{% endif %}>TLS (Encrypted)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>NAT Traversal</label>
+                        <div class="switch-group" style="margin-top: 0.5rem;">
+                            <label class="switch">
+                                <input type="checkbox" name="nat" {% if trunk and trunk.nat %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                            <div><strong>Enable NAT Support</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 3: ADVANCED SIP -->
+        <div id="advanced-page" class="trunk-page">
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-id-card-clip"></i> SIP Header Tuning</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="from_user">From User</label>
+                        <input type="text" id="from_user" name="from_user" class="form-control" placeholder="Optional override"
+                               value="{% if trunk %}{{ trunk.from_user or '' }}{% endif %}">
+                        <small class="form-text">Overrides the user part in the From: header</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="from_domain">From Domain</label>
+                        <input type="text" id="from_domain" name="from_domain" class="form-control" placeholder="Optional override"
+                               value="{% if trunk %}{{ trunk.from_domain or '' }}{% endif %}">
+                        <small class="form-text">Overrides the domain part in the From: header</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="identify_by">Identify Inbound Calls By</label>
+                        <select id="identify_by" name="identify_by" class="form-control">
+                            <option value="ip,username" {% if not trunk or trunk.identify_by == 'ip,username' %}selected{% endif %}>IP Address and Username (Recommended)</option>
+                            <option value="ip" {% if trunk and trunk.identify_by == 'ip' %}selected{% endif %}>IP Address Only</option>
+                            <option value="username" {% if trunk and trunk.identify_by == 'username' %}selected{% endif %}>Username Only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="allowed_ip">Match IP (Optional)</label>
+                        <input type="text" id="allowed_ip" name="allowed_ip" class="form-control" placeholder="e.g. 192.168.1.100"
+                               value="{% if trunk %}{{ trunk.allowed_ip or '' }}{% endif %}">
+                        <small class="form-text">Limit incoming calls to this specific IP/CIDR</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-link"></i> Custom URI Formatting (Advanced)</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="server_uri">Server URI</label>
+                        <input type="text" id="server_uri" name="server_uri" class="form-control" placeholder="e.g. sip:gdms.cloud:5060"
+                               value="{% if trunk %}{{ trunk.server_uri or '' }}{% endif %}">
+                        <small class="form-text">Leave blank to auto-generate</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="client_uri">Client URI</label>
+                        <input type="text" id="client_uri" name="client_uri" class="form-control" placeholder="e.g. sip:account@gdms.cloud"
+                               value="{% if trunk %}{{ trunk.client_uri or '' }}{% endif %}">
+                        <small class="form-text">Leave blank to auto-generate</small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="aor_contact">AOR Contact URI</label>
+                        <input type="text" id="aor_contact" name="aor_contact" class="form-control" placeholder="e.g. sip:account@gdms.cloud:5060"
+                               value="{% if trunk %}{{ trunk.aor_contact or '' }}{% endif %}">
+                        <small class="form-text">Leave blank to auto-generate</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-stopwatch"></i> Timers & Expiration</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="qualify">Qualify Options (Keepalive)</label>
+                        <div class="switch-group" style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                            <label class="switch">
+                                <input type="checkbox" name="qualify" {% if not trunk or trunk.qualify %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                            <div><strong>Send OPTIONS Ping</strong></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="keepalive">Qualify Frequency (sec)</label>
+                        <input type="number" id="keepalive" name="keepalive" class="form-control" min="5" max="3600"
+                               value="{% if trunk %}{{ trunk.keepalive }}{% else %}60{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label for="max_expiration">Registration Expiry (sec)</label>
+                        <input type="number" id="max_expiration" name="max_expiration" class="form-control" min="30" max="86400"
+                               value="{% if trunk and trunk.max_expiration %}{{ trunk.max_expiration }}{% else %}3600{% endif %}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+            <a href="{{ url_for('trunks') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info" style="min-width: 150px;"><i class="fa-solid fa-floppy-disk"></i> Save Trunk</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function showTrunkTab(button) {
+        document.querySelectorAll('.trunk-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.trunk-page').forEach(page => page.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(button.dataset.target).classList.add('active');
+    }
+
+    function toggleType() {
+        const type = document.getElementById('type').value;
+        const serverAddrInput = document.getElementById('server_addr');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const serverRow = document.getElementById('server-row');
+        const authRow = document.getElementById('auth-row');
+        const usernameGroup = document.getElementById('username-group');
+        const serverRequired = document.getElementById('server-required');
+
+        if (type === 'peer') {
+            serverRow.style.display = '';
+            authRow.style.display = 'none';
+            usernameGroup.style.display = '';
+            serverAddrInput.required = true;
+            usernameInput.required = false;
+            passwordInput.required = false;
+            serverRequired.style.display = 'inline';
+        } else if (type === 'register_client') {
+            serverRow.style.display = '';
+            authRow.style.display = 'block';
+            usernameGroup.style.display = '';
+            serverAddrInput.required = true;
+            usernameInput.required = true;
+            passwordInput.required = true;
+            serverRequired.style.display = 'inline';
+        } else {
+            serverRow.style.display = 'none';
+            authRow.style.display = 'block';
+            usernameGroup.style.display = 'none';
+            serverAddrInput.required = false;
+            usernameInput.required = false;
+            passwordInput.required = true;
+            serverRequired.style.display = 'none';
+        }
+    }
+
+    function moveOptions(sourceId, destId) {
+        const src = document.getElementById(sourceId);
+        const dest = document.getElementById(destId);
+        if(!src || !dest) return;
+        Array.from(src.selectedOptions).forEach(opt => {
+            dest.appendChild(opt);
+            opt.selected = false;
+        });
+    }
+
+    function moveUp(selectId) {
+        const sel = document.getElementById(selectId);
+        if(!sel) return;
+        Array.from(sel.selectedOptions).forEach(opt => {
+            const prev = opt.previousElementSibling;
+            if (prev) {
+                sel.insertBefore(opt, prev);
+            }
+        });
+    }
+
+    function moveDown(selectId) {
+        const sel = document.getElementById(selectId);
+        if(!sel) return;
+        Array.from(sel.selectedOptions).reverse().forEach(opt => {
+            const next = opt.nextElementSibling;
+            if (next) {
+                sel.insertBefore(next, opt);
+            }
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleType();
+        
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const audioSel = document.getElementById('audio_codecs_selected');
+                if(audioSel) {
+                    Array.from(audioSel.options).forEach(opt => opt.selected = true);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

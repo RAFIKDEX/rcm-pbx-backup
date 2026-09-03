@@ -1,0 +1,2423 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact Center Analytics - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.4; }
+        50% { transform: scale(1.15); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.4; }
+    }
+    .pulse-dot {
+        width: 10px;
+        height: 10px;
+        background-color: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 12px #10b981;
+        animation: pulse 2s infinite;
+        display: inline-block;
+    }
+    .realtime-bar {
+        background: linear-gradient(90deg, rgba(21, 29, 48, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    }
+    .realtime-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .realtime-num {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    .sub-nav-bar {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.75rem;
+    }
+    .timeline-stepper {
+        position: relative;
+        padding-left: 2.2rem;
+        border-left: 2px solid var(--border-color);
+        margin-left: 1.25rem;
+    }
+    .timeline-node {
+        position: absolute;
+        left: -3.15rem;
+        top: 0;
+        width: 28px;
+        height: 28px;
+        background: var(--bg-dark);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+    .analytics-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.65rem;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        color: var(--text-muted);
+        background: var(--border-color);
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .analytics-status.loading {
+        color: #38bdf8;
+        border-color: rgba(56, 189, 248, 0.28);
+        background: rgba(56, 189, 248, 0.08);
+    }
+    .analytics-status.error {
+        color: #f87171;
+        border-color: rgba(248, 113, 113, 0.3);
+        background: rgba(248, 113, 113, 0.08);
+    }
+    .analytics-filter-panel {
+        position: sticky;
+        top: 0.75rem;
+        z-index: 6;
+        backdrop-filter: blur(12px);
+    }
+    .quick-range-group {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+    }
+    .quick-range-btn {
+        padding: 0.3rem 0.55rem;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        background: var(--border-color);
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .quick-range-btn:hover {
+        color: var(--text-main);
+        border-color: rgba(0, 173, 181, 0.45);
+        background: rgba(0, 173, 181, 0.12);
+    }
+    .active-filter-summary {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-top: 0.9rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--border-color);
+    }
+    .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid var(--border-color);
+        background: rgba(255,255,255,0.035);
+        color: var(--text-muted);
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+    .tab-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+    .kpi-card {
+        transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+    .kpi-card:hover {
+        transform: translateY(-1px);
+        border-color: var(--border-color);
+        background: rgba(255,255,255,0.045) !important;
+    }
+    .table tbody tr:hover {
+        background: rgba(255,255,255,0.025);
+    }
+    .form-control {
+        color-scheme: dark;
+    }
+    select.form-control option {
+        background-color: var(--panel-dark);
+        color: #f1f5f9;
+    }
+
+    /* Premium Dashboard Enhancements (Safe & Scoped) */
+    .kpi-card, .realtime-bar, .tab-content .panel {
+        background: var(--panel-dark) !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+        border-radius: 12px !important;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease, box-shadow 0.2s ease !important;
+    }
+
+    .kpi-card:hover, .tab-content .panel:hover {
+        transform: translateY(-2px) !important;
+        border-color: var(--border-color-hover) !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+    }
+
+    h1, h2, h3, .realtime-num, [id^="kpi-"] {
+        letter-spacing: -0.02em !important;
+    }
+
+    #realtime-waiting { color: #f59e0b !important; text-shadow: 0 0 12px rgba(245, 158, 11, 0.3) !important; }
+    #realtime-talking { color: var(--status-offline) !important; text-shadow: 0 0 12px var(--status-offline-bg) !important; }
+
+    .table-responsive {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+    }
+    .table th {
+        background: rgba(0, 0, 0, 0.2) !important;
+        text-transform: uppercase !important;
+        font-size: 0.75rem !important;
+        letter-spacing: 0.05em !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        color: var(--text-muted) !important;
+    }
+    .table td {
+        background: var(--panel-dark) !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        vertical-align: middle !important;
+    }
+    .table tbody tr:hover td {
+        background: var(--border-color);!important;
+    }
+
+    .badge {
+        padding: 0.35rem 0.6rem !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+    }
+
+    #filterForm {
+        background: var(--panel-dark) !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    }
+</style>
+
+
+
+
+<div class="header-panel" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1><i class="fa-solid fa-chart-line" style="color: var(--primary); margin-right: 0.5rem;"></i> Contact Center Analytics</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Enterprise historical reporting, agent performance, and live queue analytics</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; justify-content: flex-end;">
+        <span id="analytics-status" class="analytics-status"><i class="fa-solid fa-circle-check"></i> Ready</span>
+        <button onclick="loadStats()" class="btn btn-secondary btn-sm" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #60a5fa;" title="Refresh Data">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+        </button>
+        <button onclick="openExportModal()" class="btn btn-info btn-sm" style="font-weight: bold; background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.5); color: #93c5fd; padding: 0.4rem 1rem; border-radius: 20px; transition: all 0.3s ease;">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Export Analytics
+        </button>
+    </div>
+</div>
+
+<!-- REAL-TIME INDICATORS BAR -->
+<div class="realtime-bar">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="pulse-dot"></span>
+            <span style="font-family: 'Orbitron', sans-serif; font-size: 0.85rem; letter-spacing: 1px; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Realtime Queue Live</span>
+        </div>
+        <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: center;">
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-clock-rotate-left" style="color: #f59e0b; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Waiting Calls</div>
+                    <div id="realtime-waiting" class="realtime-num" style="color: #f59e0b;">0</div>
+                </div>
+            </div>
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-phone-volume" style="color: #ef4444; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Talking Calls</div>
+                    <div id="realtime-talking" class="realtime-num" style="color: #ef4444;">0</div>
+                </div>
+            </div>
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-user-check" style="color: #10b981; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Available Agents</div>
+                    <div id="realtime-available" class="realtime-num" style="color: #10b981;">0</div>
+                </div>
+            </div>
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-user-slash" style="color: #38bdf8; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Busy Agents</div>
+                    <div id="realtime-busy" class="realtime-num" style="color: #38bdf8;">0</div>
+                </div>
+            </div>
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-user-clock" style="color: #fbbf24; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Paused Agents</div>
+                    <div id="realtime-paused" class="realtime-num" style="color: #fbbf24;">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Filter Bar -->
+<div class="panel analytics-filter-panel" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+            <div style="font-weight: bold; color: var(--text-main); font-family: 'Orbitron', sans-serif; font-size: 0.85rem; letter-spacing: 1px;">
+                <i class="fa-solid fa-filter" style="color: var(--primary);"></i> GLOBAL FILTERS
+            </div>
+            <button id="toggleFilterBtn" class="btn btn-secondary btn-sm" onclick="toggleFilters()" style="display: flex; align-items: center; gap: 0.5rem; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 20px; padding: 0.4rem 1rem; transition: all 0.3s ease;">
+                <i class="fa-solid fa-sliders" style="color: var(--primary);"></i> <span>Display Filters</span>
+            </button>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <div class="quick-range-group">
+                <button type="button" class="quick-range-btn" onclick="setQuickRange('today')">Today</button>
+                <button type="button" class="quick-range-btn" onclick="setQuickRange('7d')">7D</button>
+                <button type="button" class="quick-range-btn" onclick="setQuickRange('30d')">30D</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem;">
+                <button type="button" class="btn btn-info" onclick="loadStats(event)" style="font-weight: bold; padding: 0.4rem 1rem;">
+                    <i class="fa-solid fa-rotate-right"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+    <form id="filterForm" onsubmit="loadStats(event)" style="display: none; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem; align-items: flex-end; margin-top: 1.5rem; padding: 1.5rem; background: rgba(0, 0, 0, 0.2); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-regular fa-calendar-days" style="color: var(--primary);"></i> Date From</label>
+            <input type="date" id="date_from" class="form-control" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-regular fa-calendar-days" style="color: var(--primary);"></i> Date To</label>
+            <input type="date" id="date_to" class="form-control" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-regular fa-clock" style="color: #f59e0b;"></i> Time From</label>
+            <input type="time" id="time_from" class="form-control" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);" value="00:00">
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-regular fa-clock" style="color: #f59e0b;"></i> Time To</label>
+            <input type="time" id="time_to" class="form-control" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);" value="23:59">
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-layer-group" style="color: #38bdf8;"></i> Queue</label>
+            <select id="queue_selector" class="form-control" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+                <option value="all">-- All Queues --</option>
+                {% for q in queues %}
+                <option value="{{ q.queue_number }}">{{ q.queue_number }} {{ q.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-user" style="color: #10b981;"></i> Agent Name</label>
+            <input type="text" id="agent_name_selector" class="form-control" placeholder="e.g. Ahmed" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-hashtag" style="color: #38bdf8;"></i> Agent Number</label>
+            <input type="text" id="agent_number_selector" class="form-control" placeholder="e.g. 5001" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-phone" style="color: #ef4444;"></i> Caller ID</label>
+            <input type="text" id="caller_selector" class="form-control" placeholder="e.g. 010xxxx" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-chart-pie" style="color: #c084fc;"></i> Call Status</label>
+            <select id="call_status_selector" class="form-control" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+                <option value="all">-- All Statuses --</option>
+                <option value="answered">Answered</option>
+                <option value="abandoned">Abandoned (Any)</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="no_answer">No Answer</option>
+                <option value="timeout">Timeout</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-hourglass-half" style="color: #2dd4bf;"></i> Wait Time</label>
+            <select id="wait_time_selector" class="form-control" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+                <option value="all">-- Any --</option>
+                <option value="short">&lt; 20s (SLA Met)</option>
+                <option value="medium">20s - 60s (Warning)</option>
+                <option value="long">&gt; 60s (SLA Missed)</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-comments" style="color: #facc15;"></i> Talk Time</label>
+            <select id="talk_time_selector" class="form-control" style="padding: 0.6rem; border-radius: 8px; background: var(--border-color); border: 1px solid var(--border-color);">
+                <option value="all">-- Any --</option>
+                <option value="short">&lt; 1 min</option>
+                <option value="medium">1 min - 5 mins</option>
+                <option value="long">&gt; 5 mins</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.75rem; grid-column: 1 / -1; justify-content: flex-end; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1);">
+            <button type="button" onclick="resetFilters()" class="btn btn-secondary" style="padding: 0.6rem 1.75rem; border-radius: 8px; transition: all 0.3s ease;">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
+            <button type="submit" class="btn btn-info" style="padding: 0.6rem 2rem; border-radius: 8px; background: linear-gradient(135deg, var(--primary), #38bdf8); border: none; font-weight: 600; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3); transition: all 0.3s ease;">
+                <i class="fa-solid fa-magnifying-glass"></i> Apply Filters
+            </button>
+        </div>
+    </form>
+    <div id="active-filter-summary" class="active-filter-summary"></div>
+
+    <script>
+    function toggleFilters() {
+        const form = document.getElementById('filterForm');
+        const btn = document.getElementById('toggleFilterBtn');
+        const icon = btn.querySelector('i');
+        const span = btn.querySelector('span');
+        
+        if (form.style.display === 'none' || form.style.display === '') {
+            form.style.display = 'grid';
+            form.style.animation = 'fadeInDown 0.4s ease forwards';
+            btn.style.background = 'rgba(56, 189, 248, 0.15)';
+            btn.style.borderColor = 'var(--primary)';
+            icon.className = 'fa-solid fa-eye-slash';
+            span.textContent = 'Hide Filters';
+        } else {
+            form.style.display = 'none';
+            btn.style.background = 'rgba(255,255,255,0.05)';
+            btn.style.borderColor = 'rgba(255,255,255,0.1)';
+            icon.className = 'fa-solid fa-sliders';
+            span.textContent = 'Display Filters';
+        }
+    }
+    
+    // Add a simple animation style if not already present
+    if (!document.getElementById('filter-animations')) {
+        const style = document.createElement('style');
+        style.id = 'filter-animations';
+        style.innerHTML = `
+            @keyframes fadeInDown {
+                from { opacity: 0; transform: translateY(-10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            #toggleFilterBtn:hover {
+                background: var(--border-color);!important;
+                border-color: var(--border-color);!important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    </script>
+</div>
+
+<!-- Main Statistics Navigation Tabs -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap;">
+    <button onclick="switchTab('tab-overview')" id="btn-tab-overview" class="btn btn-info tab-btn"><i class="fa-solid fa-gauge-high"></i> Overview</button>
+    <button onclick="switchTab('tab-queues')" id="btn-tab-queues" class="btn btn-secondary tab-btn"><i class="fa-solid fa-layer-group"></i> Queues</button>
+    <button onclick="switchTab('tab-agents')" id="btn-tab-agents" class="btn btn-secondary tab-btn"><i class="fa-solid fa-users-gear"></i> Agents</button>
+    <button onclick="switchTab('tab-occupancy')" id="btn-tab-occupancy" class="btn btn-secondary tab-btn"><i class="fa-solid fa-gauge-high"></i> Agent Occupancy</button>
+    <button onclick="switchTab('tab-details')" id="btn-tab-details" class="btn btn-secondary tab-btn"><i class="fa-solid fa-list-ul"></i> Detailed Log</button>
+    <button onclick="switchTab('tab-advanced')" id="btn-tab-advanced" class="btn btn-secondary tab-btn"><i class="fa-solid fa-chart-column"></i> Advanced</button>
+</div>
+
+<!-- TAB 1: OVERVIEW -->
+<div id="tab-overview" class="tab-content">
+    <!-- KPI Card Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        
+        <!-- Volume Group -->
+        <div class="panel kpi-card" style="padding: 1.25rem; border-left: 4px solid #3b82f6; background: rgba(59, 130, 246, 0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Total Volume</div>
+                <i class="fa-solid fa-phone" style="color: #3b82f6; opacity: 0.5;"></i>
+            </div>
+            <div style="display: flex; gap: 1.5rem; align-items: baseline;">
+                <div>
+                    <div id="kpi-total" style="font-size: 2rem; font-weight: bold; color: var(--text-main); font-family: 'Orbitron', sans-serif;">0</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted);">Total Calls</div>
+                </div>
+                <div>
+                    <div id="kpi-answered" style="font-size: 1.5rem; font-weight: bold; color: #10b981; font-family: 'Orbitron', sans-serif;">0</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted);">Answered</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Abandoned Group -->
+        <div class="panel kpi-card" style="padding: 1.25rem; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Abandoned Calls</div>
+                <i class="fa-solid fa-phone-slash" style="color: #ef4444; opacity: 0.5;"></i>
+            </div>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline;">
+                <div style="margin-right: 0.5rem;">
+                    <div id="kpi-abandoned" style="font-size: 2rem; font-weight: bold; color: #ef4444; font-family: 'Orbitron', sans-serif;">0</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted);">Total Abandoned</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.7rem; color: var(--text-muted); align-items: center; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 1rem;">
+                    <div>Standard: <strong id="kpi-standard-abandoned" style="color: #f87171;">0</strong></div>
+                    <div>Canceled: <strong id="kpi-cancelled" style="color: #fbbf24;">0</strong></div>
+                    <div>No Answer: <strong id="kpi-no-answer" style="color: #94a3b8;">0</strong></div>
+                    <div>Timeout: <strong id="kpi-timeout" style="color: #60a5fa;">0</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rates Group -->
+        <div class="panel kpi-card" style="padding: 1.25rem; border-left: 4px solid #a855f7; background: rgba(168, 85, 247, 0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Performance Rates</div>
+                <i class="fa-solid fa-chart-pie" style="color: #a855f7; opacity: 0.5;"></i>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <div style="text-align: center;">
+                    <div id="kpi-ans-rate" style="font-size: 1.4rem; font-weight: bold; color: #38bdf8; font-family: 'Orbitron', sans-serif;">0%</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted);">Answer Rate</div>
+                </div>
+                <div style="text-align: center;">
+                    <div id="kpi-ab-rate" style="font-size: 1.4rem; font-weight: bold; color: #c084fc; font-family: 'Orbitron', sans-serif;">0%</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted);">Abandon Rate</div>
+                </div>
+                <div style="text-align: center;">
+                    <div id="kpi-sla" style="font-size: 1.4rem; font-weight: bold; color: #34d399; font-family: 'Orbitron', sans-serif;">0%</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted);">SLA Met</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Time Metrics Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="panel kpi-card" style="padding: 1rem; text-align: center; border-left: 3px solid #2dd4bf; background: rgba(45, 212, 191, 0.02);">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;"><i class="fa-solid fa-hourglass-half" style="margin-right:4px;"></i> Avg Wait</div>
+            <div id="kpi-avg-wait" style="font-size: 1.5rem; font-weight: bold; color: #2dd4bf; margin-top: 0.4rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.3rem;">Longest: <span id="kpi-longest-wait" style="color: #f43f5e; font-weight:bold;">00:00</span></div>
+        </div>
+        <div class="panel kpi-card" style="padding: 1rem; text-align: center; border-left: 3px solid #facc15; background: rgba(250, 204, 21, 0.02);">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;"><i class="fa-solid fa-comments" style="margin-right:4px;"></i> Avg Talk</div>
+            <div id="kpi-avg-talk" style="font-size: 1.5rem; font-weight: bold; color: #facc15; margin-top: 0.4rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+            <div style="display: flex; justify-content: space-around; font-size: 0.65rem; color: var(--text-muted); margin-top: 0.3rem;">
+                <span>Max: <span id="kpi-longest-talk" style="color: #fb923c; font-weight:bold;">00:00</span></span>
+                <span>Min: <span id="kpi-shortest-talk" style="color: #38bdf8; font-weight:bold;">00:00</span></span>
+            </div>
+        </div>
+        <div class="panel kpi-card" style="padding: 1rem; text-align: center; border-left: 3px solid #fb923c; background: rgba(251, 146, 60, 0.02);">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;"><i class="fa-regular fa-hand" style="margin-right:4px;"></i> Avg Hold</div>
+            <div id="kpi-avg-hold" style="font-size: 1.5rem; font-weight: bold; color: #fb923c; margin-top: 0.4rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.3rem;">Longest: <span id="kpi-longest-hold" style="color: #ef4444; font-weight:bold;">00:00</span></div>
+        </div>
+    </div>
+
+    <!-- Charts Panel -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Answered vs Abandoned</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="volumeChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Calls by Queue</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="queueCallsChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Calls Timeline</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Agent Performance (Calls Handled)</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="agentPerfChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 2: QUEUE PERFORMANCE -->
+<div id="tab-queues" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Queue Comparison Statistics</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>QUEUE</th>
+                        <th>VOLUME</th>
+                        <th>ANSWER RATE</th>
+                        <th>WAIT TIME</th>
+                        <th>TALK TIME</th>
+                        <th>HOLD TIME</th>
+                        <th>SLA</th>
+                    </tr>
+                </thead>
+                <tbody id="queues-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 1rem;">
+            <div style="font-size: 0.85rem; color: var(--text-muted);" id="queues-pagination-info">
+                Showing 1-10 of -- records
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="queues-limit-select" style="font-size: 0.85rem; color: var(--text-muted);">Rows per page:</label>
+                    <select id="queues-limit-select" class="form-control-inline" onchange="changeQueuesLimit(this.value)" style="width: 70px; padding: 0.25rem; font-size: 0.85rem; background: var(--panel-bg); color: var(--text); border: 1px solid var(--border-color); border-radius: 4px;">
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                        <option value="70">70</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="btn-queues-prev-page" class="btn btn-secondary btn-sm" onclick="changeQueuesPage(-1)" disabled>
+                        <i class="fa-solid fa-chevron-left"></i> Previous
+                    </button>
+                    <button id="btn-queues-next-page" class="btn btn-secondary btn-sm" onclick="changeQueuesPage(1)" disabled>
+                        Next <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 3: AGENT ANALYTICS -->
+<div id="tab-agents" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Agent Performance Reports</h2>
+        </div>
+        
+        <!-- Sub-tabs navigation -->
+        <div class="sub-nav-bar">
+            <button onclick="switchAgentSubTab('sub-agent-perf')" id="btn-sub-agent-perf" class="btn btn-info btn-xs sub-tab-btn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Performance Ranking</button>
+            <button onclick="switchAgentSubTab('sub-agent-logins')" id="btn-sub-agent-logins" class="btn btn-secondary btn-xs sub-tab-btn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Login Statistics</button>
+            <button onclick="switchAgentSubTab('sub-agent-pauses')" id="btn-sub-agent-pauses" class="btn btn-secondary btn-xs sub-tab-btn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Pause Statistics</button>
+        </div>
+
+        <!-- Sub Tab 1: Ranking -->
+        <div id="sub-agent-perf" class="agent-sub-tab-content">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th>Answered Calls</th>
+                            <th>No Answer</th>
+                            <th>Cancelled</th>
+                            <th>Average Talk Time</th>
+                            <th>Total Talk Time</th>
+                            <th>Productivity</th>
+                            <th>Login Duration</th>
+                            <th>Pause Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-perf-table-body">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="font-size: 0.85rem; color: var(--text-muted);" id="agent-perf-pagination-info">
+                    Showing 1-10 of -- records
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label for="agent-perf-limit-select" style="font-size: 0.85rem; color: var(--text-muted);">Rows per page:</label>
+                        <select id="agent-perf-limit-select" class="form-control-inline" onchange="changeAgentPerfLimit(this.value)" style="width: 70px; padding: 0.25rem; font-size: 0.85rem; background: var(--panel-bg); color: var(--text); border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                            <option value="50">50</option>
+                            <option value="70">70</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="btn-agent-perf-prev-page" class="btn btn-secondary btn-sm" onclick="changeAgentPerfPage(-1)" disabled>
+                            <i class="fa-solid fa-chevron-left"></i> Previous
+                        </button>
+                        <button id="btn-agent-perf-next-page" class="btn btn-secondary btn-sm" onclick="changeAgentPerfPage(1)" disabled>
+                            Next <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub Tab 2: Logins -->
+        <div id="sub-agent-logins" class="agent-sub-tab-content" style="display: none;">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>QUEUE</th>
+                            <th>EXTENSION</th>
+                            <th>AGENT NAME</th>
+                            <th>TYPE</th>
+                            <th>FIRST LOGIN</th>
+                            <th>LAST LOGOUT</th>
+                            <th>TOTAL SESSION TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-logins-table-body">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination controls for Logins -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="font-size: 0.85rem; color: var(--text-muted);" id="logins-pagination-info">
+                    Showing 1-10 of -- records
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label for="logins-limit-select" style="font-size: 0.85rem; color: var(--text-muted);">Rows per page:</label>
+                        <select id="logins-limit-select" class="form-control-inline" onchange="changeLoginsLimit(this.value)" style="width: 70px; padding: 0.25rem; font-size: 0.85rem; background: var(--panel-bg); color: var(--text); border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                            <option value="50">50</option>
+                            <option value="70">70</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="btn-logins-prev-page" class="btn btn-secondary btn-sm" onclick="changeLoginsPage(-1)" disabled>
+                            <i class="fa-solid fa-chevron-left"></i> Previous
+                        </button>
+                        <button id="btn-logins-next-page" class="btn btn-secondary btn-sm" onclick="changeLoginsPage(1)" disabled>
+                            Next <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub Tab 3: Pauses -->
+        <div id="sub-agent-pauses" class="agent-sub-tab-content" style="display: none;">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>QUEUE</th>
+                            <th>EXTENSION</th>
+                            <th>AGENT NAME</th>
+                            <th>TYPE</th>
+                            <th>TOTAL PAUSE TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-pauses-table-body">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination controls for Pauses -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="font-size: 0.85rem; color: var(--text-muted);" id="pauses-pagination-info">
+                    Showing 1-10 of -- records
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label for="pauses-limit-select" style="font-size: 0.85rem; color: var(--text-muted);">Rows per page:</label>
+                        <select id="pauses-limit-select" class="form-control-inline" onchange="changePausesLimit(this.value)" style="width: 70px; padding: 0.25rem; font-size: 0.85rem; background: var(--panel-bg); color: var(--text); border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                            <option value="50">50</option>
+                            <option value="70">70</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="btn-pauses-prev-page" class="btn btn-secondary btn-sm" onclick="changePausesPage(-1)" disabled>
+                            <i class="fa-solid fa-chevron-left"></i> Previous
+                        </button>
+                        <button id="btn-pauses-next-page" class="btn btn-secondary btn-sm" onclick="changePausesPage(1)" disabled>
+                            Next <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 4: AGENT OCCUPANCY -->
+<div id="tab-occupancy" class="tab-content" style="display: none;">
+    <div class="panel" style="margin-bottom: 1.25rem;">
+        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+            <div>
+                <h2><i class="fa-solid fa-gauge-high" style="color:#38bdf8; margin-right:.45rem;"></i>Agent Occupancy</h2>
+                <div style="color:var(--text-muted); font-size:.78rem; margin-top:.3rem;">Workload, availability, call handling, and transfer activity for the selected period.</div>
+            </div>
+            <span class="analytics-status"><i class="fa-solid fa-circle-info"></i> Busy Time = Talk + Hold</span>
+        </div>
+        <div id="occupancy-highlights" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:.8rem; margin-top:1rem;"></div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:1rem; margin-bottom:1.25rem;">
+        <div class="panel">
+            <div class="panel-header"><h2>Occupancy Ranking</h2></div>
+            <div style="height:280px; position:relative;"><canvas id="occupancyRankingChart"></canvas></div>
+        </div>
+        <div class="panel">
+            <div class="panel-header"><h2>Work Mix</h2></div>
+            <div style="height:280px; position:relative;"><canvas id="occupancyWorkMixChart"></canvas></div>
+        </div>
+        <div class="panel">
+            <div class="panel-header"><h2>Transfers In / Out</h2></div>
+            <div style="height:280px; position:relative;"><canvas id="occupancyTransferChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:1.25rem;">
+        <div class="panel-header"><h2>Agent Cards</h2></div>
+        <div id="agent-occupancy-cards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:.9rem;"></div>
+    </div>
+
+    <div id="occupancy-agent-detail" class="panel" style="display:none; margin-bottom:1.25rem;"></div>
+</div>
+
+<!-- TAB 5: DETAILED LOG -->
+<div id="tab-details" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Call Detail Records (Historical Log)</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Caller</th>
+                        <th>Queue</th>
+                        <th>Entry Time</th>
+                        <th>Status</th>
+                        <th>Initial Pos</th>
+                        <th>Last Pos</th>
+                        <th>Wait Time</th>
+                        <th>Agent</th>
+                        <th>Talk Duration</th>
+                        <th>Hold Time</th>
+                        <th>Hangup By</th>
+                        <th>Recording</th>
+                        <th style="text-align: center;">Timeline</th>
+                    </tr>
+                </thead>
+                <tbody id="calls-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination controls -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div style="font-size: 0.85rem; color: var(--text-muted);" id="pagination-info">
+                Showing 1-10 of -- calls
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="limit-select" style="font-size: 0.85rem; color: var(--text-muted);">Rows per page:</label>
+                    <select id="limit-select" class="form-control-inline" onchange="changeLimit(this.value)" style="width: 70px; padding: 0.25rem; font-size: 0.85rem; background: var(--panel-bg); color: var(--text); border: 1px solid var(--border-color); border-radius: 4px;">
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                        <option value="70">70</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="btn-prev-page" class="btn btn-secondary btn-sm" onclick="changePage(-1)" disabled>
+                        <i class="fa-solid fa-chevron-left"></i> Previous
+                    </button>
+                    <button id="btn-next-page" class="btn btn-secondary btn-sm" onclick="changePage(1)" disabled>
+                        Next <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 5: ADVANCED CHARTS -->
+<div id="tab-advanced" class="tab-content" style="display: none;">
+    <div class="panel" style="margin-bottom: 1.5rem;">
+        <div class="panel-header">
+            <h2>Queue Heatmap (Call Count by Day of Week & Hour)</h2>
+        </div>
+        <div class="table-responsive" style="margin-top: 1rem;">
+            <table class="table" style="text-align: center; font-family: monospace;">
+                <thead>
+                    <tr id="heatmap-header">
+                        <th>Day / Hour</th>
+                    </tr>
+                </thead>
+                <tbody id="heatmap-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Peak Hours Hourly Volumes</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="advancedPeakChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Abandon Analysis Distribution</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="abandonChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mini Audio Player Container -->
+<div id="audio-player-container" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000; background: var(--panel-dark); border: 1px solid var(--border-color); padding: 1rem; border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.6); align-items: center; gap: 1rem; animation: slideUp 0.3s ease;">
+    <div>
+        <i class="fa-solid fa-file-audio" style="color: var(--primary); font-size: 1.5rem;"></i>
+    </div>
+    <div style="flex: 1;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold; margin-bottom: 0.25rem;">Playing Call Recording</div>
+        <audio id="global-audio-player" controls style="height: 32px;"></audio>
+    </div>
+    <div>
+        <button class="btn btn-secondary btn-sm" onclick="stopAudio()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+</div>
+
+<!-- Advanced Export Modal -->
+<div id="exportModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="panel" style="width: 100%; max-width: 500px; padding: 2rem; border-radius: 16px; border: 1px solid var(--border-color); background: var(--bg-dark); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+        <h2 style="color: var(--text-main); margin-bottom: 0.5rem; font-size: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fa-solid fa-cloud-arrow-down" style="color: var(--primary);"></i> Advanced Export
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Select what you want to export and filter by multiple targets.</p>
+        
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label style="color: var(--text-main); display: block; margin-bottom: 0.5rem;">Export Type</label>
+            <select id="exportTypeInput" class="form-control" style="width: 100%; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 8px;">
+                <option value="calls">Calls Report</option>
+                <option value="agents">Agent Performance</option>
+                <option value="sessions">Agent Sessions</option>
+                <option value="pauses">Agent Pauses</option>
+                <option value="all">Export All (ZIP)</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label style="color: var(--text-main); display: block; margin-bottom: 0.5rem;">Target Filter</label>
+            <div style="display: flex; gap: 1rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-main); cursor: pointer;">
+                    <input type="radio" name="exportTarget" value="queues" checked onchange="toggleExportTarget()"> Queues
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-main); cursor: pointer;">
+                    <input type="radio" name="exportTarget" value="agents" onchange="toggleExportTarget()"> Agents
+                </label>
+            </div>
+        </div>
+
+        <div id="exportQueuesContainer" class="form-group" style="margin-bottom: 1.5rem;">
+            <label style="color: var(--text-main); display: block; margin-bottom: 0.5rem;">Select Queues (Multiple)</label>
+            <select id="exportQueuesInput" class="form-control" multiple style="width: 100%; height: 120px; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 8px;">
+                {% for q in queues %}
+                    <option value="{{ q.queue_number }}">{{ q.queue_name }} ({{ q.queue_number }})</option>
+                {% endfor %}
+            </select>
+            <small style="color: var(--text-muted);">Hold Ctrl/Cmd to select multiple. Leave empty for all.</small>
+        </div>
+
+        <div id="exportAgentsContainer" class="form-group" style="margin-bottom: 1.5rem; display: none;">
+            <label style="color: var(--text-main); display: block; margin-bottom: 0.5rem;">Select Agents (Multiple)</label>
+            <select id="exportAgentsInput" class="form-control" multiple style="width: 100%; height: 120px; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 8px;">
+                {% for a in agents %}
+                    <option value="{{ a.ext }}">{{ a.name }} ({{ a.ext }})</option>
+                {% endfor %}
+            </select>
+            <small style="color: var(--text-muted);">Hold Ctrl/Cmd to select multiple. Leave empty for all.</small>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+            <button class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+            <button class="btn btn-info" onclick="submitAdvancedExport()" style="font-weight: bold;">
+                <i class="fa-solid fa-download"></i> Download Data
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let volumeChart = null;
+    let queueCallsChart = null;
+    let timelineChart = null;
+    let agentPerfChart = null;
+    let abandonChart = null;
+    let advancedPeakChart = null;
+    let occupancyRankingChart = null;
+    let occupancyWorkMixChart = null;
+    let occupancyTransferChart = null;
+    
+    // Filters and Data Stores
+    let globalQueuesTable = [];
+    let globalAgentPerformance = [];
+    let globalAgentOccupancy = [];
+    let globalLoginStats = [];
+    let globalPauseStats = [];
+
+    let queuesPage = 1;
+    let queuesLimit = 10;
+    let queuesTotalRecords = 0;
+
+    let agentPerfPage = 1;
+    let agentPerfLimit = 10;
+    let agentPerfTotalRecords = 0;
+    
+    let currentPage = 1;
+    let limitPerPage = 10;
+    let totalRecords = 0;
+    
+    let loginPage = 1;
+    let loginLimit = 10;
+    let loginTotalRecords = 0;
+    
+    let pausePage = 1;
+    let pauseLimit = 10;
+    let pauseTotalRecords = 0;
+    
+    let activeRefreshTimer = null;
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.getElementById(tabId).style.display = 'block';
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+        });
+        document.getElementById('btn-' + tabId).classList.add('btn-info');
+        document.getElementById('btn-' + tabId).classList.remove('btn-secondary');
+    }
+
+    function switchAgentSubTab(subTabId) {
+        document.querySelectorAll('.agent-sub-tab-content').forEach(el => el.style.display = 'none');
+        document.getElementById(subTabId).style.display = 'block';
+        
+        document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+        });
+        document.getElementById('btn-' + subTabId).classList.add('btn-info');
+        document.getElementById('btn-' + subTabId).classList.remove('btn-secondary');
+    }
+
+    function resetFilters() {
+        document.getElementById("time_from").value = '00:00';
+        document.getElementById("time_to").value = '23:59';
+        document.getElementById("queue_selector").value = 'all';
+        document.getElementById("agent_name_selector").value = '';
+        document.getElementById("agent_number_selector").value = '';
+        document.getElementById("caller_selector").value = '';
+        if(document.getElementById("call_status_selector")) document.getElementById("call_status_selector").value = 'all';
+        if(document.getElementById("wait_time_selector")) document.getElementById("wait_time_selector").value = 'all';
+        if(document.getElementById("talk_time_selector")) document.getElementById("talk_time_selector").value = 'all';
+        
+        currentPage = 1;
+        limitPerPage = 10;
+        queuesPage = 1;
+        queuesLimit = 10;
+        agentPerfPage = 1;
+        agentPerfLimit = 10;
+        loginPage = 1;
+        loginLimit = 10;
+        pausePage = 1;
+        pauseLimit = 10;
+        
+        document.getElementById("limit-select").value = "10";
+        document.getElementById("queues-limit-select").value = "10";
+        document.getElementById("agent-perf-limit-select").value = "10";
+        document.getElementById("logins-limit-select").value = "10";
+        document.getElementById("pauses-limit-select").value = "10";
+        
+        // Use setQuickRange to handle the date logic and loadStats
+        setQuickRange('today');
+    }
+
+    function toggleAutoRefresh() {
+        // Feature removed as requested.
+    }
+
+    function setAnalyticsStatus(state, text) {
+        const el = document.getElementById("analytics-status");
+        if (!el) return;
+        el.classList.remove("loading", "error");
+        if (state) el.classList.add(state);
+        const icon = state === "loading" ? "fa-spinner fa-spin" : (state === "error" ? "fa-triangle-exclamation" : "fa-circle-check");
+        el.innerHTML = `<i class="fa-solid ${icon}"></i> ${text}`;
+    }
+
+    function formatLocalDateValue(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function setQuickRange(range) {
+        const now = new Date();
+        const start = new Date(now);
+        if (range === "today") {
+            start.setDate(now.getDate());
+        } else if (range === "30d") {
+            start.setDate(now.getDate() - 30);
+        } else {
+            start.setDate(now.getDate() - 7);
+        }
+        document.getElementById("date_from").value = formatLocalDateValue(start);
+        document.getElementById("date_to").value = formatLocalDateValue(now);
+        document.getElementById("time_from").value = "00:00";
+        document.getElementById("time_to").value = "23:59";
+        loadStats();
+    }
+
+    function updateFilterSummary(data) {
+        const container = document.getElementById("active-filter-summary");
+        if (!container) return;
+        const queueSelect = document.getElementById("queue_selector");
+        const agentSelect = document.getElementById("agent_number_selector");
+        const chips = [
+            `<span class="filter-chip"><i class="fa-solid fa-calendar-days"></i> ${document.getElementById("date_from").value || "Any"} to ${document.getElementById("date_to").value || "Any"}</span>`,
+            `<span class="filter-chip"><i class="fa-solid fa-clock"></i> ${document.getElementById("time_from").value || "00:00"} to ${document.getElementById("time_to").value || "23:59"}</span>`,
+            `<span class="filter-chip"><i class="fa-solid fa-layer-group"></i> ${queueSelect.options[queueSelect.selectedIndex].text}</span>`,
+            `<span class="filter-chip"><i class="fa-solid fa-headset"></i> ${agentSelect.value || "All agents"}</span>`
+        ];
+        const caller = document.getElementById("caller_selector").value.trim();
+        if (caller) chips.push(`<span class="filter-chip"><i class="fa-solid fa-phone"></i> Caller ${caller}</span>`);
+        if (data && data.kpis) chips.push(`<span class="filter-chip"><i class="fa-solid fa-database"></i> ${data.kpis.total_calls || 0} calls</span>`);
+        container.innerHTML = chips.join("");
+    }
+
+    function changePage(direction) {
+        currentPage += direction;
+        loadStats(null, false, true);
+    }
+    
+    function changeLimit(val) {
+        limitPerPage = parseInt(val);
+        currentPage = 1;
+        loadStats(null, false, true);
+    }
+
+    function changeQueuesPage(direction) {
+        queuesPage += direction;
+        renderQueueTablePage();
+        updateQueuesPaginationControls();
+    }
+
+    function changeQueuesLimit(val) {
+        queuesLimit = parseInt(val);
+        queuesPage = 1;
+        renderQueueTablePage();
+        updateQueuesPaginationControls();
+    }
+
+    function changeAgentPerfPage(direction) {
+        agentPerfPage += direction;
+        renderAgentPerformancePage();
+        updateAgentPerfPaginationControls();
+    }
+
+    function changeAgentPerfLimit(val) {
+        agentPerfLimit = parseInt(val);
+        agentPerfPage = 1;
+        renderAgentPerformancePage();
+        updateAgentPerfPaginationControls();
+    }
+    
+    function changeLoginsPage(direction) {
+        loginPage += direction;
+        loadStats(null, false, true);
+    }
+    
+    function changeLoginsLimit(val) {
+        loginLimit = parseInt(val);
+        loginPage = 1;
+        loadStats(null, false, true);
+    }
+    
+    function changePausesPage(direction) {
+        pausePage += direction;
+        loadStats(null, false, true);
+    }
+    
+    function changePausesLimit(val) {
+        pauseLimit = parseInt(val);
+        pausePage = 1;
+        loadStats(null, false, true);
+    }
+
+    function loadStats(event, isSilent = false, isPagination = false) {
+        if (event) event.preventDefault();
+        if (window.updateCounters) window.updateCounters();
+
+        if (!isSilent && !isPagination) {
+            currentPage = 1;
+            queuesPage = 1;
+            agentPerfPage = 1;
+            loginPage = 1;
+            pausePage = 1;
+            
+            // Reset UI selectors to 10 on new filter submit
+            if (document.getElementById("limit-select")) document.getElementById("limit-select").value = "10";
+            if (document.getElementById("queues-limit-select")) document.getElementById("queues-limit-select").value = "10";
+            if (document.getElementById("agent-perf-limit-select")) document.getElementById("agent-perf-limit-select").value = "10";
+            if (document.getElementById("logins-limit-select")) document.getElementById("logins-limit-select").value = "10";
+            if (document.getElementById("pauses-limit-select")) document.getElementById("pauses-limit-select").value = "10";
+            limitPerPage = 10;
+            queuesLimit = 10;
+            agentPerfLimit = 10;
+            loginLimit = 10;
+            pauseLimit = 10;
+        }
+        
+        const date_from = document.getElementById("date_from").value;
+        const date_to = document.getElementById("date_to").value;
+        const time_from = document.getElementById("time_from").value;
+        const time_to = document.getElementById("time_to").value;
+        const queue = document.getElementById("queue_selector").value;
+        const agent_name = document.getElementById("agent_name_selector").value;
+        const agent_number = document.getElementById("agent_number_selector").value;
+        const caller = document.getElementById("caller_selector").value;
+        
+        const call_status = document.getElementById("call_status_selector") ? document.getElementById("call_status_selector").value : "all";
+        const wait_time = document.getElementById("wait_time_selector") ? document.getElementById("wait_time_selector").value : "all";
+        const talk_time = document.getElementById("talk_time_selector") ? document.getElementById("talk_time_selector").value : "all";
+        
+        const params = new URLSearchParams({
+            queue,
+            agent_name,
+            agent_number,
+            caller,
+            call_status,
+            wait_time,
+            talk_time,
+            page: currentPage,
+            limit: limitPerPage,
+            login_page: loginPage,
+            login_limit: loginLimit,
+            pause_page: pausePage,
+            pause_limit: pauseLimit
+        });
+        if (isPagination) params.set("pagination_only", "true");
+        if (date_from) params.set("date_from", date_from);
+        if (date_to) params.set("date_to", date_to);
+        if (time_from) params.set("time_from", time_from);
+        if (time_to) params.set("time_to", time_to);
+        const url = `/call-center/stats/api?${params.toString()}`;
+
+        if (!isSilent) setAnalyticsStatus("loading", "Loading analytics");
+        fetch(url)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                if (!isPagination) {
+                    populateKPIs(data.kpis);
+                    if (!isSilent) {
+                        populateCharts(data);
+                    }
+                    populateQueueTable(data.queues_table);
+                    populateAgentPerformance(data.agent_analytics);
+                    populateAgentOccupancy(data.agent_occupancy || []);
+                    populateHeatmap(data.heatmap);
+                    updateFilterSummary(data);
+                }
+                
+                // Store global login & pause statistics
+                globalLoginStats = data.login_pagination.data || [];
+                globalPauseStats = data.pause_pagination.data || [];
+                
+                populateAgentLogins(globalLoginStats);
+                populateAgentPauses(globalPauseStats);
+                
+                loginTotalRecords = data.login_pagination.total_rows || 0;
+                pauseTotalRecords = data.pause_pagination.total_rows || 0;
+                
+                updateLoginsPaginationControls();
+                updatePausesPaginationControls();
+                
+                // Manage Calls Pagination
+                const paginatedCalls = data.calls_pagination.data || [];
+                totalRecords = data.calls_pagination.total_rows || 0;
+                
+                populateCallsTable(paginatedCalls);
+                updatePaginationControls();
+                
+                const stamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+                setAnalyticsStatus("", `Updated ${stamp}`);
+            })
+            .catch(err => {
+                console.error("Analytics load failed:", err);
+                setAnalyticsStatus("error", "Load failed");
+            });
+    }
+
+    function updatePaginationControls() {
+        const info = document.getElementById("pagination-info");
+        const prevBtn = document.getElementById("btn-prev-page");
+        const nextBtn = document.getElementById("btn-next-page");
+        
+        if (totalRecords === 0) {
+            info.innerText = "No records found";
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+        
+        const start = (currentPage - 1) * limitPerPage + 1;
+        const end = Math.min(currentPage * limitPerPage, totalRecords);
+        info.innerText = `Showing ${start}-${end} of ${totalRecords} calls`;
+        
+        prevBtn.disabled = (currentPage === 1);
+        nextBtn.disabled = (end >= totalRecords);
+    }
+
+    function updateQueuesPaginationControls() {
+        const info = document.getElementById("queues-pagination-info");
+        const prevBtn = document.getElementById("btn-queues-prev-page");
+        const nextBtn = document.getElementById("btn-queues-next-page");
+
+        if (queuesTotalRecords === 0) {
+            info.innerText = "No records found";
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+
+        const start = (queuesPage - 1) * queuesLimit + 1;
+        const end = Math.min(queuesPage * queuesLimit, queuesTotalRecords);
+        info.innerText = `Showing ${start}-${end} of ${queuesTotalRecords} records`;
+        prevBtn.disabled = queuesPage === 1;
+        nextBtn.disabled = end >= queuesTotalRecords;
+    }
+
+    function updateAgentPerfPaginationControls() {
+        const info = document.getElementById("agent-perf-pagination-info");
+        const prevBtn = document.getElementById("btn-agent-perf-prev-page");
+        const nextBtn = document.getElementById("btn-agent-perf-next-page");
+
+        if (agentPerfTotalRecords === 0) {
+            info.innerText = "No records found";
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+
+        const start = (agentPerfPage - 1) * agentPerfLimit + 1;
+        const end = Math.min(agentPerfPage * agentPerfLimit, agentPerfTotalRecords);
+        info.innerText = `Showing ${start}-${end} of ${agentPerfTotalRecords} records`;
+        prevBtn.disabled = agentPerfPage === 1;
+        nextBtn.disabled = end >= agentPerfTotalRecords;
+    }
+    
+    function updateLoginsPaginationControls() {
+        const info = document.getElementById("logins-pagination-info");
+        const prevBtn = document.getElementById("btn-logins-prev-page");
+        const nextBtn = document.getElementById("btn-logins-next-page");
+        
+        if (loginTotalRecords === 0) {
+            info.innerText = "No records found";
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+        
+        const start = (loginPage - 1) * loginLimit + 1;
+        const end = Math.min(loginPage * loginLimit, loginTotalRecords);
+        info.innerText = `Showing ${start}-${end} of ${loginTotalRecords} records`;
+        
+        prevBtn.disabled = (loginPage === 1);
+        nextBtn.disabled = (end >= loginTotalRecords);
+    }
+    
+    function updatePausesPaginationControls() {
+        const info = document.getElementById("pauses-pagination-info");
+        const prevBtn = document.getElementById("btn-pauses-prev-page");
+        const nextBtn = document.getElementById("btn-pauses-next-page");
+        
+        if (pauseTotalRecords === 0) {
+            info.innerText = "No records found";
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+        
+        const start = (pausePage - 1) * pauseLimit + 1;
+        const end = Math.min(pausePage * pauseLimit, pauseTotalRecords);
+        info.innerText = `Showing ${start}-${end} of ${pauseTotalRecords} records`;
+        
+        prevBtn.disabled = (pausePage === 1);
+        nextBtn.disabled = (end >= pauseTotalRecords);
+    }
+
+    function populateKPIs(kpis) {
+        document.getElementById("kpi-total").innerText = kpis.total_calls;
+        document.getElementById("kpi-answered").innerText = kpis.answered;
+        document.getElementById("kpi-abandoned").innerText = kpis.abandoned;
+        document.getElementById("kpi-standard-abandoned").innerText = kpis.standard_abandoned || 0;
+
+        document.getElementById("kpi-cancelled").innerText = kpis.cancelled;
+        document.getElementById("kpi-no-answer").innerText = kpis.no_answer;
+        document.getElementById("kpi-timeout").innerText = kpis.timeout || 0;
+        document.getElementById("kpi-ans-rate").innerText = kpis.ans_rate + '%';
+        document.getElementById("kpi-ab-rate").innerText = kpis.abandon_rate + '%';
+        document.getElementById("kpi-avg-talk").innerText = formatDuration(kpis.avg_talk);
+        document.getElementById("kpi-avg-wait").innerText = formatDuration(kpis.avg_wait);
+        document.getElementById("kpi-avg-hold").innerText = formatDuration(kpis.avg_hold);
+        document.getElementById("kpi-longest-talk").innerText = formatDuration(kpis.longest_talk);
+        document.getElementById("kpi-longest-wait").innerText = formatDuration(kpis.longest_wait);
+        document.getElementById("kpi-longest-hold").innerText = formatDuration(kpis.longest_hold);
+        document.getElementById("kpi-shortest-talk").innerText = formatDuration(kpis.shortest_talk);
+        document.getElementById("kpi-sla").innerText = kpis.sla_pct + '%';
+    }
+
+    function formatDuration(sec) {
+        if (!sec || isNaN(sec) || sec < 0) return "00:00";
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        if (h > 0) {
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function escapeJsArg(value) {
+        return (value || "").toString().replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    }
+
+    function escapeHtml(value) {
+        return (value ?? '').toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function formatAgentLabel(row) {
+        const ext = row.extension || row.agent || '';
+        const name = row.name || row.agent_name || '';
+        return name && ext && name !== ext ? `${name} (${ext})` : (name || ext || '-');
+    }
+
+    function formatAgentCell(call) {
+        const agentExt = call.agent_extension || '';
+        const agentName = call.agent_name || '';
+        let label = call.agent_display || call.agent || '-';
+        if (!call.agent_display && agentName && agentExt && agentName !== agentExt) {
+            label = `${agentName} (${agentExt})`;
+        }
+        return `<strong style="color: var(--text-main);">${escapeHtml(label || '-')}</strong>`;
+    }
+
+    function populateQueueTable(tbl) {
+        globalQueuesTable = tbl || [];
+        queuesTotalRecords = globalQueuesTable.length;
+        renderQueueTablePage();
+        updateQueuesPaginationControls();
+    }
+
+    function renderQueueTablePage() {
+        const body = document.getElementById("queues-table-body");
+        body.innerHTML = '';
+        if (!globalQueuesTable || globalQueuesTable.length === 0) {
+            body.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>`;
+            return;
+        }
+        const startIdx = (queuesPage - 1) * queuesLimit;
+        const pageRows = globalQueuesTable.slice(startIdx, startIdx + queuesLimit);
+        pageRows.forEach(row => {
+            const tr = document.createElement("tr");
+            
+            let slaColor = row.sla_pct >= 80 ? 'var(--status-registered)' : (row.sla_pct >= 60 ? '#facc15' : 'var(--status-offline)');
+            let slaBg = row.sla_pct >= 80 ? 'rgba(16, 185, 129, 0.1)' : (row.sla_pct >= 60 ? 'rgba(250, 204, 21, 0.1)' : 'rgba(239, 68, 68, 0.1)');
+            let ansColor = row.ans_pct >= 80 ? 'var(--status-registered)' : (row.ans_pct >= 60 ? '#facc15' : 'var(--status-offline)');
+            
+            tr.innerHTML = `
+                <td>
+                    <a href="/call-center/queues/${escapeHtml(row.queue_id)}" style="color: var(--primary); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-list-ul"></i> ${escapeHtml(row.queue_name || row.queue)}
+                    </a>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem;">ID: ${escapeHtml(row.queue)}</div>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <span title="Total Calls" style="color: var(--text-main); font-weight: bold;">${row.total}</span>
+                        <span style="color: var(--text-muted);">|</span>
+                        <span title="Answered" style="color: var(--status-registered);"><i class="fa-solid fa-check"></i> ${row.answered}</span>
+                        <span style="color: var(--text-muted);">|</span>
+                        <span title="Abandoned" style="color: var(--status-offline);"><i class="fa-solid fa-xmark"></i> ${row.abandoned}</span>
+                    </div>
+                </td>
+                <td>
+                    <span style="color: ${ansColor}; font-weight: bold; font-size: 1.1rem;">${row.ans_pct}%</span>
+                </td>
+                <td>
+                    <div style="font-weight: bold; color: var(--text-main);">${formatDuration(row.avg_wait)}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem;">Max: ${formatDuration(row.longest_wait)}</div>
+                </td>
+                <td>
+                    <div style="font-weight: bold; color: var(--text-main);">${formatDuration(row.avg_talk)}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem;">Max: ${formatDuration(row.longest_talk)} &bull; Min: ${formatDuration(row.shortest_talk)}</div>
+                </td>
+                <td>
+                    <div style="font-weight: bold; color: var(--text-main);">${formatDuration(row.avg_hold || 0)}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem;">Max: ${formatDuration(row.longest_hold || 0)}</div>
+                </td>
+                <td>
+                    <span class="badge" style="background: ${slaBg}; color: ${slaColor}; border: 1px solid ${slaColor}; font-size: 0.9rem; padding: 0.3rem 0.6rem;">${row.sla_pct}%</span>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function populateAgentPerformance(tbl) {
+        globalAgentPerformance = (tbl || []).sort((a, b) => {
+            if ((b.calls || 0) !== (a.calls || 0)) return (b.calls || 0) - (a.calls || 0);
+            return (b.productivity_score || 0) - (a.productivity_score || 0);
+        });
+        agentPerfTotalRecords = globalAgentPerformance.length;
+        renderAgentPerformancePage();
+        updateAgentPerfPaginationControls();
+    }
+
+    function occupancyDuration(value) {
+        return value === null || value === undefined ? 'N/A' : formatDuration(value);
+    }
+
+    function occupancyPercent(value) {
+        return value === null || value === undefined ? 'N/A' : `${Number(value).toFixed(1)}%`;
+    }
+
+    function occupancyDate(value) {
+        if (value === null || value === undefined || value === '' || value === 0 || value === '0') return '-';
+        if (typeof value === 'number' || /^\d+$/.test(String(value))) {
+            const date = new Date(Number(value) * 1000);
+            return isNaN(date.getTime()) ? '-' : date.toLocaleString();
+        }
+        return String(value);
+    }
+
+    function topOccupancyAgent(rows, field, allowNull = false) {
+        return (rows || [])
+            .filter(row => allowNull || row[field] !== null && row[field] !== undefined)
+            .sort((a, b) => Number(b[field] || 0) - Number(a[field] || 0))[0] || null;
+    }
+
+    function occupancyAgentName(row) {
+        return formatAgentLabel({ extension: row.extension, agent_name: row.agent_name, name: row.agent_name });
+    }
+
+    function populateAgentOccupancy(rows) {
+        globalAgentOccupancy = Array.isArray(rows) ? rows : [];
+        const highlights = document.getElementById('occupancy-highlights');
+        const cards = document.getElementById('agent-occupancy-cards');
+        if (!highlights || !cards) return;
+
+        if (!globalAgentOccupancy.length) {
+            highlights.innerHTML = '<div style="grid-column:1/-1; color:var(--text-muted); padding:1rem;">No agent occupancy data found for the selected filters.</div>';
+            cards.innerHTML = '<div style="grid-column:1/-1; color:var(--text-muted); padding:1rem;">No agents found.</div>';
+            populateOccupancyCharts([]);
+            return;
+        }
+
+        const cardsData = [
+            ['Most Calls Answered', 'answered_calls', 'fa-phone-volume', '#34d399', 'answered calls'],
+            ['Most Talk Time', 'talk_time', 'fa-comments', '#facc15', 'talk time'],
+            ['Highest Occupancy', 'occupancy_percent', 'fa-gauge-high', '#38bdf8', 'occupancy'],
+            ['Most Available Time', 'available_time', 'fa-clock', '#60a5fa', 'available time'],
+            ['Most Paused', 'pause_time', 'fa-mug-hot', '#fbbf24', 'pause time'],
+            ['Most Hold Time', 'hold_time', 'fa-pause', '#c084fc', 'hold time'],
+            ['Most Ring No Answer', 'no_answer_calls', 'fa-phone-slash', '#f87171', 'missed rings'],
+            ['Most Cancelled', 'cancelled_calls', 'fa-ban', '#fb923c', 'cancelled calls'],
+            ['Most Transfers', '_transfers', 'fa-shuffle', '#c084fc', 'transfers']
+        ];
+        highlights.innerHTML = cardsData.map(([title, field, icon, color, suffix]) => {
+            const row = field === '_transfers'
+                ? globalAgentOccupancy.map(item => ({ ...item, _transfers: Number(item.transfers_in || 0) + Number(item.transfers_out || 0) }))
+                    .sort((a, b) => b._transfers - a._transfers)[0]
+                : topOccupancyAgent(globalAgentOccupancy, field);
+            if (!row) return '';
+            const value = field === 'occupancy_percent' ? occupancyPercent(row[field])
+                : ['talk_time', 'available_time', 'pause_time'].includes(field) ? occupancyDuration(row[field])
+                : String(row[field] || 0);
+            return `<div class="panel" style="padding:.85rem 1rem; border-left:3px solid ${color}; background:linear-gradient(135deg,rgba(255,255,255,.035),rgba(255,255,255,.01));">
+                <div style="display:flex; justify-content:space-between; gap:.5rem; color:var(--text-muted); font-size:.68rem; text-transform:uppercase; font-weight:800;"><span>${title}</span><i class="fa-solid ${icon}" style="color:${color};"></i></div>
+                <div style="font-size:1.45rem; font-weight:900; color: var(--text-main); margin-top:.45rem;">${escapeHtml(value)}</div>
+                <div style="font-size:.72rem; color:var(--text-muted); margin-top:.2rem;">${escapeHtml(occupancyAgentName(row))} · ${suffix}</div>
+            </div>`;
+        }).join('');
+
+        const ranked = [...globalAgentOccupancy].sort((a, b) => Number(b.occupancy_percent || 0) - Number(a.occupancy_percent || 0));
+        cards.innerHTML = ranked.map((row, index) => {
+            const pct = row.occupancy_percent;
+            const pctWidth = pct === null || pct === undefined ? 0 : Math.min(100, Math.max(0, Number(pct)));
+            const pctColor = pct === null || pct === undefined ? '#94a3b8' : pct >= 90 ? '#f87171' : pct >= 70 ? '#fbbf24' : '#34d399';
+            return `<button type="button" onclick="showAgentOccupancyDetail(${globalAgentOccupancy.indexOf(row)})" style="text-align:left; color:inherit; cursor:pointer; border: 1px solid var(--border-color); border-radius:12px; padding:1rem; background:linear-gradient(145deg,rgba(21,29,48,.96),rgba(15,23,42,.92)); transition:transform .18s ease,border-color .18s ease;" onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='rgba(56,189,248,.55)'" onmouseout="this.style.transform='';this.style.borderColor='rgba(255,255,255,.08)'">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:.75rem;">
+                    <div style="display:flex; gap:.65rem; align-items:center; min-width:0;"><span style="display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:rgba(56,189,248,.12); color:#38bdf8;"><i class="fa-solid fa-user-headset"></i></span><div style="min-width:0;"><strong style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(occupancyAgentName(row))}</strong><span style="font-size:.7rem; color:var(--text-muted);">Rank #${index + 1} · ${escapeHtml(row.type || 'Agent')}</span></div></div>
+                    <span style="font-size:1.05rem; font-weight:900; color:${pctColor};">${escapeHtml(occupancyPercent(pct))}</span>
+                </div>
+                <div style="height:6px; background:rgba(255,255,255,.08); border-radius:999px; margin:.85rem 0 .75rem; overflow:hidden;"><div style="height:100%; width:${pctWidth}%; background:${pctColor}; border-radius:999px;"></div></div>
+                <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:.55rem; font-size:.72rem;"><span><em style="display:block;color:var(--text-muted);font-style:normal;">Answered</em><strong>${row.answered_calls || 0}</strong></span><span><em style="display:block;color:var(--text-muted);font-style:normal;">Busy Time</em><strong>${escapeHtml(occupancyDuration(row.busy_time))}</strong></span><span><em style="display:block;color:var(--text-muted);font-style:normal;">Available</em><strong>${escapeHtml(occupancyDuration(row.available_time))}</strong></span><span><em style="display:block;color:var(--text-muted);font-style:normal;">Transfers</em><strong>${Number(row.transfers_in || 0) + Number(row.transfers_out || 0)}</strong></span></div>
+                <div style="margin-top:.75rem; color:#38bdf8; font-size:.7rem; font-weight:800;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Click for full details</div>
+            </button>`;
+        }).join('');
+        populateOccupancyCharts(globalAgentOccupancy);
+    }
+
+    function populateOccupancyCharts(rows) {
+        if (typeof Chart === 'undefined') return;
+        [occupancyRankingChart, occupancyWorkMixChart, occupancyTransferChart].forEach(chart => { if (chart) chart.destroy(); });
+        const labels = rows.map(occupancyAgentName);
+        const chartOptions = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#cbd5e1' } } }, scales:{ x:{ ticks:{ color:'#94a3b8', maxRotation:45, minRotation:0 }, grid:{ color:'rgba(255,255,255,.05)' } }, y:{ beginAtZero:true, ticks:{ color:'#94a3b8' }, grid:{ color:'rgba(255,255,255,.05)' } } } };
+        const ranking = document.getElementById('occupancyRankingChart');
+        const workMix = document.getElementById('occupancyWorkMixChart');
+        const transfer = document.getElementById('occupancyTransferChart');
+        if (ranking) occupancyRankingChart = new Chart(ranking, { type:'bar', data:{ labels, datasets:[{ label:'Occupancy %', data:rows.map(row => row.occupancy_percent === null ? 0 : row.occupancy_percent), backgroundColor:'rgba(56,189,248,.72)', borderColor:'#38bdf8', borderWidth:1, borderRadius:5 }] }, options:{...chartOptions, scales:{...chartOptions.scales, y:{...chartOptions.scales.y, max:100}}} });
+        if (workMix) occupancyWorkMixChart = new Chart(workMix, { type:'bar', data:{ labels, datasets:[{ label:'Talk', data:rows.map(row => row.talk_time || 0), backgroundColor:'#facc15' }, { label:'Hold', data:rows.map(row => row.hold_time || 0), backgroundColor:'#c084fc' }, { label:'Idle', data:rows.map(row => row.idle_time || 0), backgroundColor:'#334155' }] }, options:{...chartOptions, scales:{...chartOptions.scales, x:{...chartOptions.scales.x, stacked:true}, y:{...chartOptions.scales.y, stacked:true}}} });
+        if (transfer) occupancyTransferChart = new Chart(transfer, { type:'bar', data:{ labels, datasets:[{ label:'Transfers In', data:rows.map(row => row.transfers_in || 0), backgroundColor:'#34d399' }, { label:'Transfers Out', data:rows.map(row => row.transfers_out || 0), backgroundColor:'#f97316' }] }, options:chartOptions });
+    }
+
+    function showAgentOccupancyDetail(index) {
+        const row = globalAgentOccupancy[index];
+        const container = document.getElementById('occupancy-agent-detail');
+        if (!row || !container) return;
+        const calls = row.calls_detail || [];
+        const transfers = row.transfer_events || [];
+        const sessions = row.sessions || [];
+        const pauses = row.pauses || [];
+        const callsHtml = calls.length ? calls.slice(0, 30).map(call => `<tr><td>${escapeHtml(call.entry_time || '-')}</td><td>${escapeHtml(call.queue_name || call.queue_id || '-')}</td><td>${escapeHtml(call.caller || '-')}</td><td>${escapeHtml(call.status || '-')}</td><td>${formatDuration(call.talk_time)}</td><td>${formatDuration(call.hold_time)}</td></tr>`).join('') : '<tr><td colspan="6" style="color:var(--text-muted);">No calls in the selected period.</td></tr>';
+        const transferHtml = transfers.length ? transfers.map(event => `<tr><td>${escapeHtml(event.timestamp || '-')}</td><td><span class="badge" style="background:${event.direction === 'out' ? 'rgba(249,115,22,.14)' : 'rgba(52,211,153,.14)'}; color:${event.direction === 'out' ? '#fb923c' : '#34d399'};">${event.direction === 'out' ? 'OUT' : 'IN'}</span></td><td>${escapeHtml(event.target_label || event.target || '-')}</td><td>${escapeHtml(event.transfer_type || '-')}</td><td>${escapeHtml(event.queue || '-')}</td></tr>`).join('') : '<tr><td colspan="5" style="color:var(--text-muted);">No transfers in the selected period.</td></tr>';
+        const isStatic = (row.type || 'Agent').toUpperCase() === 'STATIC';
+        const sessionsHtml = isStatic ? '<tr><td colspan="3" style="color:var(--text-muted); text-align:center;">N/A (Static Member)</td></tr>' : (sessions.length ? [...sessions].reverse().slice(0, 20).map(session => `<tr><td>${occupancyDate(session.login_time)}</td><td>${occupancyDate(session.logout_time)}</td><td>${formatDuration(session.total_online_time)}</td></tr>`).join('') : '<tr><td colspan="3" style="color:var(--text-muted); text-align:center;">No login sessions recorded.</td></tr>');
+        const pausesHtml = pauses.length ? [...pauses].reverse().slice(0, 20).map(pause => `<tr><td>${occupancyDate(pause.pause_time)}</td><td>${occupancyDate(pause.unpause_time)}</td><td>${formatDuration(pause.duration || (pause.unpause_time && pause.pause_time ? pause.unpause_time - pause.pause_time : 0))}</td><td>${escapeHtml(pause.reason || 'Break')}</td></tr>`).join('') : '<tr><td colspan="4" style="color:var(--text-muted); text-align:center;">No pauses recorded.</td></tr>';
+        container.style.display = 'block';
+        container.innerHTML = `<div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; gap:1rem;"><div><h2><i class="fa-solid fa-user-headset" style="color:#38bdf8; margin-right:.45rem;"></i>${escapeHtml(occupancyAgentName(row))}</h2><div style="font-size:.75rem;color:var(--text-muted);">Extension ${escapeHtml(row.extension || '-')} · ${escapeHtml(row.type || 'Agent')}</div></div><button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('occupancy-agent-detail').style.display='none'"><i class="fa-solid fa-xmark"></i> Close</button></div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:.65rem; margin:1rem 0;">${[['Available',occupancyDuration(row.available_time)],['Talk',occupancyDuration(row.talk_time)],['Hold',occupancyDuration(row.hold_time)],['Pause',occupancyDuration(row.pause_time)],['Occupancy',occupancyPercent(row.occupancy_percent)],['Idle',occupancyDuration(row.idle_time)],['No Answer',row.no_answer_calls || 0],['Cancelled',row.cancelled_calls || 0],['Transfers In',row.transfers_in || 0],['Transfers Out',row.transfers_out || 0]].map(([label,value]) => `<div style="padding:.65rem .75rem;border: 1px solid var(--border-color);border-radius:8px;background:rgba(255,255,255,.025);"><span style="display:block;color:var(--text-muted);font-size:.65rem;text-transform:uppercase;">${label}</span><strong style="display:block;margin-top:.25rem;color: var(--text-main);">${escapeHtml(value)}</strong></div>`).join('')}</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(430px,1fr)); gap:1rem;"><div><h3 style="font-size:.9rem;margin:.4rem 0 .6rem;">Recent Calls</h3><div class="table-responsive"><table class="table"><thead><tr><th>Time</th><th>Queue</th><th>Caller</th><th>Status</th><th>Talk</th><th>Hold</th></tr></thead><tbody>${callsHtml}</tbody></table></div></div><div><h3 style="font-size:.9rem;margin:.4rem 0 .6rem;">Transfer Activity</h3><div class="table-responsive"><table class="table"><thead><tr><th>Time</th><th>Direction</th><th>Target</th><th>Type</th><th>Queue</th></tr></thead><tbody>${transferHtml}</tbody></table></div></div><div><h3 style="font-size:.9rem;margin:.4rem 0 .6rem;">Login Sessions</h3><div class="table-responsive"><table class="table"><thead><tr><th>Login</th><th>Logout</th><th>Duration</th></tr></thead><tbody>${sessionsHtml}</tbody></table></div></div><div><h3 style="font-size:.9rem;margin:.4rem 0 .6rem;">Pause Sessions</h3><div class="table-responsive"><table class="table"><thead><tr><th>Start</th><th>End</th><th>Duration</th><th>Reason</th></tr></thead><tbody>${pausesHtml}</tbody></table></div></div></div>`;
+        container.scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+
+    function renderAgentPerformancePage() {
+        const body = document.getElementById("agent-perf-table-body");
+        body.innerHTML = '';
+        if (!globalAgentPerformance || globalAgentPerformance.length === 0) {
+            body.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>`;
+            return;
+        }
+        const startIdx = (agentPerfPage - 1) * agentPerfLimit;
+        const pageRows = globalAgentPerformance.slice(startIdx, startIdx + agentPerfLimit);
+        pageRows.forEach(row => {
+            const typeCode = row.type === 'STATIC' ? 'S' : 'D';
+            const badgeColor = row.type === 'STATIC' ? '#38bdf8' : '#c084fc';
+            const agentLabel = formatAgentLabel(row);
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>
+                    <span class="badge" style="background: var(--border-color); color: ${badgeColor}; border: 1px solid ${badgeColor}; font-family: monospace; font-size: 0.8rem; margin-right: 0.5rem; padding: 0.15rem 0.4rem;">${typeCode}</span>
+                    <strong style="color: var(--text-main);"><i class="fa-solid fa-user-tie" style="color: var(--primary); margin-right: 0.3rem;"></i> ${escapeHtml(agentLabel)}</strong>
+                </td>
+                <td><span style="color: var(--status-registered); font-weight: bold;">${row.calls || 0}</span></td>
+                <td><span style="color: #f59e0b;">${row.no_answer_calls ?? row.missed_calls ?? 0}</span></td>
+                <td><span style="color: #94a3b8;">${row.cancelled_calls || 0}</span></td>
+                <td>${formatDuration(row.avg_talk || 0)}</td>
+                <td>${formatDuration(row.total_talk_time || 0)}</td>
+                <td>
+                    ${row.type === 'STATIC' ? '<span style="color:var(--text-muted);">N/A</span>' : 
+                    `<span class="badge" style="background: ${(row.productivity_score || 0) >= 80 ? 'rgba(52,211,153,.14)' : (row.productivity_score || 0) >= 50 ? 'rgba(250,204,21,.14)' : 'rgba(248,113,113,.14)'}; color: ${(row.productivity_score || 0) >= 80 ? '#34d399' : (row.productivity_score || 0) >= 50 ? '#facc15' : '#f87171'}; border: 1px solid ${(row.productivity_score || 0) >= 80 ? '#34d399' : (row.productivity_score || 0) >= 50 ? '#facc15' : '#f87171'}; font-size: 0.8rem; padding: 0.2rem 0.5rem;">${row.productivity_score || 0}%</span>`}
+                </td>
+                <td>${row.type === 'STATIC' ? 'N/A (Static member)' : formatDuration(row.login_duration || 0)}</td>
+                <td><span style="color: #f59e0b;">${formatDuration(row.pause_duration || 0)}</span></td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function populateAgentLogins(list) {
+        const body = document.getElementById("agent-logins-table-body");
+        body.innerHTML = '';
+        if (!list || list.length === 0) {
+            body.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No session records.</td></tr>`;
+            return;
+        }
+        
+        // Sort list: Active sessions first, then by total_session_time descending
+        const sortedList = [...list].sort((a, b) => {
+            const aActive = a.last_logout === 'Active' ? 1 : 0;
+            const bActive = b.last_logout === 'Active' ? 1 : 0;
+            if (aActive !== bActive) return bActive - aActive;
+            return (b.total_session_time || 0) - (a.total_session_time || 0);
+        });
+        
+        globalLoginStats = sortedList;
+
+        sortedList.forEach((row, idx) => {
+            const isStatic = row.type === 'STATIC';
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.15rem 0.35rem; font-size: 0.75rem; ${isStatic ? 'opacity:0.3; cursor:not-allowed;' : ''}" onclick="toggleLoginSessions(${idx}, this)" ${isStatic ? 'disabled' : ''}>
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </td>
+                <td><strong>${escapeHtml(row.queue)}</strong></td>
+                <td><code style="color: #94a3b8; background: var(--border-color); padding: 0.2rem 0.4rem; border-radius: 4px;">${escapeHtml(row.extension)}</code></td>
+                <td><strong><i class="fa-solid fa-user-clock" style="color: #10b981; margin-right: 0.3rem;"></i> ${escapeHtml(row.agent_name)}</strong></td>
+                <td><span class="badge" style="background: var(--border-color); color: ${row.type === 'STATIC' ? '#38bdf8' : '#c084fc'}; border: 1px solid var(--border-color);">${row.type}</span></td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${row.type === 'STATIC' ? 'N/A (Static member)' : (row.first_login || '-')}</td>
+                <td style="font-size: 0.85rem; color: ${row.last_logout === 'Active' ? '#10b981' : 'var(--text-muted)'}; font-weight: ${row.last_logout === 'Active' ? 'bold' : 'normal'};">${row.type === 'STATIC' ? 'N/A (Static member)' : (row.last_logout || '-')}</td>
+                <td><strong>${row.type === 'STATIC' ? 'N/A (Static member)' : formatDuration(row.total_session_time)}</strong></td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function toggleLoginSessions(idx, btn) {
+        const tr = btn.closest('tr');
+        let nextTr = tr.nextElementSibling;
+        if (nextTr && nextTr.classList.contains('sessions-expand-row')) {
+            nextTr.style.display = nextTr.style.display === 'none' ? 'table-row' : 'none';
+            btn.innerHTML = nextTr.style.display === 'none' ? '<i class="fa-solid fa-plus"></i>' : '<i class="fa-solid fa-minus"></i>';
+            return;
+        }
+        
+        const data = globalLoginStats[idx];
+        if (!data || !data.sessions || data.sessions.length === 0) {
+            alert("No login history available.");
+            return;
+        }
+        
+        const newTr = document.createElement('tr');
+        newTr.className = 'sessions-expand-row';
+        let subRows = '';
+        [...data.sessions].reverse().forEach(s => {
+            subRows += `
+                <tr>
+                    <td style="font-family: monospace;">${escapeHtml(s.login)}</td>
+                    <td style="font-family: monospace; color: ${s.logout === 'Active' ? '#10b981' : 'inherit'}; font-weight: ${s.logout === 'Active' ? 'bold' : 'normal'};">${escapeHtml(s.logout)}</td>
+                    <td><strong>${formatDuration(s.duration)}</strong></td>
+                </tr>
+            `;
+        });
+        
+        newTr.innerHTML = `
+            <td></td>
+            <td colspan="7" style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: 8px;">
+                <div style="font-weight: bold; color: var(--primary); margin-bottom: 0.5rem; font-size: 0.8rem; text-transform: uppercase;">
+                    <i class="fa-solid fa-clock"></i> Agent Login Sessions Detailed Logs
+                </div>
+                <table class="table table-sm" style="margin-bottom: 0;">
+                    <thead>
+                        <tr>
+                            <th>LOGIN</th>
+                            <th>LOGOUT</th>
+                            <th>DURATION</th>
+                        </tr>
+                    </thead>
+                    <tbody>${subRows}</tbody>
+                </table>
+            </td>
+        `;
+        tr.parentNode.insertBefore(newTr, tr.nextSibling);
+        btn.innerHTML = '<i class="fa-solid fa-minus"></i>';
+    }
+
+    function populateAgentPauses(list) {
+        const body = document.getElementById("agent-pauses-table-body");
+        body.innerHTML = '';
+        if (!list || list.length === 0) {
+            body.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No pause records.</td></tr>`;
+            return;
+        }
+        
+        // Sort list: Actively paused first, then by total_pause_time descending
+        const sortedList = [...list].sort((a, b) => {
+            const aActive = (a.pauses && a.pauses.length > 0 && a.pauses[a.pauses.length - 1].end === 'Active') ? 1 : 0;
+            const bActive = (b.pauses && b.pauses.length > 0 && b.pauses[b.pauses.length - 1].end === 'Active') ? 1 : 0;
+            if (aActive !== bActive) return bActive - aActive;
+            return (b.total_pause_time || 0) - (a.total_pause_time || 0);
+        });
+        
+        globalPauseStats = sortedList;
+
+        sortedList.forEach((row, idx) => {
+            const tr = document.createElement("tr");
+            const isActivePause = row.pauses && row.pauses.length > 0 && row.pauses[row.pauses.length - 1].end === 'Active';
+            const activeTag = isActivePause ? ` <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-size: 0.7rem; margin-left: 0.5rem; border: 1px solid rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-circle-pause"></i> Active Pause</span>` : '';
+            tr.innerHTML = `
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.15rem 0.35rem; font-size: 0.75rem;" onclick="togglePauseSessions(${idx}, this)">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </td>
+                <td><strong>${escapeHtml(row.queue)}</strong></td>
+                <td><code style="color: #94a3b8; background: var(--border-color); padding: 0.2rem 0.4rem; border-radius: 4px;">${escapeHtml(row.extension)}</code></td>
+                <td><strong><i class="fa-solid fa-mug-hot" style="color: #f59e0b; margin-right: 0.3rem;"></i> ${escapeHtml(row.agent_name)}</strong></td>
+                <td><span class="badge" style="background: var(--border-color); color: ${row.type === 'STATIC' ? '#38bdf8' : '#c084fc'}; border: 1px solid var(--border-color);">${row.type}</span></td>
+                <td><span style="color: #f59e0b; font-weight: bold;">${formatDuration(row.total_pause_time)}</span>${activeTag}</td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function togglePauseSessions(idx, btn) {
+        const tr = btn.closest('tr');
+        let nextTr = tr.nextElementSibling;
+        if (nextTr && nextTr.classList.contains('pauses-expand-row')) {
+            nextTr.style.display = nextTr.style.display === 'none' ? 'table-row' : 'none';
+            btn.innerHTML = nextTr.style.display === 'none' ? '<i class="fa-solid fa-plus"></i>' : '<i class="fa-solid fa-minus"></i>';
+            return;
+        }
+        
+        const data = globalPauseStats[idx];
+        if (!data || !data.pauses || data.pauses.length === 0) {
+            alert("No pause details available.");
+            return;
+        }
+        
+        const newTr = document.createElement('tr');
+        newTr.className = 'pauses-expand-row';
+        let subRows = '';
+        [...data.pauses].reverse().forEach(p => {
+            subRows += `
+                <tr>
+                    <td style="font-family: monospace;">${escapeHtml(p.start)}</td>
+                    <td style="font-family: monospace; color: ${p.end === 'Active' ? '#f59e0b' : 'inherit'}; font-weight: ${p.end === 'Active' ? 'bold' : 'normal'};">${escapeHtml(p.end)}</td>
+                    <td><strong>${formatDuration(p.duration)}</strong></td>
+                    <td><span class="badge" style="background: var(--border-color); color: var(--text-main); border: 1px solid var(--border-color);">${escapeHtml(p.reason || 'Pause')}</span></td>
+                </tr>
+            `;
+        });
+        
+        newTr.innerHTML = `
+            <td></td>
+            <td colspan="4" style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: 8px;">
+                <div style="font-weight: bold; color: #fbbf24; margin-bottom: 0.5rem; font-size: 0.8rem; text-transform: uppercase;">
+                    <i class="fa-solid fa-mug-hot"></i> Agent Pauses & Break Periods Detailed Logs
+                </div>
+                <table class="table table-sm" style="margin-bottom: 0;">
+                    <thead>
+                        <tr>
+                            <th>Pause Start</th>
+                            <th>Pause End</th>
+                            <th>Duration</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>${subRows}</tbody>
+                </table>
+            </td>
+        `;
+        tr.parentNode.insertBefore(newTr, tr.nextSibling);
+        btn.innerHTML = '<i class="fa-solid fa-minus"></i>';
+    }
+
+    function populateCallsTable(calls) {
+        const body = document.getElementById("calls-table-body");
+        body.innerHTML = '';
+        if (!calls || calls.length === 0) {
+            body.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-muted);">No calls found in selection.</td></tr>`;
+            return;
+        }
+        calls.forEach(c => {
+            const entryTime = c.timestamp ? new Date(c.timestamp * 1000).toLocaleString() : (c.entry_time || '-');
+            const statusUpper = (c.status || 'ENTERED').toUpperCase().replace('_', ' ');
+            const caller = c.caller || c.caller_number || '-';
+            const queueId = c.queue_id || c.queuename || c.queue || '';
+            const queueName = c.queue_name || c.queuename || c.queue || '-';
+            const uid = c.uniqueid || c.callid || c.call_id || '';
+            const safeUid = escapeJsArg(uid);
+            
+            let statusBadge = '';
+            if (statusUpper === 'ANSWERED') {
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Answered</span>`;
+            } else if (statusUpper === 'ABANDONED') {
+                statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">Abandoned</span>`;
+            } else if (statusUpper === 'CANCELED' || statusUpper === 'CANCELLED') {
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">Canceled</span>`;
+            } else if (statusUpper === 'NO ANSWER') {
+                statusBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">No Answer</span>`;
+            } else if (statusUpper === 'TIMEOUT') {
+                statusBadge = `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">Timeout</span>`;
+            } else if (!statusUpper || statusUpper === '-' || statusUpper === 'ENTERED') {
+                statusBadge = `<span class="badge" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3);"><i class="fa-solid fa-spinner fa-spin" style="margin-right: 4px; font-size: 0.7rem;"></i> Waiting</span>`;
+            } else {
+                statusBadge = `<span class="badge badge-gray">${escapeHtml(c.status || 'Waiting')}</span>`;
+            }
+            
+            let recPlay = '-';
+            if (c.recording_file) {
+                recPlay = `<button class="btn btn-info btn-xs" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="playAudio('${escapeJsArg(c.recording_file)}')"><i class="fa-solid fa-play"></i> Play</button>`;
+            }
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${escapeHtml(caller)}</strong></td>
+                <td><a href="/call-center/queues/${escapeHtml(queueId)}" style="color: var(--primary); text-decoration: none; font-weight: bold;">${escapeHtml(queueName)}</a></td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${escapeHtml(entryTime)}</td>
+                <td>${statusBadge}</td>
+                <td><code>${c.initial_position || '0'}</code></td>
+                <td><code>${c.last_position || '0'}</code></td>
+                <td>${formatDuration(c.wait_time)}</td>
+                <td>${formatAgentCell(c)}</td>
+                <td>${statusUpper === 'ANSWERED' ? formatDuration(c.talk_time) : '-'}</td>
+                <td>${formatDuration(c.hold_time || 0)}</td>
+                <td><span style="text-transform: capitalize; color: var(--text-main); font-weight: 500;">${((c.hangup_by && c.hangup_by.toUpperCase() === 'AGENT') ? 'agent' : ((c.hangup_by && c.hangup_by.toUpperCase() === 'CALLER') ? 'caller' : (statusUpper === 'ANSWERED' ? 'agent' : 'caller')))}</span></td>
+                <td>${recPlay}</td>
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="toggleTimeline('${safeUid}', this)" ${uid ? '' : 'disabled'}>
+                        <i class="fa-solid fa-timeline"></i> Events
+                    </button>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function toggleTimeline(uid, btn) {
+        const tr = btn.closest('tr');
+        let nextTr = tr.nextElementSibling;
+        if (nextTr && nextTr.classList.contains('timeline-row')) {
+            nextTr.style.display = nextTr.style.display === 'none' ? 'table-row' : 'none';
+            return;
+        }
+        
+        const newTr = document.createElement('tr');
+        newTr.className = 'timeline-row';
+        newTr.innerHTML = `<td colspan="13" style="background: rgba(11, 15, 25, 0.6); padding: 1.5rem;"><div id="timeline-content-${uid}" class="timeline-stepper">Loading timeline...</div></td>`;
+        tr.parentNode.insertBefore(newTr, tr.nextSibling);
+        
+        // Queue Statistics keeps its original queue-event timeline. The CDR
+        // page uses /call-center/call-details for the newer Call Journey.
+        fetch(`/api/calls/${encodeURIComponent(uid)}/events`)
+            .then(res => res.json())
+            .then(events => {
+                const container = document.getElementById(`timeline-content-${uid}`);
+                const payload = Array.isArray(events) ? { events } : (events || {});
+                const timelineData = Array.isArray(payload.events) ? payload.events : (payload.timeline || []);
+                if (!Array.isArray(timelineData) || timelineData.length === 0) {
+                    container.innerHTML = `<span style="color: var(--text-muted);">No event transition records for this call.</span>`;
+                    return;
+                }
+                const totals = payload.totals || { wait: 0, talk: 0, hold: 0 };
+                
+                function formatDuration(seconds) {
+                    if (!seconds) return "00:00:00";
+                    const h = Math.floor(seconds / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    const s = seconds % 60;
+                    return [h, m, s].map(v => v < 10 ? "0" + v : v).join(":");
+                }
+
+                let html = `
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="flex: 1; background: var(--border-color); padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Wait Time</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); font-family: monospace;">${formatDuration(totals.wait)}</div>
+                        </div>
+                        <div style="flex: 1; background: var(--border-color); padding: 1rem; border-radius: 8px; border-left: 4px solid #10b981;">
+                            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Talk Time</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); font-family: monospace;">${formatDuration(totals.talk)}</div>
+                        </div>
+                        <div style="flex: 1; background: var(--border-color); padding: 1rem; border-radius: 8px; border-left: 4px solid #c084fc;">
+                            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Hold Time</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); font-family: monospace;">${formatDuration(totals.hold)}</div>
+                        </div>
+                    </div>
+                    <div style="font-weight: bold; color: var(--text-main); margin-bottom: 1.25rem; font-family: 'Orbitron', sans-serif; font-size: 0.85rem; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-history" style="color: var(--primary);"></i> CALL FLOW DETAILS TIMELINE [UID: ${escapeHtml(uid)}]
+                    </div>
+                    <div class="timeline-stepper" style="border-left: 2px solid rgba(255,255,255,0.06); padding-left: 1.5rem; margin-left: 1rem;">
+                `;
+                
+                timelineData.forEach(evt => {
+                    const eventName = evt.display_event || evt.event || evt.title || '';
+                    const eventTime = evt.time || evt.timestamp || '';
+                    const detailParts = [
+                        evt.agent ? `Agent: ${evt.agent_name ? `${evt.agent_name} (${evt.agent})` : evt.agent}` : '',
+                        evt.queue_name ? `Queue: ${evt.queue_name}${evt.queue ? ` (${evt.queue})` : ''}` : '',
+                        evt.position_duration || '',
+                        evt.transfer_target_display ? `To: ${evt.transfer_target_display}` : '',
+                        evt.transfer_destination_agent ? `Destination agent: ${evt.transfer_destination_agent}` : '',
+                        evt.transfer_type ? `Type: ${evt.transfer_type}` : '',
+                        evt.reason || ''
+                    ].filter(Boolean);
+                    if (evt.agent_status && !evt.display_event) detailParts.push(`Agent status: ${evt.agent_status}`);
+                    if (Array.isArray(evt.agent_statuses) && evt.agent_statuses.length) {
+                        detailParts.push(`Agent status: ${evt.agent_statuses.map(item => `${item.extension || ''}${item.agent_name ? ` (${item.agent_name})` : ''} — ${item.status}`).join(', ')}`);
+                    }
+                    const eventDetails = [evt.details_html || evt.details || '', ...detailParts].filter(Boolean).join(' · ');
+                    let badgeColor = 'var(--primary)';
+                    let icon = 'fa-circle';
+                    const typeUpper = eventName.toUpperCase();
+                    if (typeUpper.includes('ENTER')) { badgeColor = '#3b82f6'; icon = 'fa-right-to-bracket'; }
+                    else if (typeUpper.includes('POSITION')) { badgeColor = '#38bdf8'; icon = 'fa-list-ol'; }
+                    else if (typeUpper.includes('CONNECT')) { badgeColor = '#14b8a6'; icon = 'fa-link'; }
+                    else if (typeUpper.includes('CALLER ENDED')) { badgeColor = '#f97316'; icon = 'fa-phone-slash'; }
+                    else if (typeUpper.includes('RING')) { badgeColor = '#f59e0b'; icon = 'fa-phone-volume'; }
+                    else if (typeUpper.includes('NO ANSWER')) { badgeColor = '#94a3b8'; icon = 'fa-phone-slash'; }
+                    else if (typeUpper.includes('ANSWER')) { badgeColor = '#10b981'; icon = 'fa-phone-flip'; }
+                    else if (typeUpper.includes('TRANSFER')) { badgeColor = '#a78bfa'; icon = 'fa-share-nodes'; }
+                    else if (typeUpper.includes('UNHOLD')) { badgeColor = '#818cf8'; icon = 'fa-play'; }
+                    else if (typeUpper.includes('HOLD')) { badgeColor = '#c084fc'; icon = 'fa-pause'; }
+                    else if (typeUpper.includes('CANCEL')) { badgeColor = '#f59e0b'; icon = 'fa-ban'; }
+                    else if (typeUpper.includes('TIMEOUT')) { badgeColor = '#60a5fa'; icon = 'fa-hourglass-end'; }
+                    else if (typeUpper.includes('HANGUP') || typeUpper.includes('COMPLETE') || typeUpper.includes('ABANDON')) { badgeColor = '#ef4444'; icon = 'fa-circle-xmark'; }
+                    
+                    html += `
+                        <div style="position: relative; margin-bottom: 1.25rem;">
+                            <div class="timeline-node" style="border: 2px solid ${badgeColor}; color: ${badgeColor}; left: -2.4rem;">
+                                <i class="fa-solid ${icon}"></i>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                <span style="font-weight: bold; color: var(--text-main); font-size: 0.9rem;">${escapeHtml(eventName)}</span>
+                                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">${escapeHtml(eventTime)}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">${escapeHtml(eventDetails)}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+                container.innerHTML = html;
+            })
+            .catch(err => {
+                console.error("Error loading call details timeline:", err);
+                document.getElementById(`timeline-content-${uid}`).innerText = "Error loading timeline.";
+            });
+    }
+
+    function playAudio(filename) {
+        if (!filename) return alert("Audio file not specified.");
+        const player = document.getElementById("global-audio-player");
+        player.onerror = function() {
+            alert("Cannot play recording. The external storage device (NAS/USB) is currently offline or disconnected.");
+            document.getElementById("audio-player-container").style.display = "none";
+        };
+        player.src = `/recordings/play/${encodeURIComponent(filename)}`;
+        document.getElementById("audio-player-container").style.display = "flex";
+        player.play();
+    }
+
+    // Stop audio player
+    function stopAudio() {
+        const player = document.getElementById("global-audio-player");
+        player.onerror = function() {
+            alert("Cannot play recording. The external storage device (NAS/USB) is currently offline or disconnected.");
+            document.getElementById("audio-player-container").style.display = "none";
+        };
+        player.pause();
+        player.src = "";
+        document.getElementById("audio-player-container").style.display = "none";
+    }
+
+    function populateHeatmap(heatmap) {
+        const header = document.getElementById("heatmap-header");
+        header.innerHTML = '<th>Day / Hour</th>';
+        for(let i=0; i<24; i++) {
+            const th = document.createElement("th");
+            th.innerText = String(i).padStart(2, '0');
+            th.style.padding = "0.25rem";
+            header.appendChild(th);
+        }
+
+        const grid = {};
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        days.forEach(d => { grid[d] = Array(24).fill(0); });
+
+        if (heatmap) {
+            heatmap.forEach(h => { if (grid[h.day]) grid[h.day][h.hour] = h.count; });
+        }
+
+        const body = document.getElementById("heatmap-body");
+        body.innerHTML = '';
+        
+        let maxCount = 0;
+        days.forEach(day => {
+            for(let hr=0; hr<24; hr++) {
+                if (grid[day][hr] > maxCount) maxCount = grid[day][hr];
+            }
+        });
+        if (maxCount === 0) maxCount = 1;
+
+        days.forEach(day => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td style="font-weight: bold; text-align: left; color: var(--text-main);">${day}</td>`;
+            for(let hr=0; hr<24; hr++) {
+                const count = grid[day][hr];
+                const td = document.createElement("td");
+                td.innerText = count;
+                td.style.padding = "0.4rem 0.25rem";
+                
+                let bg = 'rgba(255, 255, 255, 0.02)';
+                let color = 'var(--text-muted)';
+                if (count > 0) {
+                    const intensity = Math.max(0.15, count / maxCount);
+                    bg = `rgba(0, 173, 181, ${intensity.toFixed(2)})`;
+                    color = intensity > 0.5 ? '#fff' : '#00adb5';
+                    if (intensity > 0.8) {
+                        color = '#0b0f19';
+                        td.style.fontWeight = '700';
+                    }
+                }
+                
+                td.style.background = bg;
+                td.style.color = color;
+                td.style.fontSize = "0.85rem";
+                tr.appendChild(td);
+            }
+            body.appendChild(tr);
+        });
+    }
+
+    function populateCharts(data) {
+        if (volumeChart) volumeChart.destroy();
+        if (queueCallsChart) queueCallsChart.destroy();
+        if (timelineChart) timelineChart.destroy();
+        if (agentPerfChart) agentPerfChart.destroy();
+        if (abandonChart) abandonChart.destroy();
+        if (advancedPeakChart) advancedPeakChart.destroy();
+        
+        // 1. Answered vs Abandoned (Doughnut)
+        const answered = data.kpis.answered || 0;
+        const abandoned = data.kpis.standard_abandoned || 0;
+        const cancelled = data.kpis.cancelled || 0;
+        const noAnswer = data.kpis.no_answer || 0;
+        const timeout = data.kpis.timeout || 0;
+        
+        const ctxVol = document.getElementById('volumeChart').getContext('2d');
+        volumeChart = new Chart(ctxVol, {
+            type: 'doughnut',
+            data: {
+                labels: ['Answered', 'Abandoned', 'Canceled', 'No Answer', 'Timeout'],
+                datasets: [{
+                    data: [answered, abandoned, cancelled, noAnswer, timeout],
+                    backgroundColor: ['#10b981', '#ef4444', '#f59e0b', '#64748b', '#60a5fa'],
+                    borderColor: '#151d30',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        // 2. Calls by Queue (Bar Chart)
+        const qLabels = data.queues_table.map(q => q.queue);
+        const qTotals = data.queues_table.map(q => q.total);
+        const ctxQ = document.getElementById('queueCallsChart').getContext('2d');
+        queueCallsChart = new Chart(ctxQ, {
+            type: 'bar',
+            data: {
+                labels: qLabels,
+                datasets: [{
+                    label: 'Total Calls',
+                    data: qTotals,
+                    backgroundColor: 'rgba(0, 173, 181, 0.4)',
+                    borderColor: '#00adb5',
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        // 3. Calls Timeline (Line Chart)
+        const hrLabels = data.peak_hours.map(p => p.hour);
+        const hrTotal = data.peak_hours.map(p => p.total);
+        const ctxPeak = document.getElementById('timelineChart').getContext('2d');
+        timelineChart = new Chart(ctxPeak, {
+            type: 'line',
+            data: {
+                labels: hrLabels,
+                datasets: [{
+                    label: 'Call Volume',
+                    data: hrTotal,
+                    backgroundColor: 'rgba(192, 132, 252, 0.15)',
+                    borderColor: '#c084fc',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        // 4. Agent Performance (Bar Chart)
+        const agLabels = data.agent_analytics.map(a => formatAgentLabel(a));
+        const agCalls = data.agent_analytics.map(a => a.calls || 0);
+        const ctxAg = document.getElementById('agentPerfChart').getContext('2d');
+        agentPerfChart = new Chart(ctxAg, {
+            type: 'bar',
+            data: {
+                labels: agLabels,
+                datasets: [{
+                    label: 'Calls Answered',
+                    data: agCalls,
+                    backgroundColor: 'rgba(245, 158, 11, 0.4)',
+                    borderColor: '#f59e0b',
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+
+        // 5. Abandon Analysis (Bar Chart)
+        if (data.abandon_analysis) {
+            const abLabels = data.abandon_analysis.map(a => a.bracket);
+            const abCounts = data.abandon_analysis.map(a => a.count);
+            const ctxAb = document.getElementById('abandonChart').getContext('2d');
+            abandonChart = new Chart(ctxAb, {
+                type: 'bar',
+                data: {
+                    labels: abLabels,
+                    datasets: [{
+                        label: 'Abandoned Calls',
+                        data: abCounts,
+                        backgroundColor: 'rgba(239, 68, 68, 0.4)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+
+        // 6. Advanced Peak Hours (Stacked Bar Chart)
+        if (data.peak_hours) {
+            const hrLabels = data.peak_hours.map(p => p.hour);
+            const hrAnswered = data.peak_hours.map(p => p.answered);
+            const hrAbandoned = data.peak_hours.map(p => p.abandoned);
+            
+            const ctxAdvPeak = document.getElementById('advancedPeakChart').getContext('2d');
+            advancedPeakChart = new Chart(ctxAdvPeak, {
+                type: 'bar',
+                data: {
+                    labels: hrLabels,
+                    datasets: [
+                        {
+                            label: 'Answered Calls',
+                            data: hrAnswered,
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: '#10b981',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Abandoned Calls',
+                            data: hrAbandoned,
+                            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                            borderColor: '#ef4444',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 }, stacked: true },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' }, stacked: true }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+    }
+
+    function openExportModal() {
+        document.getElementById('exportModal').style.display = 'flex';
+    }
+    
+    function closeExportModal() {
+        document.getElementById('exportModal').style.display = 'none';
+    }
+    
+    function toggleExportTarget() {
+        const target = document.querySelector('input[name="exportTarget"]:checked').value;
+        if (target === 'queues') {
+            document.getElementById('exportQueuesContainer').style.display = 'block';
+            document.getElementById('exportAgentsContainer').style.display = 'none';
+            document.getElementById('exportAgentsInput').selectedIndex = -1;
+        } else {
+            document.getElementById('exportQueuesContainer').style.display = 'none';
+            document.getElementById('exportAgentsContainer').style.display = 'block';
+            document.getElementById('exportQueuesInput').selectedIndex = -1;
+        }
+    }
+    
+    function submitAdvancedExport() {
+        const type = document.getElementById('exportTypeInput').value;
+        const target = document.querySelector('input[name="exportTarget"]:checked').value;
+        
+        let queues = [];
+        if (target === 'queues') {
+            const qSelect = document.getElementById('exportQueuesInput');
+            for (let i = 0; i < qSelect.options.length; i++) {
+                if (qSelect.options[i].selected) queues.push(qSelect.options[i].value);
+            }
+        }
+        
+        let agents = [];
+        if (target === 'agents') {
+            const aSelect = document.getElementById('exportAgentsInput');
+            for (let i = 0; i < aSelect.options.length; i++) {
+                if (aSelect.options[i].selected) agents.push(aSelect.options[i].value);
+            }
+        }
+        
+        const date_from = document.getElementById("date_from").value;
+        const date_to = document.getElementById("date_to").value;
+        const time_from = document.getElementById("time_from").value;
+        const time_to = document.getElementById("time_to").value;
+        
+        const caller = document.getElementById("caller_selector") ? document.getElementById("caller_selector").value : "";
+        const call_status = document.getElementById("call_status_selector") ? document.getElementById("call_status_selector").value : "all";
+        const wait_time = document.getElementById("wait_time_selector") ? document.getElementById("wait_time_selector").value : "all";
+        const talk_time = document.getElementById("talk_time_selector") ? document.getElementById("talk_time_selector").value : "all";
+        
+        const params = new URLSearchParams({ type, caller, call_status, wait_time, talk_time });
+        if (queues.length > 0) params.set("queue", queues.join(","));
+        if (agents.length > 0) params.set("agent", agents.join(","));
+        if (date_from) params.set("date_from", date_from);
+        if (date_to) params.set("date_to", date_to);
+        if (time_from) params.set("time_from", time_from);
+        if (time_to) params.set("time_to", time_to);
+        
+        window.location.href = `/call-center/stats/export?${params.toString()}`;
+        closeExportModal();
+    }
+
+    // Initialize AJAX Polling for Real-time counters
+    function initRealtimeCounters() {
+        window.updateCounters = function() {
+            fetch('/call-center/stats/realtime-api')
+                .then(res => res.json())
+                .then(msg => {
+                    if (msg.event === 'COUNTERS' && msg.data) {
+                        document.getElementById('realtime-waiting').innerText = msg.data.waiting_calls || 0;
+                        document.getElementById('realtime-talking').innerText = msg.data.talking_calls || 0;
+                        document.getElementById('realtime-available').innerText = msg.data.available_agents || 0;
+                        document.getElementById('realtime-busy').innerText = msg.data.busy_agents || 0;
+                        document.getElementById('realtime-paused').innerText = msg.data.paused_agents || 0;
+                    }
+                })
+                .catch(e => console.warn("Error fetching realtime counters:", e));
+        };
+        window.updateCounters();
+        // setInterval removed as requested
+
+    }
+
+    // Load initial stats
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('#tab-overview > div:first-of-type > .panel').forEach(el => el.classList.add('kpi-card'));
+        const now = new Date();
+        const start = new Date();
+        
+        document.getElementById("date_from").value = formatLocalDateValue(start);
+        document.getElementById("date_to").value = formatLocalDateValue(now);
+        
+        switchTab('tab-overview');
+        loadStats();
+        initRealtimeCounters();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}{% if survey %}Edit Survey{% else %}Create Survey{% endif %}{% endblock %}
+
+{% block content %}
+<div class="q-studio">
+    <!-- Header Card -->
+    <div class="q-header-card">
+        <div>
+            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; background: linear-gradient(to right, #60a5fa, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fa-solid fa-microphone-lines" style="margin-right: 0.5rem;"></i>
+                {% if survey %}Edit Survey: {{ survey.name }}{% else %}Create Post-Call Survey{% endif %}
+            </h1>
+            <div style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.3rem;">
+                Configure audio questions to gauge customer satisfaction (DTMF 1-5).
+            </div>
+        </div>
+        <a href="{{ url_for('survey_list') }}" class="q-btn q-btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Studio
+        </a>
+    </div>
+
+    <form action="{% if survey %}{{ url_for('survey_edit', survey_id=survey.id) }}{% else %}{{ url_for('survey_add') }}{% endif %}" method="POST" enctype="multipart/form-data" id="surveyForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="q-section">
+            <div class="q-section-title"><i class="fa-solid fa-id-card" style="color: #60a5fa;"></i> Survey Identity</div>
+            <div class="q-group">
+                <label class="q-label" for="name">Survey Name <span class="tooltip-container">!<span class="tooltip-text">A descriptive name shown only in reports and routing.</span></span> <span style="color:#ef4444;">*</span></label>
+                <input type="text" id="name" name="name" class="q-input" placeholder="e.g. Customer Satisfaction Q3 2026" required
+                       value="{% if survey %}{{ survey.name }}{% endif %}">
+            </div>
+        </div>
+        
+        <div class="q-section" style="border-color: rgba(59, 130, 246, 0.3);">
+            <div class="q-section-title" style="color: #93c5fd;"><i class="fa-solid fa-list-ol" style="color: #3b82f6; background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3);"></i> Questionnaire Flow</div>
+            
+            <div style="background: rgba(0,0,0,0.2); padding: 1.25rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 1.5rem;">
+                <p style="margin: 0 0 0.5rem 0; color: #cbd5e1; font-size: 0.95rem;">
+                    <i class="fa-solid fa-circle-info" style="color: #38bdf8;"></i> Upload up to 5 audio prompts (WAV format). The caller will hear these in order and must reply using dialpad digits <strong>1 through 5</strong>.
+                </p>
+                {% if survey %}
+                <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #fcd34d; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; margin-top: 0.75rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <strong>Warning:</strong> Uploading new recordings will replace ALL existing questions for this survey. Leave empty to retain current prompts.
+                </div>
+                {% endif %}
+            </div>
+            
+            <div id="recordings-container" style="display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Dynamically generated rows go here -->
+            </div>
+            
+            <div style="margin-top: 1.5rem; display: flex; justify-content: center;">
+                <button type="button" class="q-btn q-btn-secondary" id="add-question-btn" onclick="addQuestionInput()" style="border-style: dashed; width: 100%; padding: 1rem;">
+                    <i class="fa-solid fa-plus"></i> Add Question
+                </button>
+            </div>
+        </div>
+        
+        <div class="q-tab-actions" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem;">
+            <a href="{{ url_for('survey_list') }}" class="q-btn q-btn-secondary" style="text-decoration: none;">Cancel</a>
+            <button type="submit" class="q-btn q-btn-success" style="padding: 0.65rem 1.5rem;">
+                <i class="fa-solid fa-check-circle"></i> {% if survey %}Update Survey{% else %}Create Survey{% endif %}
+            </button>
+        </div>
+    </form>
+    
+    {% if survey %}
+    <div class="q-section" style="margin-top: 2rem; border-color: rgba(16, 185, 129, 0.3);">
+        <div class="q-section-title" style="color: #6ee7b7;"><i class="fa-solid fa-file-audio" style="color: #10b981; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);"></i> Existing Questions ({{ survey.questions|length }})</div>
+        <div class="survey-grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+            {% for q in survey.questions %}
+            <div class="question-card" style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem; display: flex; align-items: center; gap: 1rem;">
+                <div class="step-num" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); color: #34d399; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; flex-shrink: 0;">
+                    {{ q.question_number }}
+                </div>
+                <div style="overflow: hidden;">
+                    <div style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em; margin-bottom: 0.2rem;">Recording Path</div>
+                    <div style="font-family: monospace; color: #f8fafc; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ q.recording_path }}">
+                        {{ q.recording_path }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    let questionCount = 0;
+    
+    function addQuestionInput() {
+        if (questionCount >= 5) {
+            alert("Maximum of 5 questions allowed.");
+            return;
+        }
+        questionCount++;
+        const container = document.getElementById('recordings-container');
+        const div = document.createElement('div');
+        div.className = 'recording-row';
+        div.style = 'background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 1.25rem; display: flex; gap: 1.25rem; align-items: center; animation: fadeIn 0.3s ease-out;';
+        div.innerHTML = `
+            <div class="step-num" style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; flex-shrink: 0; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">
+                Q${questionCount}
+            </div>
+            <div style="flex: 1;">
+                <label class="q-label" style="display: block; margin-bottom: 0.5rem;">Audio Prompt File <span style="color:#ef4444;">*</span></label>
+                <input type="file" name="recordings" class="q-input" accept="audio/*" {% if not survey %}required{% endif %} style="width: 100%; box-sizing: border-box;">
+            </div>
+            ${questionCount > 1 ? `<button type="button" class="q-btn btn-delete" onclick="this.parentElement.remove(); questionCount--; checkAddBtn();" style="align-self: flex-end; height: 44px; margin-bottom: 1px;"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+        `;
+        container.appendChild(div);
+        checkAddBtn();
+    }
+    
+    function checkAddBtn() {
+        const btn = document.getElementById('add-question-btn');
+        if (questionCount >= 5) {
+            btn.style.display = 'none';
+        } else {
+            btn.style.display = 'inline-flex';
+        }
+    }
+    
+    document.addEventListener("DOMContentLoaded", function() {
+        // Initialize with 1 question input if it's a new survey, or 0 if editing
+        {% if not survey %}
+            addQuestionInput();
+        {% else %}
+            // For editing, let them optionally add new questions
+            questionCount = 0;
+        {% endif %}
+    });
+</script>
+
+<style>
+    .q-studio { max-width: 900px; margin: 0 auto; padding-bottom: 3rem; }
+    .q-header-card {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(12px);
+    }
+    .q-section {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 1.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .q-section-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .q-section-title i {
+        width: 32px; height: 32px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .q-group { margin-bottom: 1.25rem; }
+    .q-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #94a3b8;
+        margin-bottom: 0.4rem;
+        display: inline-block;
+    }
+    .q-input {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.2s;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .q-input:focus { border-color: var(--q-primary, #3b82f6); box-shadow: 0 0 0 3px rgba(59,130,246,0.25); }
+    .q-input[type="file"] {
+        padding: 0.5rem;
+    }
+    .q-input[type="file"]::file-selector-button {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #fff;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-right: 1rem;
+        transition: background 0.2s;
+    }
+    .q-input[type="file"]::file-selector-button:hover { background: rgba(255, 255, 255, 0.2); }
+    .q-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background: var(--q-primary, #3b82f6);
+        color: #fff;
+        border: none;
+        padding: 0.65rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .q-btn:hover { background: #2563eb; transform: translateY(-1px); }
+    .q-btn-success { background: #10b981; }
+    .q-btn-success:hover { background: #059669; }
+    .q-btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); color: #e2e8f0; }
+    .q-btn-secondary:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+    .btn-delete {
+        background: transparent;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #fca5a5;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+    }
+    .btn-delete:hover {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .tooltip-container { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,0.2); font-size: 0.7rem; font-weight: bold; cursor: help; margin-left: 0.25rem; color: #fff; }
+    .tooltip-text { visibility: hidden; width: 220px; background-color: #1e293b; color: #fff; text-align: left; border-radius: 8px; padding: 0.75rem; position: absolute; z-index: 10; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-weight: normal; font-size: 0.8rem; line-height: 1.4; pointer-events: none; }
+    .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+</style>
+{% endblock %}

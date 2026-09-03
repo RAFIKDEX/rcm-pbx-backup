@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}SIP Security Settings - RCM 7021{% endblock %}
+
+{% block content %}
+{% set service_active = status.service == 'active' %}
+{% set jail_enabled = status.jail == 'enabled' %}
+{# Keep an explicit 0 as Off; Jinja's default(..., true) would turn it into On. #}
+{% set service_control_enabled = settings.fail2ban_service_enabled|default(1) %}
+{% set protection_enabled = settings.enabled|default(0) %}
+{% set active_blacklists = blacklists|selectattr('status', 'equalto', 'active')|list %}
+
+<div class="header-panel sip-page-heading">
+    <div>
+        <div class="sip-eyebrow"><i class="fa-solid fa-shield-halved"></i> Network Protection</div>
+        <h1>SIP Security Settings</h1>
+        <p>Protect PJSIP registrations from repeated authentication failures using Fail2Ban.</p>
+    </div>
+    <a href="{{ url_for('sip_security', search=search) }}" class="btn btn-secondary sip-refresh-btn">
+        <i class="fa-solid fa-arrows-rotate"></i> Refresh Status
+    </a>
+</div>
+
+<section class="sip-status-card" aria-labelledby="sip-health-title">
+    <div class="sip-status-heading">
+        <div>
+            <span class="sip-section-kicker">Protection health</span>
+            <h2 id="sip-health-title">Fail2Ban status</h2>
+        </div>
+        <span class="sip-health-pill {% if not service_control_enabled %}is-neutral{% elif not protection_enabled %}is-neutral{% elif service_active and jail_enabled %}is-good{% else %}is-bad{% endif %}">
+            <i class="fa-solid {% if not service_control_enabled %}fa-power-off{% elif not protection_enabled %}fa-circle-pause{% elif service_active and jail_enabled %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}"></i>
+            {% if not service_control_enabled %}Fail2Ban disabled{% elif not protection_enabled %}SIP protection disabled{% elif service_active and jail_enabled %}Protection active{% else %}Attention required{% endif %}
+        </span>
+    </div>
+    <div class="sip-service-control">
+        <div class="sip-service-copy">
+            <div class="sip-control-title">Fail2Ban service <span class="tooltip-container" tabindex="0" role="img" aria-label="Fail2Ban service information"><i class="fa-solid fa-info"></i><span class="tooltip-text" role="tooltip">Turns the complete Fail2Ban service on or off, including the SIP protection jail and manual blacklist jail.</span></span></div>
+            <p>Use this master switch only when you want to stop or start all Fail2Ban protection.</p>
+        </div>
+        <form action="{{ url_for('sip_security_service') }}" method="POST" class="sip-service-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="sip-switch" for="fail2ban-service-enabled">
+                <input type="checkbox" id="fail2ban-service-enabled" name="service_enabled" {% if service_control_enabled %}checked{% endif %}>
+                <span aria-hidden="true"></span>
+            </label>
+            <span class="sip-service-state">{% if service_control_enabled %}On{% else %}Off{% endif %}</span>
+            <button type="submit" class="btn btn-secondary btn-sm"><i class="fa-solid fa-power-off"></i> Apply</button>
+        </form>
+    </div>
+    <div class="sip-status-grid">
+        <div class="sip-status-item">
+            <span class="sip-status-icon {% if not service_control_enabled %}is-neutral{% elif service_active %}is-good{% else %}is-bad{% endif %}"><i class="fa-solid fa-power-off"></i></span>
+            <div><span>Fail2Ban service</span><strong>{{ status.service|default('unknown', true)|capitalize }}</strong></div>
+        </div>
+        <div class="sip-status-item">
+            <span class="sip-status-icon {% if not service_control_enabled %}is-neutral{% elif jail_enabled %}is-good{% else %}is-bad{% endif %}"><i class="fa-solid fa-lock"></i></span>
+            <div><span>SIP registration jail</span><strong>{{ status.jail|default('unknown', true)|capitalize }}</strong></div>
+        </div>
+        <div class="sip-status-item">
+            <span class="sip-status-icon is-warn"><i class="fa-solid fa-ban"></i></span>
+            <div><span>Currently banned IPs</span><strong>{{ status.banned_ips|default([], true)|length }}</strong></div>
+        </div>
+        <div class="sip-status-item">
+            <span class="sip-status-icon is-info"><i class="fa-solid fa-clock-rotate-left"></i></span>
+            <div><span>Events shown</span><strong>{{ events|length }}</strong></div>
+        </div>
+    </div>
+    {% if status.error %}
+    <div class="sip-inline-alert is-danger" role="alert">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>Fail2Ban returned an error: {{ status.error }}</span>
+    </div>
+    {% endif %}
+</section>
+
+<section class="sip-panel" aria-labelledby="sip-settings-title">
+    <div class="sip-panel-heading">
+        <div>
+            <span class="sip-section-kicker">Automatic protection</span>
+            <h2 id="sip-settings-title"><i class="fa-solid fa-sliders"></i> SIP registration policy</h2>
+        </div>
+        <span class="sip-heading-badge"><i class="fa-solid fa-rotate"></i> Applied to Fail2Ban</span>
+    </div>
+    <form action="{{ url_for('sip_security_save') }}" method="POST" class="sip-settings-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="sip-settings-grid">
+            <div class="sip-setting-toggle">
+                <div class="sip-setting-copy">
+                    <label for="sip-protection-enabled">Enable Fail2Ban Protection <span class="tooltip-container" tabindex="0" role="img" aria-label="Enable automatic SIP protection"><i class="fa-solid fa-info"></i><span class="tooltip-text" role="tooltip">Automatically ban IP addresses after repeated failed PJSIP registration attempts.</span></span></label>
+                </div>
+                <label class="sip-switch" for="sip-protection-enabled">
+                    <input type="checkbox" id="sip-protection-enabled" name="enabled" {% if settings.enabled %}checked{% endif %}>
+                    <span aria-hidden="true"></span>
+                </label>
+            </div>
+            <div class="sip-field">
+                <label for="bantime_seconds">Ban duration <span class="tooltip-container" tabindex="0" role="img" aria-label="Ban duration information"><i class="fa-solid fa-info"></i><span class="tooltip-text" role="tooltip">How long an automatically banned IP remains blocked.</span></span></label>
+                <div class="sip-input-with-unit"><input type="number" id="bantime_seconds" name="bantime_seconds" value="{{ settings.bantime_seconds }}" min="1" max="31536000" required inputmode="numeric"><span>seconds</span></div>
+            </div>
+            <div class="sip-field">
+                <label for="maxretry">Maximum retries <span class="tooltip-container" tabindex="0" role="img" aria-label="Maximum retries information"><i class="fa-solid fa-info"></i><span class="tooltip-text" role="tooltip">Failed attempts allowed before an IP is banned.</span></span></label>
+                <div class="sip-input-with-unit"><input type="number" id="maxretry" name="maxretry" value="{{ settings.maxretry }}" min="1" max="1000" required inputmode="numeric"><span>attempts</span></div>
+            </div>
+            <div class="sip-field">
+                <label for="findtime_seconds">Retry window <span class="tooltip-container" tabindex="0" role="img" aria-label="Retry window information"><i class="fa-solid fa-info"></i><span class="tooltip-text" role="tooltip">The time window in which retries are counted.</span></span></label>
+                <div class="sip-input-with-unit"><input type="number" id="findtime_seconds" name="findtime_seconds" value="{{ settings.findtime_seconds }}" min="1" max="31536000" required inputmode="numeric"><span>seconds</span></div>
+            </div>
+        </div>
+        <div class="sip-form-footer">
+            <p><i class="fa-solid fa-circle-info"></i> Changes reload the Fail2Ban configuration immediately.</p>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save &amp; Apply</button>
+        </div>
+    </form>
+</section>
+
+<div class="sip-two-column">
+    <section class="sip-panel" aria-labelledby="sip-whitelist-title">
+        <div class="sip-panel-heading">
+            <div>
+                <span class="sip-section-kicker is-good">Trusted networks</span>
+                <h2 id="sip-whitelist-title"><i class="fa-solid fa-list-check"></i> Whitelist</h2>
+            </div>
+        </div>
+        <p class="sip-panel-description">Whitelisted addresses are excluded from automatic SIP bans. Use this only for trusted phones, gateways, or office networks.</p>
+        <form action="{{ url_for('sip_security_whitelist_add') }}" method="POST" class="sip-inline-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="sr-only" for="whitelist-value">IP address or CIDR</label>
+            <input type="text" id="whitelist-value" name="value" class="form-control" placeholder="192.168.1.0/24" required inputmode="text" autocomplete="off">
+            <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-plus"></i> Add</button>
+        </form>
+        <div class="sip-table-wrap">
+            <table class="sip-table">
+                <thead><tr><th scope="col">Network / IP</th><th scope="col" class="sip-action-column">Action</th></tr></thead>
+                <tbody>
+                {% for w in whitelists %}
+                    <tr>
+                        <td><code>{{ w.value }}</code><small>{{ w.address_family }} /{{ w.prefix_length }}</small></td>
+                        <td class="sip-action-column">
+                            <form action="{{ url_for('sip_security_whitelist_remove', id=w.id) }}" method="POST" onsubmit="return confirm('Remove this whitelist entry?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="sip-icon-button is-danger" aria-label="Remove {{ w.value }} from whitelist" title="Remove whitelist entry"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="2" class="sip-empty-row"><i class="fa-solid fa-shield"></i>No trusted networks added yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="sip-panel" aria-labelledby="sip-blacklist-title">
+        <div class="sip-panel-heading">
+            <div>
+                <span class="sip-section-kicker is-danger">Manual blocking</span>
+                <h2 id="sip-blacklist-title"><i class="fa-solid fa-ban"></i> Manual blacklist</h2>
+            </div>
+        </div>
+        <p class="sip-panel-description">Block an IP or subnet immediately. Whitelist conflicts are rejected automatically.</p>
+        <form action="{{ url_for('sip_security_blacklist_add') }}" method="POST" class="sip-blacklist-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div><label class="sr-only" for="blacklist-value">IP address or CIDR</label><input type="text" id="blacklist-value" name="value" class="form-control" placeholder="IP address or CIDR" required inputmode="text" autocomplete="off"></div>
+            <div><label class="sr-only" for="blacklist-duration">Ban duration</label><select id="blacklist-duration" name="duration" class="form-control"><option value="3600">1 hour</option><option value="86400">1 day</option><option value="604800">1 week</option><option value="2592000">1 month</option></select></div>
+            <div class="sip-blacklist-reason"><label class="sr-only" for="blacklist-reason">Reason</label><input type="text" id="blacklist-reason" name="reason" class="form-control" placeholder="Reason (optional)" maxlength="200"></div>
+            <button type="submit" class="btn btn-danger"><i class="fa-solid fa-lock"></i> Ban address</button>
+        </form>
+        <div class="sip-table-wrap">
+            <table class="sip-table">
+                <thead><tr><th scope="col">Network / IP</th><th scope="col">Expires</th><th scope="col" class="sip-action-column">Action</th></tr></thead>
+                <tbody>
+                {% for b in active_blacklists %}
+                    <tr>
+                        <td><code>{{ b.value }}</code>{% if b.reason %}<small>{{ b.reason }}</small>{% endif %}</td>
+                        <td>{{ b.expires_at }}</td>
+                        <td class="sip-action-column">
+                            <form action="{{ url_for('sip_security_blacklist_remove', id=b.id) }}" method="POST" onsubmit="return confirm('Unban this address now?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="sip-icon-button is-success" aria-label="Unban {{ b.value }}" title="Unban address"><i class="fa-solid fa-unlock"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="3" class="sip-empty-row"><i class="fa-solid fa-circle-check"></i>No active manual bans.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<section class="sip-panel" aria-labelledby="sip-auto-bans-title">
+    <div class="sip-panel-heading">
+        <div>
+            <span class="sip-section-kicker is-warn">Live activity</span>
+            <h2 id="sip-auto-bans-title"><i class="fa-solid fa-tower-broadcast"></i> Currently banned by Fail2Ban</h2>
+        </div>
+    </div>
+    <div class="sip-banned-list">
+    {% for ip in status.banned_ips|default([], true) %}
+        <div class="sip-banned-chip"><code>{{ ip }}</code><form action="{{ url_for('sip_security_unban') }}" method="POST" onsubmit="return confirm('Unban this address now?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="ip" value="{{ ip }}"><button type="submit" class="sip-icon-button is-success" aria-label="Unban {{ ip }}" title="Unban now"><i class="fa-solid fa-unlock"></i></button></form></div>
+    {% else %}
+        <div class="sip-empty-state"><i class="fa-solid fa-shield-heart"></i><strong>No active automatic bans</strong><span>Fail2Ban is not currently blocking any IP addresses.</span></div>
+    {% endfor %}
+    </div>
+</section>
+
+<section class="sip-panel" aria-labelledby="sip-history-title">
+    <div class="sip-history-heading">
+        <div>
+            <span class="sip-section-kicker">Audit trail</span>
+            <h2 id="sip-history-title"><i class="fa-solid fa-clock-rotate-left"></i> Security event history</h2>
+        </div>
+        <form action="{{ url_for('sip_security') }}" method="GET" class="sip-search-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="sr-only" for="sip-event-search">Search security events</label>
+            <input type="search" id="sip-event-search" name="search" class="form-control" placeholder="Search IP, account, or event" value="{{ search }}">
+            <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+            {% if search %}<a href="{{ url_for('sip_security') }}" class="btn btn-secondary">Clear</a>{% endif %}
+        </form>
+    </div>
+    <div class="sip-table-wrap">
+        <table class="sip-table sip-history-table">
+            <thead><tr><th scope="col">Date / time</th><th scope="col">Event</th><th scope="col">Source IP</th><th scope="col">Actor</th><th scope="col">Status</th><th scope="col">Reason</th></tr></thead>
+            <tbody>
+            {% for e in events %}
+                <tr>
+                    <td>{{ e.created_at }}</td><td>{{ e.event_type }}</td><td><code>{{ e.source_ip or '-' }}</code></td><td>{{ e.actor_username or e.actor_type }}</td>
+                    <td><span class="sip-event-badge {% if e.status == 'success' %}is-success{% else %}is-danger{% endif %}">{{ e.status }}</span></td><td>{{ e.reason or '-' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="sip-empty-row"><i class="fa-solid fa-clipboard-check"></i>No security events found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if total_pages > 1 %}
+    <nav class="sip-pagination" aria-label="Security event pages">
+        {% if page > 1 %}<a href="{{ url_for('sip_security', page=page-1, search=search) }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-chevron-left"></i> Previous</a>{% endif %}
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}<a href="{{ url_for('sip_security', page=page+1, search=search) }}" class="btn btn-secondary btn-sm">Next <i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

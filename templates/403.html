@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Access Denied - RCM 7021 Management Panel{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1><i class="fa-solid fa-shield-halved text-danger me-2"></i>Access Denied</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">You do not have the required privilege to access or perform this operation.</div>
+    </div>
+    <div>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left me-1"></i> Return to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="card p-5 text-center my-4" style="background: var(--bg-dark); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);">
+    <div style="font-size: 4rem; color: #ef4444; margin-bottom: 1.5rem;">
+        <i class="fa-solid fa-lock"></i>
+    </div>
+    <h2 style="font-size: 1.8rem; font-weight: 700; color: #f8fafc; margin-bottom: 1rem;">403 - Forbidden Operation</h2>
+    <p style="color: #94a3b8; max-width: 550px; margin: 0 auto 2rem; font-size: 1.05rem; line-height: 1.6;">
+        Your current role or privilege assignment (<strong>{{ session.get('role', 'agent')|title }}</strong>) lacks permission for:
+    </p>
+    
+    {% if module and action %}
+    <div style="display: inline-block; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.8rem 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+        <span style="color: #94a3b8; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Required Permission:</span>
+        <div style="color: #fca5a5; font-weight: 600; font-size: 1.2rem; margin-top: 0.3rem;">
+            <i class="fa-solid fa-key me-2"></i>{{ module }} : {{ action }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div>
+        <a href="javascript:history.back()" class="btn btn-primary me-2">
+            <i class="fa-solid fa-rotate-left me-1"></i> Go Back
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-house me-1"></i> Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

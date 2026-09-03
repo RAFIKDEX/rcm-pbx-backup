@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if profile %}Edit{% else %}Add{% endif %} Office Time Profile - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if profile %}Edit{% else %}Create{% endif %} Office Time Profile</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure weekly working schedules and shifts</div>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if profile %}{{ url_for('office_time_edit', profile_id=profile.id) }}{% else %}{{ url_for('office_time_add') }}{% endif %}" method="POST" id="officeForm">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-business-time" style="color: var(--primary);"></i> Shift Parameters</h2>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label for="name">Profile Name <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Morning Shift" value="{% if profile %}{{ profile.name }}{% endif %}" required>
+            </div>
+            <div class="form-group" style="flex: 3;">
+                <label for="description">Description</label>
+                <input type="text" id="description" name="description" class="form-control" placeholder="e.g. Work hours for morning shift staff" value="{% if profile %}{{ profile.description or '' }}{% endif %}">
+            </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; margin-bottom: 2rem;">
+            <div class="switch-group" style="max-width: 300px; margin-bottom: 0;">
+                <label class="switch">
+                    <input type="checkbox" name="enabled" id="enabled" {% if not profile or profile.enabled %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+                <span style="color: #fff; font-weight: 500;">Enable Profile</span>
+            </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <label style="font-weight: bold; font-family: 'Orbitron', sans-serif; margin: 0; font-size: 1.1rem; color: #fff;">
+                    Schedule Rules <span style="color: #ff4a4a;">*</span>
+                </label>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addRuleRow()">
+                    <i class="fa-solid fa-plus"></i> Add Rule
+                </button>
+            </div>
+            
+            <div id="rules_container" style="display: flex; flex-direction: column; gap: 1rem;">
+                {% if profile and profile.rules %}
+                    {% for r in profile.rules %}
+                    <div class="form-row rule-row" style="align-items: center; gap: 1rem; margin: 0; padding: 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 6px;">
+                        <div class="form-group" style="margin: 0; flex: 2;">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">Day of Week</label>
+                            <select name="day_of_week[]" class="form-control" required>
+                                {% for day_val, day_lbl in [('sunday', 'Sunday'), ('monday', 'Monday'), ('tuesday', 'Tuesday'), ('wednesday', 'Wednesday'), ('thursday', 'Thursday'), ('friday', 'Friday'), ('saturday', 'Saturday')] %}
+                                <option value="{{ day_val }}" {% if r.day_of_week|lower == day_val %}selected{% endif %}>{{ day_lbl }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin: 0; flex: 2;">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">Start Time</label>
+                            <input type="time" name="start_time[]" class="form-control" value="{{ r.start_time }}" required>
+                        </div>
+                        <div class="form-group" style="margin: 0; flex: 2;">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">End Time</label>
+                            <input type="time" name="end_time[]" class="form-control" value="{{ r.end_time }}" required>
+                        </div>
+                        <div style="margin-top: 1.25rem;">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="removeRuleRow(this)">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <!-- Default rule row -->
+                    <div class="form-row rule-row" style="align-items: center; gap: 1rem; margin: 0; padding: 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 6px;">
+                        <div class="form-group" style="margin: 0; flex: 2;">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">Day of Week</label>
+                            <select name="day_of_week[]" class="form-control" required>
+                                {% for day_val, day_lbl in [('sunday', 'Sunday'), ('monday', 'Monday'), ('tuesday', 'Tuesday'), ('wednesday', 'Wednesday'), ('thursday', 'Thursday'), ('friday', 'Friday'), ('saturday', 'Saturday')] %}
+                                <option value="{{ day_val }}" {% if day_val == 'monday' %}selected{% endif %}>{{ day_lbl }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin: 0; flex: 2;">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">Start Time</label>
+                            <input type="time" name="start_time[]" class="form-control" value="08:00" required>
+                        </div>
+                        <div class="form-group" style="margin: 0; flex: 2;">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">End Time</label>
+                            <input type="time" name="end_time[]" class="form-control" value="17:00" required>
+                        </div>
+                        <div style="margin-top: 1.25rem;">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="removeRuleRow(this)">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2.5rem;">
+            <a href="{{ url_for('time_conditions_list') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Profile</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function addRuleRow() {
+        const container = document.getElementById("rules_container");
+        const row = document.createElement("div");
+        row.className = "form-row rule-row";
+        row.style.alignItems = "center";
+        row.style.gap = "1rem";
+        row.style.margin = "0";
+        row.style.padding = "1rem";
+        row.style.background = "rgba(255,255,255,0.02)";
+        row.style.border = "1px solid var(--border-color)";
+        row.style.borderRadius = "6px";
+        
+        row.innerHTML = `
+            <div class="form-group" style="margin: 0; flex: 2;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">Day of Week</label>
+                <select name="day_of_week[]" class="form-control" required>
+                    <option value="sunday">Sunday</option>
+                    <option value="monday" selected>Monday</option>
+                    <option value="tuesday">Tuesday</option>
+                    <option value="wednesday">Wednesday</option>
+                    <option value="thursday">Thursday</option>
+                    <option value="friday">Friday</option>
+                    <option value="saturday">Saturday</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin: 0; flex: 2;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">Start Time</label>
+                <input type="time" name="start_time[]" class="form-control" value="08:00" required>
+            </div>
+            <div class="form-group" style="margin: 0; flex: 2;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block;">End Time</label>
+                <input type="time" name="end_time[]" class="form-control" value="17:00" required>
+            </div>
+            <div style="margin-top: 1.25rem;">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeRuleRow(this)">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeRuleRow(btn) {
+        const container = document.getElementById("rules_container");
+        const rows = container.getElementsByClassName("rule-row");
+        if (rows.length <= 1) {
+            alert("At least one schedule rule is required.");
+            return;
+        }
+        btn.closest(".rule-row").remove();
+    }
+</script>
+{% endblock %}

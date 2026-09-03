@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} | RCM 7021{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dex.css') }}">{% endblock %}
+{% block content %}
+<main class="dex-page dex-model-editor">
+  <header class="dex-page-head">
+    <div><div class="dex-eyebrow"><i class="fa-solid fa-layer-group"></i> DEX / Models</div><h1>{{ title }}</h1><p>Set the verified capabilities before assigning phones.</p></div>
+    <a class="dex-btn dex-btn-soft" href="{{ url_for('dex_models') }}"><i class="fa-solid fa-arrow-left"></i> Back</a>
+  </header>
+
+  {% if model.sip_account_count is none or model.blf_count is none %}<div class="dex-editor-warning"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Draft model</strong><span>Unknown values must be entered deliberately. The phone will remain inventory-only until the model is enabled and provisionable.</span></div></div>{% endif %}
+
+  <form method="post" class="dex-model-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="dex-model-editor-grid">
+      <section class="dex-card dex-config-card">
+        <div class="dex-config-title"><div><h2>Identity</h2><p>Exact vendor and model definition.</p></div><i class="fa-solid fa-tag dex-muted-icon"></i></div>
+        <div class="dex-grid dex-config-fields">
+          <div><label class="dex-label">Vendor</label><select class="form-control" name="vendor_code" required>{% for code, label in supported_vendors.items() %}<option value="{{ code }}" {% if model.vendor_code == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+          <div><label class="dex-label">Exact model</label><input class="form-control" name="model_name" value="{{ model.model_name }}" required></div>
+          <div><label class="dex-label">Common config file <span class="dex-optional">optional</span></label><input class="form-control" name="common_config_filename" value="{{ model.common_config_filename or '' }}" placeholder="Example: model.cfg"></div>
+          <div><label class="dex-label">Provisioning engine</label><input class="form-control" value="{{ model.driver_name }}" readonly></div>
+        </div>
+      </section>
+
+      <section class="dex-card dex-config-card">
+        <div class="dex-config-title"><div><h2>Capabilities</h2><p>These values build the phone edit form.</p></div><i class="fa-solid fa-list-ol dex-muted-icon"></i></div>
+        <div class="dex-grid dex-config-fields">
+          <div><label class="dex-label" for="dex-model-sip-count">SIP accounts</label><input id="dex-model-sip-count" class="form-control" name="sip_account_count" type="number" min="1" value="{{ model.sip_account_count if model.sip_account_count is not none else '' }}" placeholder="Unknown"><span class="dex-field-note">Enter the supported account slots.</span></div>
+          <div><label class="dex-label" for="dex-model-blf-count">BLF / DSS keys</label><input id="dex-model-blf-count" class="form-control" name="blf_count" type="number" min="0" value="{{ model.blf_count if model.blf_count is not none else '' }}" placeholder="Unknown"><span class="dex-field-note">Enter 0 only when verified.</span></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="dex-card dex-config-card dex-model-status-card">
+      <div class="dex-config-title"><div><h2>Readiness</h2><p>Provisioning is allowed only when the required definition is complete.</p></div><span class="dex-badge {% if model.provisionable %}ok{% else %}warn{% endif %}">{{ 'Ready' if model.provisionable else 'Draft' }}</span></div>
+      <div class="dex-status-options">
+        <label class="dex-status-option"><input type="checkbox" name="enabled" {% if model.enabled %}checked{% endif %}><span><strong>Enabled</strong><small>Show this model in device assignments.</small></span></label>
+        <label class="dex-status-option"><input id="dex-model-provisionable" type="checkbox" name="provisionable" {% if model.provisionable %}checked{% endif %}><span><strong>Provisionable</strong><small>Available after SIP and BLF counts are defined.</small></span></label>
+        <label class="dex-status-option"><input id="dex-model-blf-verified" type="checkbox" name="blf_mapping_verified" {% if model.blf_mapping_verified %}checked{% endif %}><span><strong>BLF mapping verified</strong><small>Required when BLF count is greater than zero.</small></span></label>
+        <label class="dex-status-option"><input type="checkbox" name="tested" {% if model.tested %}checked{% endif %}><span><strong>Tested</strong><small>Mark only after a controlled device test.</small></span></label>
+      </div>
+    </section>
+
+    <section class="dex-card dex-config-card"><div class="dex-config-title"><div><h2>Notes</h2><p>Keep evidence or model-specific warnings here.</p></div></div><textarea class="form-control dex-notes" name="notes" rows="4" placeholder="Optional notes">{{ model.notes or '' }}</textarea></section>
+
+    <footer class="dex-config-footer"><span><i class="fa-solid fa-circle-info"></i> Unknown capability values keep the phone inventory-only.</span><div class="dex-modal-actions"><a class="dex-btn dex-btn-soft" href="{{ url_for('dex_models') }}">Cancel</a><button class="dex-btn dex-btn-primary" type="submit"><i class="fa-solid fa-check"></i> Save model</button></div></footer>
+  </form>
+</main>
+<script>
+(function(){
+  const form=document.querySelector('.dex-model-form');
+  const sip=document.getElementById('dex-model-sip-count');
+  const blf=document.getElementById('dex-model-blf-count');
+  const provisionable=document.getElementById('dex-model-provisionable');
+  const blfVerified=document.getElementById('dex-model-blf-verified');
+  if(!form||!sip||!blf||!provisionable||!blfVerified) return;
+  function syncCapabilities(){
+    const countsKnown=sip.value.trim()!=='' && blf.value.trim()!=='';
+    provisionable.disabled=!countsKnown;
+    if(!countsKnown) provisionable.checked=false;
+    const blfValue=blf.value.trim()==='' ? null : Number(blf.value);
+    const mappingRelevant=blfValue!==null && blfValue>0;
+    blfVerified.disabled=!mappingRelevant;
+    if(!mappingRelevant) blfVerified.checked=false;
+  }
+  sip.addEventListener('input',syncCapabilities);
+  blf.addEventListener('input',syncCapabilities);
+  syncCapabilities();
+})();
+</script>
+{% endblock %}

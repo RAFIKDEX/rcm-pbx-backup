@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - RCM 7021 IP-PBX Control Panel</title>
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #080c14;
+            --panel-bg: rgba(15, 23, 42, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.3);
+            --secondary: #6366f1;
+            --secondary-glow: rgba(99, 102, 241, 0.3);
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(59, 130, 246, 0.15) 0px, transparent 50%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Abstract glowing blobs for premium aesthetic */
+        .glow-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.5;
+            animation: floatGlow 12s infinite alternate ease-in-out;
+        }
+
+        .glow-blob-1 {
+            width: 300px;
+            height: 300px;
+            background: var(--primary);
+            top: 20%;
+            left: 15%;
+        }
+
+        .glow-blob-2 {
+            width: 400px;
+            height: 400px;
+            background: var(--secondary);
+            bottom: 15%;
+            right: 15%;
+            animation-delay: -6s;
+        }
+
+        @keyframes floatGlow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, -40px) scale(1.15); }
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 440px;
+            padding: 1.5rem;
+        }
+
+        .login-card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2.75rem 2.25rem;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Top glowing line accent */
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2.25rem;
+        }
+
+        .login-logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header h2 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: #fff;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+
+        .login-header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 500;
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger-glow);
+            color: #f87171;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            transition: color 0.3s;
+            font-size: 1rem;
+        }
+
+        .form-control {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .form-control:focus + i {
+            color: var(--primary);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 0.95rem;
+            color: #fff;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <!-- Glow blobs -->
+    <div class="glow-blob glow-blob-1"></div>
+    <div class="glow-blob glow-blob-2"></div>
+
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fa-solid fa-server"></i> RCM
+                </div>
+                <h2>Control Panel</h2>
+                <p>IP-PBX Management System</p>
+            </div>
+            
+            {% if error %}
+            <div class="alert-danger" role="alert">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+            
+            <form action="{{ url_for('login') }}" method="POST">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="username" name="username" class="form-control" placeholder="Enter username" required autofocus>
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required>
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">
+                    <span>Sign In</span>
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                &copy; 2026 RCM IP-PBX System. All rights reserved.
+            </div>
+        </div>
+    </div>
+</body>
+</html>

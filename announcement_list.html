@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Announcements - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Announcements</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure static audio announcers that play a voice prompt and then forward to a destination</div>
+    </div>
+    <div>
+        <a href="{{ url_for('announcement_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Create Announcement
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-volume-high" style="color: var(--primary);"></i> Announcements List</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Announcement Number</th>
+                    <th>Announcement Name</th>
+                    <th>Audio Prompt</th>
+                    <th>Destination After Playback</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not announcements %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-volume-xmark" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Announcements configured in the system.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for ann in announcements %}
+                <tr>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">{{ ann.num }}</strong></td>
+                    <td>{{ ann.name }}</td>
+                    <td><span class="badge badge-gray" style="background-color: rgba(20, 184, 166, 0.1); color: #2dd4bf; border-color: rgba(20, 184, 166, 0.2);"><i class="fa-solid fa-file-audio"></i> {{ ann.prompt_name or ann.prompt_id or 'default' }}</span></td>
+                    <td>
+                        {% if ann.dest_type != 'hangup' and ann.dest_val %}
+                        <span style="text-transform: capitalize; color: var(--text-muted);">{{ ann.dest_type }} </span><code>{{ ann.dest_val }}</code>
+                        {% else %}
+                        <span style="color: var(--status-offline);"><i class="fa-solid fa-ban"></i> Hangup</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            <a href="{{ url_for('announcement_edit', num=ann.num) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form action="{{ url_for('announcement_delete', num=ann.num) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Announcement {{ ann.num }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

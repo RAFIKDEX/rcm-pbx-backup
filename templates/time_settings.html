@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Time Settings - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Time Settings</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure system timezone, NTP client sync, and NTP server daemon</div>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{{ url_for('time_settings') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-clock" style="color: var(--primary);"></i> Time Settings</h2>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="mode">Time Mode</label>
+                <select id="mode" name="mode" class="form-control" onchange="toggleMode()">
+                    <option value="automatic" {% if settings.mode == 'automatic' %}selected{% endif %}>Automatic (Sync via NTP)</option>
+                    <option value="manual" {% if settings.mode == 'manual' %}selected{% endif %}>Manual (Set Date/Time)</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="automatic_fields" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ntp_server">NTP Server <span style="color: #ff4a4a;">*</span></label>
+                    <input type="text" id="ntp_server" name="ntp_server" class="form-control" placeholder="e.g. pool.ntp.org" value="{{ settings.ntp_server }}">
+                </div>
+                <div class="form-group">
+                    <label for="timezone">Time Zone</label>
+                    <select id="timezone" name="timezone" class="form-control">
+                        {% for tz in timezones %}
+                        <option value="{{ tz.value }}" {% if settings.timezone == tz.value %}selected{% endif %}>{{ tz.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="manual_fields" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="date">Date <span style="color: #ff4a4a;">*</span></label>
+                    <input type="date" id="date" name="date" class="form-control" value="{{ current_date }}">
+                </div>
+                <div class="form-group">
+                    <label for="time">Time <span style="color: #ff4a4a;">*</span></label>
+                    <input type="time" id="time" name="time" class="form-control" value="{{ current_time }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-header" style="margin-top: 2.5rem;">
+            <h2><i class="fa-solid fa-server" style="color: var(--primary);"></i> NTP Server Daemon</h2>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="ntp_server_enabled">Enable NTP Server for IP Phones</label>
+                <select id="ntp_server_enabled" name="ntp_server_enabled" class="form-control">
+                    <option value="off" {% if not settings.ntp_server_enabled %}selected{% endif %}>Disabled</option>
+                    <option value="on" {% if settings.ntp_server_enabled %}selected{% endif %}>Enabled</option>
+                </select>
+                <div style="font-size: 0.8rem; color: var(--text-dark); margin-top: 0.5rem;">Allow local IP phones on the network to synchronize their time using this PBX server.</div>
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2rem;">
+            {% if has_permission('time_settings', 'update') %}
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Time Settings</button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleMode() {
+        const mode = document.getElementById("mode").value;
+        const autoFields = document.getElementById("automatic_fields");
+        const manualFields = document.getElementById("manual_fields");
+        const ntpServer = document.getElementById("ntp_server");
+        const dateInp = document.getElementById("date");
+        const timeInp = document.getElementById("time");
+
+        if (mode === "automatic") {
+            autoFields.style.display = "block";
+            manualFields.style.display = "none";
+            ntpServer.required = true;
+            dateInp.required = false;
+            timeInp.required = false;
+        } else {
+            autoFields.style.display = "none";
+            manualFields.style.display = "block";
+            ntpServer.required = false;
+            dateInp.required = true;
+            timeInp.required = true;
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleMode();
+    });
+</script>
+{% endblock %}

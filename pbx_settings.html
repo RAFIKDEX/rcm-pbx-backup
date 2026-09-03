@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}PBX Settings - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>System Settings</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Adjust global IP-PBX settings, locales, and SIP transport defaults</div>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{{ url_for('pbx_settings') }}" method="POST">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-earth-africa" style="color: var(--primary);"></i> Regional Settings</h2>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="timezone">System Timezone</label>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <select id="timezone" name="timezone" class="form-control" disabled style="background-color: #0b0f19; color: var(--text-muted);">
+                        <option value="GMT+3" selected>GMT +3 (Africa/Cairo / Asia/Riyadh)</option>
+                    </select>
+                    <span class="badge badge-registered" style="font-size: 0.8rem;"><i class="fa-solid fa-lock"></i> Timezone Locked</span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-dark); margin-top: 0.5rem;">Timezones, log outputs, and system display clocks are normalized to GMT+3.</div>
+            </div>
+        </div>
+        
+        <div class="panel-header" style="margin-top: 2.5rem;">
+            <h2><i class="fa-solid fa-network-wired" style="color: var(--primary);"></i> Global SIP Defaults</h2>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="sip_port">SIP Bind Port</label>
+                <input type="text" id="sip_port" class="form-control" value="5060" disabled>
+            </div>
+            <div class="form-group">
+                <label for="sip_transport">Default Transport</label>
+                <input type="text" id="sip_transport" class="form-control" value="transport-udp (UDP)" disabled>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="rtp_start">RTP Port Range</label>
+                <input type="text" id="rtp_start" class="form-control" value="10000 - 20000" disabled>
+            </div>
+        </div>
+
+        <div class="panel-header" style="margin-top: 2.5rem;">
+            <h2><i class="fa-solid fa-box-archive" style="color: var(--primary);"></i> System Backup</h2>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 2rem;">
+            <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 1rem;">Create backups of SQLite configuration metadata, dialplans, and PJSIP properties.</p>
+            <button type="button" class="btn btn-secondary" onclick="alert('Backup downloaded successfully.')">
+                <i class="fa-solid fa-download"></i> Create & Download Backup
+            </button>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Apply Changes</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

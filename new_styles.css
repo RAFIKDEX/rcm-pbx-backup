@@ -1,0 +1,164 @@
+<style>
+    /* Premium, non-bento box analytics design */
+    :root {
+        --bg-main: #fafafa;
+        --bg-panel: #ffffff;
+        --text-main: #111827;
+        --text-sub: #4b5563;
+        --border-color: #e5e7eb;
+        --primary: #000000;
+        --accent: #2563eb;
+        --success: #059669;
+        --danger: #dc2626;
+        --warning: #d97706;
+    }
+
+    body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .analytics-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    /* Clean typography */
+    h1, h2, h3 {
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin-bottom: 1rem;
+        color: var(--primary);
+    }
+
+    /* Minimal Panels */
+    .panel {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--border-color);
+        border-radius: 0;
+        padding: 2rem 0;
+        margin-bottom: 0;
+        box-shadow: none;
+    }
+    
+    .panel-header {
+        margin-bottom: 1.5rem;
+    }
+
+    /* Filters as a clean top bar */
+    .analytics-filter-panel {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* KPI Display (Inline, no boxes) */
+    .kpi-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3rem;
+        margin-bottom: 3rem;
+        padding-bottom: 2rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .kpi-card {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        min-width: 150px;
+    }
+
+    .kpi-title {
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-sub);
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: 300;
+        letter-spacing: -0.04em;
+        color: var(--primary);
+        line-height: 1;
+    }
+
+    /* Clean Tables */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    th {
+        text-align: left;
+        padding: 1rem 0.5rem;
+        border-bottom: 2px solid var(--primary);
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    td {
+        padding: 1rem 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-sub);
+    }
+
+    tr:hover td {
+        background-color: rgba(0,0,0,0.02);
+    }
+
+    /* Buttons */
+    .btn {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    .btn-primary:hover {
+        background: #374151;
+        border-color: #374151;
+    }
+    
+    /* Charts */
+    .chart-container {
+        position: relative;
+        height: 350px;
+        width: 100%;
+        margin-top: 1rem;
+    }
+</style>

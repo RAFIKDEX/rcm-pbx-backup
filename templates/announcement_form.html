@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if ann %}Edit Announcement - RCM 7021{% else %}Create Announcement - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if ann %}Edit Announcement ({{ ann.num }}){% else %}Create Announcement{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure playback audio prompt and next route destinations</div>
+    </div>
+    <div>
+        <a href="{{ url_for('announcement_list') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Announcements
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if ann %}{{ url_for('announcement_edit', num=ann.num) }}{% else %}{{ url_for('announcement_add') }}{% endif %}" method="POST" id="annForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="num">Announcement Number <span class="tooltip-container">!<span class="tooltip-text">A unique extension number between 8000 and 8199 to play this announcement.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="number" id="num" name="num" class="form-control" placeholder="e.g. 8000" min="8000" max="8199" required
+                       {% if ann %}value="{{ ann.num }}" readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+            </div>
+            <div class="form-group">
+                <label for="name">Announcement Name <span class="tooltip-container">!<span class="tooltip-text">Descriptive name for the announcement (alphanumeric, dashes, underscores).</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. holiday_greeting" required
+                       value="{% if ann %}{{ ann.name }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="prompt_id">Audio Prompt File <span class="tooltip-container">!<span class="tooltip-text">The audio prompt file played when this extension is called. Manage files in Media Center.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <select id="prompt_id" name="prompt_id" class="form-control" required>
+                    <option value="">-- Select Audio Prompt --</option>
+                    {% for p in prompts %}
+                    <option value="{{ p.id }}" {% if ann and ann.prompt_id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.type|upper }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label>Destination After Playback <span class="tooltip-container">!<span class="tooltip-text">Where to route the call after playing the audio prompt.</span></span></label>
+                <div id="ann-dest-selector"></div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('announcement_list') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Announcement</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        renderDestinationSelector(
+            "ann-dest-selector",
+            "dest_type",
+            "dest_val",
+            "{% if ann %}{{ ann.dest_type }}{% else %}hangup{% endif %}",
+            "{% if ann %}{{ ann.dest_val }}{% endif %}"
+        );
+    });
+</script>
+{% endblock %}

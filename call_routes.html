@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Call Routes - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Call Routing Engine</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Define how incoming and outgoing connections are directed through the gateway</div>
+    </div>
+</div>
+
+<!-- Outbound Routes Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-route" style="color: var(--primary);"></i> Outbound Dial Patterns</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Route Identifier</th>
+                    <th>Match Pattern</th>
+                    <th>Outbound CallerID Prepend</th>
+                    <th>Destination Trunk</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not outbound_routes %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No outbound routes parsed on the server.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for route in outbound_routes %}
+                <tr>
+                    <td><strong style="color: #fff;">{{ route.name }}</strong></td>
+                    <td><code>{{ route.pattern }}</code></td>
+                    <td>{{ route.cid }}</td>
+                    <td><span class="badge badge-registered"><i class="fa-solid fa-server"></i> {{ route.trunk }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Inbound Ring Groups Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-people-group" style="color: var(--status-ringing);"></i> Inbound Ring Groups</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Ring Group Ext</th>
+                    <th>Group Name</th>
+                    <th>Strategy</th>
+                    <th>Group Members</th>
+                    <th>Timeout (sec)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not ring_groups %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No ring groups parsed on the server.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for group in ring_groups %}
+                <tr>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">{{ group.ext }}</strong></td>
+                    <td>{{ group.name }}</td>
+                    <td><span style="text-transform: capitalize; color: var(--primary);">{{ group.strategy }}</span></td>
+                    <td><span style="font-size: 0.9rem; color: #fff;">{{ group.members }}</span></td>
+                    <td><code>{{ group.timeout }}</code>s</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

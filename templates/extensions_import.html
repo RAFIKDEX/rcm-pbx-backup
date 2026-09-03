@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Extensions - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Import Extensions</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Create extensions from the same CSV layout used by Export CSV</div>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{{ url_for('extensions_import_template') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-file-csv"></i> Download Template
+        </a>
+        <a href="{{ url_for('extensions') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="panel" style="max-width: 900px; margin-left: auto; margin-right: auto; padding: 2rem;">
+    {% if errors %}
+    <div style="border: 1px solid var(--status-offline); background: rgba(239, 68, 68, 0.08); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+        <div style="font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-triangle-exclamation" style="color: var(--status-offline);"></i> Import stopped
+        </div>
+        <ul style="margin: 0; padding-left: 1.25rem; color: var(--text-dark); line-height: 1.6;">
+            {% for error in errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form action="{{ url_for('extensions_import') }}" method="POST" enctype="multipart/form-data" onsubmit="showImportLoading()">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="import_file">Import File</label>
+            <input type="file" id="import_file" name="import_file" class="form-control" accept=".csv,.xlsx" required>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
+                Supported formats: CSV and XLSX. The import validates the full file first; if any row has a problem, nothing is created.
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <h3 style="color: var(--text-main); font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-table-columns" style="color: var(--primary);"></i> Required Columns
+            </h3>
+            <div class="table-responsive">
+                <table class="table" style="margin-bottom: 0;">
+                    <thead>
+                        <tr>
+                            {% for column in columns %}
+                            <th>{{ column }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>6100</td>
+                            <td>Reception</td>
+                            <td>6100</td>
+                            <td>3</td>
+                            <td>reception@example.com</td>
+                            <td>+201000000000</td>
+                            <td>Yes</td>
+                            <td>1234</td>
+                            <td>Abc@1234</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
+            Defaults applied for fields not included in the file: Enabled on, Max Expiration 120, Ring Time 60, Record Mode disabled, Direct Media off, NAT off, Codecs alaw/ulaw, Follow Me empty, Spy allowed.
+        </div>
+
+        <div class="form-actions" style="margin-top: 1.5rem;">
+            <a href="{{ url_for('extensions') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info" id="import-submit-btn">
+                <i class="fa-solid fa-file-arrow-up"></i> Import Extensions
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function showImportLoading() {
+        const btn = document.getElementById('import-submit-btn');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Importing...';
+    }
+</script>
+{% endblock %}

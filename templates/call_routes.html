@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+
+{% block title %}Call Routes - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    .route-priority-cell {
+        text-align: center;
+        min-width: 115px;
+    }
+
+    .route-priority-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 42px;
+        height: 34px;
+        border-radius: 8px;
+        background: rgba(14, 165, 233, 0.12);
+        color: var(--primary);
+        border: 1px solid rgba(14, 165, 233, 0.35);
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 800;
+        font-size: 0.9rem;
+    }
+
+    .route-priority-actions {
+        display: flex;
+        gap: 0.3rem;
+        justify-content: center;
+        margin-top: 0.35rem;
+    }
+
+    .route-priority-actions button {
+        min-width: 28px;
+        height: 24px;
+        padding: 0.1rem 0.3rem;
+    }
+
+    .route-priority-actions button:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Call Routing Engine</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Define how incoming and outgoing connections are directed through the gateway</div>
+    </div>
+    <div class="action-buttons" style="gap: 0.75rem;">
+        {% if has_permission('outbound_routes', 'export') %}
+        <a href="{{ url_for('outbound_routes_export') }}" class="btn btn-secondary" style="text-decoration: none;" title="Export outbound routes to Excel">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+        {% if can_create('outbound_routes') %}
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('outbound_routes_import') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+        {% endif %}
+        {% endif %}
+        {% if can_create('outbound_routes') %}
+        <a href="{{ url_for('outbound_route_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Outbound Route
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search & Limit Panel -->
+<div class="panel" style="padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 250px;">
+        <div style="color: var(--primary); font-size: 1.2rem;"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div style="flex: 1;">
+            <input type="text" id="outbound-search" class="form-control" 
+                   placeholder="Search outbound routes by name..." 
+                   onkeyup="loadOutboundRoutesTable(1)" style="border: none; background: transparent; padding-left: 0;">
+        </div>
+        <div id="search-count" style="font-size: 0.85rem; color: var(--text-dark); font-weight: bold;"></div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <label for="per_page" style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold;">Rows per page:</label>
+        <select id="per_page" onchange="loadOutboundRoutesTable(1)" class="form-control-inline" style="width: 80px; padding: 0.25rem 0.5rem; border-radius: 4px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+            <option value="10" selected>10</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+            <option value="70">70</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+</div>
+
+<!-- Outbound Routes Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-route" style="color: var(--primary);"></i> Outbound Dial Patterns (Priority-Based)</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 155px; text-align: center;">Order</th>
+                    <th>Route Identifier</th>
+                    <th>Match Pattern</th>
+                    <th>Prepend</th>
+                    <th>Trunk Sequence</th>
+                    {% if can_view('outbound_routes') or can_edit('outbound_routes') or can_delete('outbound_routes') %}
+                    <th style="width: 190px; text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody id="outbound-routes-tbody">
+                <tr>
+                    <td colspan="{{ 6 if (can_view('outbound_routes') or can_edit('outbound_routes') or can_delete('outbound_routes')) else 5 }}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                        Loading outbound routes...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="pagination-footer" class="form-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; display: flex; border-top: 1px solid var(--border-color)"></div>
+</div>
+
+<!-- Inbound Ring Groups Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-people-group" style="color: var(--status-ringing);"></i> Inbound Ring Groups</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Ring Group Ext</th>
+                    <th>Group Name</th>
+                    <th>Strategy</th>
+                    <th>Group Members</th>
+                    <th>Timeout (sec)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not ring_groups %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No ring groups parsed on the server.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for group in ring_groups %}
+                <tr>
+                    <td><strong style="color: var(--text-main); font-size: 1.05rem;">{{ group.ext }}</strong></td>
+                    <td>{{ group.name }}</td>
+                    <td><span style="text-transform: capitalize; color: var(--primary);">{{ group.strategy }}</span></td>
+                    <td><span style="font-size: 0.9rem; color: var(--text-main);">{{ group.members }}</span></td>
+                    <td><code>{{ group.timeout }}</code>s</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const OUTBOUND_CAN_VIEW = {{ 'true' if can_view('outbound_routes') else 'false' }};
+    const OUTBOUND_CAN_EDIT = {{ 'true' if can_edit('outbound_routes') else 'false' }};
+    const OUTBOUND_CAN_DELETE = {{ 'true' if can_delete('outbound_routes') else 'false' }};
+    let current_page = 1;
+    function loadOutboundRoutesTable(page = 1) {
+        current_page = page;
+        const limit = document.getElementById("per_page").value;
+        const q = document.getElementById("outbound-search").value.trim();
+        
+        const colspanVal = (OUTBOUND_CAN_VIEW || OUTBOUND_CAN_EDIT || OUTBOUND_CAN_DELETE) ? 6 : 5;
+        const tbody = document.getElementById("outbound-routes-tbody");
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="${colspanVal}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                    Loading outbound routes...
+                </td>
+            </tr>
+        `;
+        
+        fetch(`/api/outbound-routes-list?page=${page}&limit=${limit}&q=${encodeURIComponent(q)}`)
+            .then(res => res.json())
+            .then(data => {
+                tbody.innerHTML = "";
+                if (data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="${colspanVal}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                                <i class="fa-solid fa-route" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                                No outbound routes found.
+                            </td>
+                        </tr>
+                    `;
+                    updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadOutboundRoutesTable');
+                    return;
+                }
+                
+                data.data.forEach((route, idx) => {
+                    const tr = document.createElement("tr");
+                    
+                    const matchPattern = (route.prefix || "") + (route.match_pattern || route.pattern || "");
+                    const prepend = route.prepend || route.cid || '-';
+                    const loopIndex = (page - 1) * Number(limit) + idx + 1;
+                    const priorityValue = route.priority || loopIndex;
+                    const isFirst = (page === 1 && idx === 0);
+                    const isLast = (page === data.total_pages && idx === data.data.length - 1);
+                    
+                    let trunksBadge = "";
+                    if (route.trunks && route.trunks.length > 0) {
+                        route.trunks.forEach(t => {
+                            trunksBadge += `<span class="badge badge-registered" style="margin-right: 0.25rem;"><i class="fa-solid fa-server"></i> ${t}</span>`;
+                        });
+                    } else {
+                        trunksBadge = `<span class="badge badge-registered"><i class="fa-solid fa-server"></i> ${route.trunk || 'GSM'}</span>`;
+                    }
+                    
+                    const editName = route.name || (route.context ? route.context.replace('rcm-out-', '') : '');
+                    const encodedName = encodeURIComponent(editName);
+                    let priorityControls = `
+                        <div>
+                            <span class="route-priority-badge">#${priorityValue}</span>
+                    `;
+                    if (OUTBOUND_CAN_EDIT) {
+                        priorityControls += `
+                            <div class="route-priority-actions">
+                                <button type="button" class="btn btn-secondary btn-sm" title="Move route to top" onclick="moveOutboundRoute('${encodedName}', 'top')" ${isFirst ? 'disabled' : ''}>
+                                        <i class="fa-solid fa-angles-up"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" title="Move route up" onclick="moveOutboundRoute('${encodedName}', 'up')" ${isFirst ? 'disabled' : ''}>
+                                        <i class="fa-solid fa-chevron-up"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" title="Move route down" onclick="moveOutboundRoute('${encodedName}', 'down')" ${isLast ? 'disabled' : ''}>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" title="Move route to bottom" onclick="moveOutboundRoute('${encodedName}', 'bottom')" ${isLast ? 'disabled' : ''}>
+                                        <i class="fa-solid fa-angles-down"></i>
+                                </button>
+                            </div>
+                        `;
+                    }
+                    priorityControls += `</div>`;
+                    
+                    let actionsHtml = "";
+                    if (OUTBOUND_CAN_VIEW) {
+                        actionsHtml += `
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showNotification('Route details: ${route.name} (Prefix: ${route.prefix || '-'}, Pattern: ${route.match_pattern || route.pattern || '-'})', 'info')" title="View"><i class="fa-solid fa-eye"></i></button>
+                        `;
+                    }
+                    if (OUTBOUND_CAN_EDIT) {
+                        actionsHtml += `
+                            <a href="/call-routes/edit/${encodedName}" class="btn btn-secondary btn-sm" style="text-decoration: none;" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
+                            <a href="/call-routes/${encodedName}/dods" class="btn btn-info btn-sm" style="text-decoration: none;" title="DOD"><i class="fa-solid fa-id-card"></i> DOD</a>
+                        `;
+                    }
+                    if (OUTBOUND_CAN_DELETE) {
+                        actionsHtml += `
+                            <form action="/call-routes/delete/${encodedName}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this route?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        `;
+                    }
+                    
+                    let actionsCell = "";
+                    if (OUTBOUND_CAN_VIEW || OUTBOUND_CAN_EDIT || OUTBOUND_CAN_DELETE) {
+                        actionsCell = `
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                ${actionsHtml}
+                            </div>
+                        </td>`;
+                    }
+                    
+                    tr.innerHTML = `
+                        <td class="route-priority-cell">${priorityControls}</td>
+                        <td><strong style="color: var(--text-main);">${route.name}</strong></td>
+                        <td><code>${matchPattern}</code></td>
+                        <td>${prepend}</td>
+                        <td>${trunksBadge}</td>
+                        ${actionsCell}
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadOutboundRoutesTable');
+                if (q) {
+                    document.getElementById("search-count").innerText = `Found: ${data.total_rows} total`;
+                } else {
+                    document.getElementById("search-count").innerText = "";
+                }
+            })
+            .catch(err => console.error("Error loading outbound routes:", err));
+    }
+
+    function moveOutboundRoute(encodedName, direction) {
+        fetch(`/call-routes/priority/${encodedName}/${direction}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data) return;
+                if (!data.success) {
+                    alert(data.error || 'Failed to update route priority.');
+                    return;
+                }
+                loadOutboundRoutesTable(current_page);
+            })
+            .catch(err => {
+                console.error("Error updating outbound route priority:", err);
+                alert('Failed to update route priority.');
+            });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        loadOutboundRoutesTable(1);
+    });
+</script>
+{% endblock %}

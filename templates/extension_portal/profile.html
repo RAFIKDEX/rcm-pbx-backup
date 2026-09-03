@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="portal-page-header">
+    <div class="header-text">
+        <h1>Profile</h1>
+        <p>Account information and web security</p>
+    </div>
+</div>
+
+<div class="portal-grid profile-layout">
+    <section class="saas-table-container" style="background: var(--portal-panel); padding: 0;">
+        <div class="account-identity" style="padding: 1.5rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--portal-border); background: rgba(0,173,181,0.035);">
+            <div class="account-avatar" style="width: 52px; height: 52px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 12px; color: var(--portal-primary); background: rgba(0,173,181,0.12); border: 1px solid rgba(0,173,181,0.22); font-size: 1.25rem; font-weight: 800;">
+                {{ (extension.name or extension.ext)[0]|upper }}
+            </div>
+            <div>
+                <h2 style="margin: 0; color: var(--text-main); font-size: 1.05rem;">{{ extension.name or ('Extension ' ~ extension.ext) }}</h2>
+                <span style="color: var(--portal-muted); font-size: 0.75rem;">Extension User</span>
+            </div>
+        </div>
+        <div class="panel-body status-list" style="padding: 1.25rem;">
+            <div><span><i class="fa-solid fa-user-tag"></i> Web Username</span><strong>{{ user.username }}</strong></div>
+            <div><span><i class="fa-solid fa-phone"></i> Extension</span><strong>{{ extension.ext }}</strong></div>
+            <div><span><i class="fa-solid fa-envelope"></i> Email</span><strong>{{ extension.email or '-' }}</strong></div>
+            <div><span><i class="fa-solid fa-circle-check"></i> Account Status</span><strong class="inline-state enabled">Active</strong></div>
+        </div>
+    </section>
+
+    <section class="saas-table-container" style="padding-bottom: 0;">
+        <div class="panel-head" style="padding: 1.25rem; border-bottom: 1px solid var(--portal-border); display: flex; justify-content: space-between; align-items: center; background: var(--border-color);">
+            <h2 style="margin:0; font-size: 1.1rem; color: var(--text-main);"><i class="fa-solid fa-shield-halved" style="color: var(--portal-primary); margin-right: 8px;"></i> Web Security</h2>
+        </div>
+        <form method="post" autocomplete="off" style="margin: 0;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="padding: 1.5rem;">
+                <div class="form-group" style="margin-bottom: 1.25rem;"><label>Current Web Password</label><input class="modern-input" type="password" name="current_password" autocomplete="current-password" required></div>
+                <div class="form-group" style="margin-bottom: 1.25rem;"><label>New Web Password</label><input class="modern-input" type="password" name="new_password" autocomplete="new-password" minlength="8" required><div class="form-note">At least 8 characters with uppercase, lowercase, and numbers.</div></div>
+                <div class="form-group" style="margin-bottom: 1.25rem;"><label>Confirm New Web Password</label><input class="modern-input" type="password" name="confirm_password" autocomplete="new-password" minlength="8" required></div>
+                <div class="password-requirements" style="padding: 0.75rem 0.85rem; border: 1px solid rgba(59,130,246,0.18); border-radius: 9px; display: flex; align-items: flex-start; gap: 0.55rem; color: #93c5fd; background: rgba(59,130,246,0.07); font-size: 0.75rem;">
+                    <i class="fa-solid fa-circle-info" style="margin-top: 0.15rem;"></i><span>Use at least 8 characters with uppercase, lowercase, and numbers.</span>
+                </div>
+            </div>
+            <div style="padding: 1.25rem 1.5rem; border-top: 1px solid var(--portal-border); display: flex; justify-content: flex-end; gap: 0.75rem; background: rgba(0,0,0,0.2);">
+                <button class="btn-modern" type="submit"><i class="fa-solid fa-key"></i> Update Web Password</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

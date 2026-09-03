@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Survey List{% endblock %}
+
+{% block content %}
+<div class="q-studio">
+    <!-- Header Card -->
+    <div class="q-header-card">
+        <div>
+            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; background: linear-gradient(to right, #34d399, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fa-solid fa-square-poll-vertical" style="margin-right: 0.5rem;"></i>
+                Survey Management Studio
+            </h1>
+            <div style="color: #94a3b8; font-size: 0.95rem; margin-top: 0.4rem;">
+                Design, manage, and analyze post-call customer satisfaction surveys.
+            </div>
+        </div>
+        <a href="{{ url_for('survey_add') }}" class="q-btn q-btn-success" style="text-decoration: none; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Create New Survey
+        </a>
+    </div>
+
+    <!-- Survey Cards Grid -->
+    <div class="survey-grid">
+        {% for survey in surveys %}
+        <div class="survey-card">
+            <div class="survey-card-header">
+                <h3 class="survey-title"><i class="fa-solid fa-clipboard-question" style="color: #60a5fa;"></i> {{ survey.name }}</h3>
+                <span class="q-badge">{{ survey.questions|length }} Questions</span>
+            </div>
+            
+            <div class="survey-card-body">
+                <div class="survey-stat">
+                    <i class="fa-regular fa-calendar" style="color: #94a3b8;"></i> Created: {{ survey.created_at[:10] }}
+                </div>
+            </div>
+            
+            <div class="survey-card-footer">
+                <a href="{{ url_for('survey_report', survey_id=survey.id) }}" class="q-btn q-btn-secondary btn-sm" style="text-decoration: none;">
+                    <i class="fa-solid fa-chart-pie" style="color: #c084fc;"></i> Analytics
+                </a>
+                <a href="{{ url_for('survey_edit', survey_id=survey.id) }}" class="q-btn q-btn-secondary btn-sm" style="text-decoration: none;">
+                    <i class="fa-solid fa-pen-to-square" style="color: #fbbf24;"></i> Edit
+                </a>
+                <form action="{{ url_for('survey_delete', survey_id=survey.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Are you sure you want to delete this survey? All associated responses will also be removed.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="q-btn btn-sm btn-delete">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fa-solid fa-face-frown-open" style="font-size: 3rem; color: #475569; margin-bottom: 1rem;"></i>
+            <h3 style="margin: 0 0 0.5rem 0; color: #cbd5e1;">No Surveys Found</h3>
+            <p style="color: #64748b; margin-bottom: 1.5rem;">You haven't created any post-call surveys yet.</p>
+            <a href="{{ url_for('survey_add') }}" class="q-btn q-btn-success">
+                <i class="fa-solid fa-plus"></i> Create Your First Survey
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .q-studio {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding-bottom: 3rem;
+    }
+    .q-header-card {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .survey-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1.5rem;
+    }
+    .survey-card {
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+    }
+    .survey-card:hover {
+        transform: translateY(-5px);
+        border-color: rgba(59, 130, 246, 0.4);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.25), 0 0 15px rgba(59, 130, 246, 0.15);
+        background: rgba(30, 41, 59, 0.8);
+    }
+    .survey-card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        background: rgba(15, 23, 42, 0.4);
+    }
+    .survey-title {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #f8fafc;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .q-badge {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .survey-card-body {
+        padding: 1.5rem;
+        flex: 1;
+    }
+    .survey-stat {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .survey-card-footer {
+        padding: 1rem 1.5rem;
+        background: rgba(15, 23, 42, 0.6);
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    .empty-state {
+        grid-column: 1 / -1;
+        background: rgba(15, 23, 42, 0.4);
+        border: 2px dashed rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 4rem 2rem;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .q-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background: var(--q-primary, #3b82f6);
+        color: #fff;
+        border: none;
+        padding: 0.65rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .q-btn:hover { background: #2563eb; transform: translateY(-1px); }
+    .q-btn-success { background: #10b981; }
+    .q-btn-success:hover { background: #059669; }
+    .q-btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); color: #e2e8f0; }
+    .q-btn-secondary:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 8px; flex: 1; }
+    .btn-delete {
+        background: transparent;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #fca5a5;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+    }
+    .btn-delete:hover {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+</style>
+{% endblock %}

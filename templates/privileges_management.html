@@ -1,0 +1,1415 @@
+{% extends 'base.html' %}
+
+{% block title %}Privileges & Access Control - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    /* Modern UI/UX Variables & Design Tokens */
+    :root {
+        --pm-primary: #00adb5;
+        --pm-primary-glow: rgba(0, 173, 181, 0.25);
+        --pm-accent: #38bdf8;
+        --pm-bg-card: rgba(15, 23, 42, 0.78);
+        --pm-bg-header: rgba(30, 41, 59, 0.65);
+        --pm-border: rgba(255, 255, 255, 0.08);
+        --pm-border-hover: rgba(56, 189, 248, 0.4);
+        --pm-text-muted: #94a3b8;
+    }
+
+    .pm-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        animation: fadeInPage 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeInPage {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Top Hero Toolbar */
+    .pm-toolbar {
+        background: var(--pm-bg-card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--pm-border);
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .pm-toolbar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #f59e0b, var(--pm-primary));
+    }
+
+    .pm-title {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .pm-title h1 {
+        margin: 0;
+        color: var(--text-main);
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .pm-title h1 i {
+        color: #f59e0b;
+        filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.3));
+    }
+
+    .pm-title p {
+        margin: 0;
+        color: var(--pm-text-muted);
+        font-size: 0.92rem;
+    }
+
+    .pm-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    /* Stat Cards Grid */
+    .pm-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+
+    .pm-stat {
+        background: var(--pm-bg-card);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--pm-border);
+        border-radius: 12px;
+        padding: 1.1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    }
+
+    .pm-stat:hover {
+        transform: translateY(-3px);
+        border-color: var(--pm-border-hover);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .pm-stat-info span {
+        display: block;
+        color: var(--pm-text-muted);
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    .pm-stat-info strong {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--text-main);
+        font-size: 1.65rem;
+        font-weight: 850;
+        line-height: 1.1;
+    }
+
+    .pm-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+    }
+
+    .pm-stat-icon.total { background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
+    .pm-stat-icon.system { background: rgba(245, 158, 11, 0.14); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); }
+    .pm-stat-icon.custom { background: rgba(0, 173, 181, 0.14); color: #00adb5; border: 1px solid rgba(0, 173, 181, 0.25); }
+    .pm-stat-icon.assigned { background: rgba(16, 185, 129, 0.14); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); }
+
+    /* Main Table Panel */
+    .pm-panel {
+        background: var(--pm-bg-card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--pm-border);
+        border-radius: 14px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+    }
+
+    .pm-filters {
+        padding: 1.15rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        background: var(--bg-dark);
+        border-bottom: 1px solid var(--pm-border);
+    }
+
+    .pm-search {
+        min-width: 280px;
+        flex: 1;
+    }
+
+    .pm-control {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        border-radius: 8px;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.9rem;
+        min-height: 40px;
+        transition: all 0.2s ease;
+    }
+
+    .pm-control:focus {
+        outline: none;
+        border-color: var(--pm-primary);
+        box-shadow: 0 0 0 3px var(--pm-primary-glow);
+        background: var(--bg-dark);
+    }
+
+    .pm-control option {
+        background: var(--bg-dark);
+        color: var(--text-main);
+    }
+
+    /* Table Styling */
+    .pm-table-wrap {
+        overflow-x: auto;
+    }
+
+    .pm-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 820px;
+    }
+
+    .pm-table th {
+        text-align: left;
+        color: var(--pm-text-muted);
+        font-size: 0.76rem;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        padding: 0.95rem 1.25rem;
+        background: var(--bg-dark);
+        border-bottom: 1px solid var(--pm-border);
+    }
+
+    .pm-table td {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        color: #e2e8f0;
+        vertical-align: middle;
+        transition: background 0.15s ease;
+    }
+
+    .pm-table tr:hover td {
+        background: rgba(56, 189, 248, 0.055);
+    }
+
+    .pm-main {
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 0.98rem;
+    }
+
+    .pm-sub {
+        color: var(--pm-text-muted);
+        font-size: 0.78rem;
+        margin-top: 0.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    /* Badges */
+    .pm-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        padding: 0.28rem 0.68rem;
+        font-size: 0.74rem;
+        font-weight: 750;
+        letter-spacing: 0.3px;
+        border: 1px solid transparent;
+    }
+
+    .pm-badge.system { color: #fde68a; background: rgba(245, 158, 11, 0.16); border-color: rgba(245, 158, 11, 0.35); }
+    .pm-badge.custom { color: #86efac; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); }
+    .pm-badge.users-badge { color: #38bdf8; background: rgba(56, 189, 248, 0.14); border-color: rgba(56, 189, 248, 0.3); }
+
+    /* Action Buttons Row */
+    .pm-row-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .pm-icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: var(--panel-dark);
+        color: #cbd5e1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        font-size: 0.9rem;
+    }
+
+    .pm-icon-btn:hover:not([disabled]) {
+        border-color: var(--pm-accent);
+        color: var(--text-main);
+        background: rgba(56, 189, 248, 0.18);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(56, 189, 248, 0.2);
+    }
+
+    .pm-icon-btn.danger:hover:not([disabled]) {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.2);
+        color: #fee2e2;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);
+    }
+
+    .pm-icon-btn.good:hover:not([disabled]) {
+        border-color: #10b981;
+        background: rgba(16, 185, 129, 0.2);
+        color: #d1fae5;
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+    }
+
+    .pm-icon-btn[disabled] {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .pm-footer {
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        background: var(--bg-dark);
+        border-top: 1px solid var(--pm-border);
+    }
+
+    /* Modals System */
+    .pm-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10045;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-dark);
+        backdrop-filter: blur(8px);
+        padding: 1rem;
+        animation: fadeInModal 0.2s ease-out;
+    }
+
+    @keyframes fadeInModal {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .pm-modal-card {
+        width: min(980px, 97vw);
+        max-height: 92vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.7);
+        animation: scaleUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes scaleUpModal {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .pm-modal-card > form {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pm-modal-head, .pm-modal-foot {
+        padding: 1.15rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border-bottom: 1px solid var(--pm-border);
+        background: var(--panel-dark);
+        flex: 0 0 auto;
+    }
+
+    .pm-modal-foot {
+        border-top: 1px solid var(--pm-border);
+        border-bottom: 0;
+        justify-content: flex-end;
+        background: var(--bg-dark);
+    }
+
+    .pm-modal-body {
+        padding: 1.5rem;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .pm-alert {
+        display: none;
+        padding: 0.9rem 1rem;
+        margin-bottom: 1.1rem;
+        color: #fecaca;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+
+    .pm-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.1rem;
+    }
+
+    .pm-field label {
+        display: block;
+        color: var(--text-main);
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+    }
+
+    /* Tabs Bar */
+    .pm-tabs {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin: 1.25rem 0 1rem;
+        padding: 0.35rem;
+        background: var(--bg-dark);
+        border: 1px solid var(--pm-border);
+        border-radius: 10px;
+        width: fit-content;
+    }
+
+    .pm-tab {
+        border: 1px solid transparent;
+        background: transparent;
+        color: #cbd5e1;
+        border-radius: 7px;
+        padding: 0.55rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .pm-tab:hover {
+        color: var(--text-main);
+        background: var(--border-color);
+    }
+
+    .pm-tab.active {
+        background: var(--pm-primary);
+        color: var(--text-main);
+        border-color: var(--pm-primary);
+        font-weight: 800;
+        box-shadow: 0 4px 12px rgba(0, 173, 181, 0.35);
+    }
+
+    .pm-tab-badge {
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--text-main);
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+    }
+
+    /* Permission Matrix Sections */
+    .pm-section {
+        border: 1px solid var(--pm-border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        background: var(--bg-dark);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    }
+
+    .pm-section-head {
+        padding: 0.85rem 1.1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--panel-dark);
+        border-bottom: 1px solid var(--pm-border);
+    }
+
+    .pm-module {
+        padding: 0.9rem 1.1rem;
+        border-top: 1px solid var(--border-color);
+        transition: background 0.15s ease;
+    }
+
+    .pm-module:first-of-type {
+        border-top: none;
+    }
+
+    .pm-module:hover {
+        background: rgba(56, 189, 248, 0.04);
+    }
+
+    .pm-module-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 0.65rem;
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 0.92rem;
+    }
+
+    .pm-checks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* Interactive Permission Pills (:has / .checked) */
+    .pm-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 8px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        color: #cbd5e1;
+        font-size: 0.82rem;
+        font-weight: 500;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .pm-check:hover:not([disabled]) {
+        border-color: rgba(56, 189, 248, 0.5);
+        color: var(--text-main);
+        background: rgba(56, 189, 248, 0.08);
+    }
+
+    .pm-check:has(input:checked), .pm-check.checked {
+        background: linear-gradient(135deg, rgba(0, 173, 181, 0.25), rgba(14, 165, 233, 0.2));
+        border-color: var(--pm-primary);
+        color: var(--text-main);
+        font-weight: 700;
+        box-shadow: 0 0 12px rgba(0, 173, 181, 0.25);
+        transform: translateY(-1px);
+    }
+
+    .pm-check input[type="checkbox"] {
+        accent-color: var(--pm-primary);
+        width: 15px;
+        height: 15px;
+        cursor: pointer;
+    }
+
+    /* Scopes Cards */
+    .pm-scope-card {
+        padding: 1.1rem;
+        border: 1px solid var(--pm-border);
+        border-radius: 12px;
+        background: var(--bg-dark);
+        margin-bottom: 0.85rem;
+    }
+
+    .pm-scope-items {
+        display: none;
+        margin-top: 0.85rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--pm-border);
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .reporting-scope-groups {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 0.85rem;
+        margin-top: 1rem;
+    }
+
+    .reporting-scope-group {
+        padding: 0.75rem;
+        border: 1px solid var(--pm-border);
+        border-radius: 10px;
+        background: var(--bg-dark);
+        min-width: 0;
+    }
+
+    .reporting-scope-group-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-main);
+        font-size: 0.86rem;
+    }
+
+    .reporting-scope-group-head .pm-check,
+    .reporting-all-data {
+        padding: 0.25rem 0.45rem;
+        font-size: 0.74rem;
+        white-space: nowrap;
+    }
+
+    .reporting-scope-search {
+        width: 100%;
+        margin-top: 0.6rem;
+        min-height: 34px;
+        font-size: 0.8rem;
+    }
+
+    .reporting-scope-options {
+        max-height: 190px;
+        overflow: auto;
+        display: flex;
+    }
+
+    .reporting-scope-options .pm-check {
+        font-size: 0.78rem;
+        min-width: 100%;
+    }
+
+    .reporting-effective-preview {
+        margin-top: 0.9rem;
+        padding: 0.75rem 0.85rem;
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        border-radius: 9px;
+        background: rgba(14, 165, 233, 0.06);
+        color: #cbd5e1;
+        font-size: 0.8rem;
+    }
+
+    .reporting-effective-preview strong {
+        color: var(--text-main);
+        display: block;
+        margin-bottom: 0.35rem;
+    }
+
+    .reporting-preview-body {
+        line-height: 1.55;
+    }
+
+    @media (max-width: 850px) {
+        .pm-stats, .pm-grid { grid-template-columns: 1fr; }
+        .pm-toolbar { align-items: stretch; }
+    }
+</style>
+
+{% set system_count = privileges|selectattr('system_key')|list|length %}
+{% set custom_count = privileges|rejectattr('system_key')|list|length %}
+{% set assigned_count = privileges|map(attribute='user_count')|map('int')|sum if privileges else 0 %}
+
+<div class="pm-page">
+    <div class="pm-toolbar">
+        <div class="pm-title">
+            <h1><i class="fa-solid fa-user-shield"></i> Privileges & Access Control</h1>
+            <p>Define role-based permission matrixes and granular access scopes for PBX modules.</p>
+        </div>
+        <div class="pm-actions">
+            {% if can_view('privileges') %}
+            <a class="btn btn-secondary" href="{{ url_for('privileges_export_json') }}" title="Export roles as JSON specification">
+                <i class="fa-solid fa-file-code"></i> Export JSON
+            </a>
+            <a class="btn btn-secondary" href="{{ url_for('privileges_export_csv') }}" title="Export roles as CSV summary">
+                <i class="fa-solid fa-file-csv"></i> Export CSV
+            </a>
+            {% endif %}
+            {% if can_create('privileges') %}
+            <button class="btn btn-info" type="button" id="addPrivilegeBtn" style="box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);" title="Create a new access privilege role">
+                <i class="fa-solid fa-key"></i> Add Privilege
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="pm-stats">
+        <div class="pm-stat">
+            <div class="pm-stat-info">
+                <span>Total Privileges</span>
+                <strong>{{ total }}</strong>
+            </div>
+            <div class="pm-stat-icon total"><i class="fa-solid fa-key"></i></div>
+        </div>
+        <div class="pm-stat">
+            <div class="pm-stat-info">
+                <span>Built-In Roles</span>
+                <strong>{{ system_count }}</strong>
+            </div>
+            <div class="pm-stat-icon system"><i class="fa-solid fa-lock"></i></div>
+        </div>
+        <div class="pm-stat">
+            <div class="pm-stat-info">
+                <span>Custom Roles</span>
+                <strong>{{ custom_count }}</strong>
+            </div>
+            <div class="pm-stat-icon custom"><i class="fa-solid fa-sliders"></i></div>
+        </div>
+        <div class="pm-stat">
+            <div class="pm-stat-info">
+                <span>Assigned Accounts</span>
+                <strong>{{ assigned_count }}</strong>
+            </div>
+            <div class="pm-stat-icon assigned"><i class="fa-solid fa-users-gear"></i></div>
+        </div>
+    </div>
+
+    <div class="pm-panel">
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('privileges_list') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+
+        <div class="pm-table-wrap">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th>Privilege Role Name</th>
+                        <th>Role Description</th>
+                        <th>Assigned Users</th>
+                        <th style="text-align: right;">Options</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in privileges %}
+                    <tr>
+                        <td>
+                            <div class="pm-main" style="display: flex; align-items: center; gap: 0.6rem;">
+                                <i class="fa-solid {% if p.system_key %}fa-shield-halved{% else %}fa-id-badge{% endif %}" style="color: {% if p.system_key %}#f59e0b{% else %}var(--pm-primary){% endif %};"></i>
+                                <span>{{ p.name }}</span>
+                            </div>
+                            <div class="pm-sub">
+                                {% if p.system_key %}
+                                <span class="pm-badge system"><i class="fa-solid fa-lock"></i> Built-In System Role</span>
+                                {% else %}
+                                <span class="pm-badge custom"><i class="fa-solid fa-user-gear"></i> Custom Access Role</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>{{ p.description or '-' }}</td>
+                        <td>
+                            <span class="pm-badge users-badge" title="{{ p.user_count or 0 }} accounts assigned">
+                                <i class="fa-solid fa-users"></i> <strong>{{ p.user_count or 0 }}</strong> accounts
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="pm-row-actions" style="justify-content: flex-end;">
+                                {% if can_view('privileges') %}
+                                <button class="pm-icon-btn privilege-open-btn" type="button" title="View" aria-label="View role permissions" data-readonly="true" data-priv-id="{{ p.id }}" data-priv-name="{{ p.name|e }}"><i class="fa-solid fa-eye"></i></button>
+                                {% endif %}
+                                {% if can_edit('privileges') and p.system_key != 'super_admin' %}
+                                <button class="pm-icon-btn privilege-open-btn" type="button" title="Edit Role Permissions" aria-label="Edit role permissions" data-readonly="false" data-priv-id="{{ p.id }}" data-priv-name="{{ p.name|e }}"><i class="fa-solid fa-pen-to-square"></i></button>
+                                {% endif %}
+                                {% if has_permission('privileges', 'duplicate') %}
+                                <button class="pm-icon-btn good privilege-duplicate-btn" type="button" title="Duplicate Privilege Role" data-priv-id="{{ p.id }}" data-priv-name="{{ p.name|e }}"><i class="fa-solid fa-copy"></i></button>
+                                {% endif %}
+                                {% if not p.system_key and p.name not in ['Super Admin', 'Supervisor', 'Agent'] %}
+                                    {% if can_delete('privileges') %}
+                                    <button class="pm-icon-btn danger privilege-delete-btn" type="button" title="Delete Privilege Role" data-priv-id="{{ p.id }}" data-priv-name="{{ p.name|e }}"><i class="fa-solid fa-trash"></i></button>
+                                    {% endif %}
+                                {% else %}
+                                <button class="pm-icon-btn" type="button" disabled title="Protected Built-In System Role"><i class="fa-solid fa-lock"></i></button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align:center; padding: 3.5rem 1rem; color: var(--pm-text-muted);">
+                            <div style="font-size: 2.2rem; margin-bottom: 0.5rem; color: rgba(255,255,255,0.2);"><i class="fa-solid fa-shield-slash"></i></div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1;">No privileges found</div>
+                            <p style="margin-top: 0.25rem; font-size: 0.88rem;">Try adjusting your search query or add a new role.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pm-footer">
+            <span style="color:var(--pm-text-muted); font-size: 0.88rem;">
+                Page {{ page }} of {{ total_pages }} &bull; Total {{ total }} privilege roles
+            </span>
+            <div class="pm-actions">
+                {% if page > 1 %}
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('privileges_list', page=page-1, search=search, per_page=per_page) }}"><i class="fa-solid fa-chevron-left"></i> Previous</a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('privileges_list', page=page+1, search=search, per_page=per_page) }}">Next <i class="fa-solid fa-chevron-right"></i></a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="privilegeModal" class="pm-modal" role="dialog" aria-modal="true" aria-labelledby="privilegeModalTitle">
+    <div class="pm-modal-card">
+        <form id="privilegeForm" method="POST" action="{{ url_for('privilege_save') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="pm-modal-head">
+                <div>
+                    <h2 id="privilegeModalTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Add Privilege Role</h2>
+                    <div class="pm-sub">Configure granular access permissions and operational scopes across PBX modules.</div>
+                </div>
+                <button class="pm-icon-btn" type="button" aria-label="Close" onclick="closeModal('privilegeModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="pm-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="privilege_id" id="modal_privilege_id" value="">
+                <div id="privilege_validation_alert" class="pm-alert"></div>
+                
+                <div class="pm-grid" style="grid-template-columns: 1fr 2fr;">
+                    <div class="pm-field">
+                        <label>Privilege Role Name *</label>
+                        <input class="pm-control" style="width:100%;" name="name" id="modal_name" placeholder="e.g. Billing Admin" required>
+                    </div>
+                    <div class="pm-field">
+                        <label>Description</label>
+                        <input class="pm-control" style="width:100%;" name="description" id="modal_description" placeholder="Briefly describe what this role allows...">
+                    </div>
+                </div>
+
+                <div class="pm-tabs">
+                    <button class="pm-tab active" id="tabPermissionsBtn" type="button" onclick="switchTab('permissions')">
+                        <i class="fa-solid fa-list-check"></i> Permissions <span id="permCountBadge" class="pm-tab-badge">0 checked</span>
+                    </button>
+                    <button class="pm-tab" id="tabScopesBtn" type="button" onclick="switchTab('scopes')">
+                        <i class="fa-solid fa-filter"></i> Data Scopes
+                    </button>
+                </div>
+
+                <div id="permissionsTab">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; background: var(--panel-dark); padding:0.75rem 1rem; border-radius:10px; border:1px solid var(--pm-border);">
+                        <div style="flex: 1; min-width: 250px;">
+                            <input class="pm-control" type="text" id="permMatrixSearch" placeholder="🔍 Filter modules or permissions (e.g. queue, trunk, delete)..." style="width:100%; padding:0.5rem 0.8rem; font-size:0.86rem;" oninput="filterPermissionsMatrix(this.value)">
+                        </div>
+                        <div class="pm-actions">
+                            <button class="btn btn-secondary btn-sm" type="button" onclick="toggleAllPermissions(true)"><i class="fa-solid fa-check-double"></i> Select All</button>
+                            <button class="btn btn-secondary btn-sm" type="button" onclick="toggleAllPermissions(false)"><i class="fa-solid fa-rotate-left"></i> Clear All</button>
+                        </div>
+                    </div>
+
+                    <div id="permSectionsContainer">
+                        {% for section_name, section_modules in grouped_permissions %}
+                        {% set section_id = section_name|replace(' ', '_') %}
+                        <div class="pm-section perm-section-block" data-section-name="{{ section_name|lower }}">
+                            <div class="pm-section-head">
+                                <strong style="color: var(--text-main); font-size: 0.98rem;"><i class="fa-solid fa-folder-tree" style="color:var(--pm-primary); margin-right:0.4rem;"></i> {{ section_name }}</strong>
+                                <div class="pm-actions">
+                                    <button class="btn btn-secondary btn-sm" type="button" onclick="toggleSection('{{ section_id }}', true)">Select Section</button>
+                                    <button class="btn btn-secondary btn-sm" type="button" onclick="toggleSection('{{ section_id }}', false)">Clear</button>
+                                </div>
+                            </div>
+                            {% for module_name, actions in section_modules %}
+                            <div class="pm-module perm-module-row" data-module-name="{{ module_name|lower }}" data-module-title="{{ module_name.replace('_', ' ')|title|lower }}">
+                                <div class="pm-module-title">
+                                    <span style="display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-cube" style="color:#38bdf8; font-size:0.82rem;"></i> {{ module_name.replace('_', ' ')|title }}</span>
+                                    <button class="btn btn-secondary btn-sm" type="button" onclick="toggleModule('{{ module_name }}')" title="Toggle all actions for {{ module_name.replace('_', ' ')|title }}">Toggle Row</button>
+                                </div>
+                                <div class="pm-checks">
+                                    {% for act, desc in actions %}
+                                    <label class="pm-check perm-label" title="{{ desc }}" data-action-name="{{ act|lower }}">
+                                        <input class="perm-cb perm-section-{{ section_id }} perm-module-{{ module_name }}" type="checkbox" name="perm_{{ module_name }}:{{ act }}" data-module="{{ module_name }}" data-action="{{ act }}" onchange="handlePermChange(this)">
+                                        {{ act|replace('_', ' ')|title }}
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div id="scopesTab" style="display:none;">
+                    <div style="padding: 0.85rem 1.1rem; background: var(--panel-dark); border: 1px solid var(--pm-border); border-radius: 10px; margin-bottom: 1rem; display:flex; align-items:center; gap:0.75rem;">
+                        <i class="fa-solid fa-chart-line fa-lg" style="color: var(--pm-primary);"></i>
+                        <p class="pm-sub" style="margin:0; font-size:0.86rem; color:#cbd5e1;">Reporting Data Scope controls which CDR, recording, Queue Live, and Queue Statistics data this role can access.</p>
+                    </div>
+                    {% for st in available_scopes %}
+                    <div class="pm-scope-card reporting-scope-card" data-scope-type="{{ st.id }}">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                            <div>
+                                <strong style="color: var(--text-main); font-size:0.96rem;"><i class="fa-solid fa-layer-group" style="color:#38bdf8; margin-right:0.4rem;"></i> {{ st.name }}</strong>
+                                <span class="pm-sub" style="margin-top:0.1rem;">{{ st.description }}</span>
+                            </div>
+                            <label class="pm-check reporting-all-data">
+                                <input type="checkbox" name="scope_all_data_{{ st.id }}" value="1" class="reporting-all-data-cb" onchange="handleReportingScopeChange('{{ st.id }}')">
+                                <i class="fa-solid fa-globe"></i> All Data
+                            </label>
+                        </div>
+                        <div id="scope_groups_{{ st.id }}" class="reporting-scope-groups">
+                            {% for group in st.groups %}
+                            <div class="reporting-scope-group" data-group="{{ group }}">
+                                <div class="reporting-scope-group-head">
+                                    <strong>{{ group.replace('_', ' ')|title }}</strong>
+                                    <label class="pm-check reporting-all-group">
+                                        <input type="checkbox" name="scope_all_{{ group }}_{{ st.id }}" value="1" class="reporting-all-group-cb" onchange="handleReportingScopeChange('{{ st.id }}')">
+                                        All {{ group.replace('_', ' ')|title }}
+                                    </label>
+                                </div>
+                                <input type="search" class="pm-control reporting-scope-search" placeholder="Search {{ group.replace('_', ' ')|title }}..." oninput="filterReportingScopeOptions(this)">
+                                <div id="scope_options_{{ st.id }}_{{ group }}" class="pm-scope-items reporting-scope-options">Loading options...</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div id="scope_preview_{{ st.id }}" class="reporting-effective-preview">
+                            <strong><i class="fa-solid fa-eye"></i> Effective Access</strong>
+                            <div class="reporting-preview-body">Select data above to preview effective extensions.</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="pm-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('privilegeModal')">Close</button>
+                <button id="savePrivilegeBtn" class="btn btn-info" type="submit" style="box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);"><i class="fa-solid fa-floppy-disk"></i> Save Privilege Role</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="duplicatePrivilegeModal" class="pm-modal" role="dialog" aria-modal="true" aria-labelledby="duplicatePrivilegeTitle">
+    <div class="pm-modal-card" style="width:min(520px,96vw);">
+        <form id="duplicatePrivilegeForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="pm-modal-head">
+                <h2 id="duplicatePrivilegeTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;"><i class="fa-solid fa-copy" style="color:#10b981;"></i> Duplicate Privilege Role</h2>
+                <button type="button" class="pm-icon-btn" aria-label="Close" onclick="closeModal('duplicatePrivilegeModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="pm-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p class="pm-sub" style="font-size:0.9rem;">Source Role: <strong id="dup_source_name" style="color: var(--text-main);"></strong></p>
+                <div class="pm-field" style="margin-top:0.85rem;">
+                    <label>New Role Name *</label>
+                    <input class="pm-control" style="width:100%;" name="new_name" id="new_privilege_name" required>
+                </div>
+            </div>
+            <div class="pm-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('duplicatePrivilegeModal')">Cancel</button>
+                <button class="btn btn-info" type="submit">Duplicate Role</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="deletePrivilegeModal" class="pm-modal" role="dialog" aria-modal="true" aria-labelledby="deletePrivilegeTitle">
+    <div class="pm-modal-card" style="width:min(520px,96vw);">
+        <form id="deletePrivilegeForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="pm-modal-head">
+                <h2 id="deletePrivilegeTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;"><i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i> Delete Privilege Role</h2>
+                <button type="button" class="pm-icon-btn" aria-label="Close" onclick="closeModal('deletePrivilegeModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="pm-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p style="color: #cbd5e1; font-size: 0.96rem; line-height: 1.5;">Are you sure you want to permanently delete role <strong id="delete_priv_name_display" style="color: var(--text-main);"></strong>?</p>
+                <p style="color: #fca5a5; font-size: 0.85rem; margin-top: 0.5rem; background: rgba(239,68,68,0.12); padding: 0.7rem; border-radius: 8px; border: 1px solid rgba(239,68,68,0.25);">
+                    <i class="fa-solid fa-circle-exclamation"></i> Note: Roles currently assigned to active user accounts are protected by the server and cannot be deleted until users are reassigned.
+                </p>
+            </div>
+            <div class="pm-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('deletePrivilegeModal')">Cancel</button>
+                <button class="btn btn-danger" type="submit">Delete Role</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const privilegeFormState = {{ form_state|tojson if form_state else 'null' }};
+const scopeDefinitions = {{ available_scopes|tojson }};
+const scopeIds = scopeDefinitions.map(scope => scope.id);
+const loadedScopeOptions = {};
+const selectedReportingScopes = {};
+let previousModalFocus = null;
+let privilegeReadOnly = false;
+
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    previousModalFocus = document.activeElement;
+    modal.style.display = 'flex';
+    const focusTarget = modal.querySelector('input:not([type="hidden"]), button:not([disabled])');
+    if (focusTarget) window.setTimeout(() => focusTarget.focus(), 0);
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.style.display = 'none';
+    if (previousModalFocus && typeof previousModalFocus.focus === 'function') previousModalFocus.focus();
+}
+
+function showPrivilegeError(message) {
+    const alertBox = document.getElementById('privilege_validation_alert');
+    if (alertBox) {
+        alertBox.innerHTML = message ? `<i class="fa-solid fa-triangle-exclamation"></i> <span>${message}</span>` : '';
+        alertBox.style.display = message ? 'flex' : 'none';
+    }
+}
+
+function setPrivilegeReadOnly(readOnly) {
+    privilegeReadOnly = readOnly;
+    document.getElementById('modal_name').readOnly = readOnly;
+    document.getElementById('modal_description').readOnly = readOnly;
+    document.querySelectorAll('#permissionsTab input, #scopesTab input').forEach(input => input.disabled = readOnly);
+    document.querySelectorAll('#permissionsTab button').forEach(button => button.disabled = readOnly);
+    document.getElementById('savePrivilegeBtn').style.display = readOnly ? 'none' : 'inline-flex';
+}
+
+function switchTab(tab) {
+    document.getElementById('permissionsTab').style.display = tab === 'permissions' ? 'block' : 'none';
+    document.getElementById('scopesTab').style.display = tab === 'scopes' ? 'block' : 'none';
+    document.getElementById('tabPermissionsBtn').classList.toggle('active', tab === 'permissions');
+    document.getElementById('tabScopesBtn').classList.toggle('active', tab === 'scopes');
+}
+
+function syncPermVisuals() {
+    let checkedCount = 0;
+    document.querySelectorAll('.perm-cb').forEach(cb => {
+        const label = cb.closest('.pm-check');
+        if (cb.checked) {
+            checkedCount++;
+            if (label) label.classList.add('checked');
+        } else {
+            if (label) label.classList.remove('checked');
+        }
+    });
+    const badge = document.getElementById('permCountBadge');
+    if (badge) badge.textContent = `${checkedCount} checked`;
+}
+
+function filterPermissionsMatrix(query) {
+    const q = (query || '').toLowerCase().trim();
+    const sections = document.querySelectorAll('.perm-section-block');
+    
+    sections.forEach(sec => {
+        const secName = sec.dataset.sectionName || '';
+        const modules = sec.querySelectorAll('.perm-module-row');
+        let anyVisibleInSection = false;
+        
+        modules.forEach(mod => {
+            const modName = mod.dataset.moduleName || '';
+            const modTitle = mod.dataset.moduleTitle || '';
+            const labels = mod.querySelectorAll('.perm-label');
+            let anyActionMatch = false;
+            
+            if (!q || secName.includes(q) || modName.includes(q) || modTitle.includes(q)) {
+                anyActionMatch = true;
+            } else {
+                labels.forEach(lbl => {
+                    const actName = lbl.dataset.actionName || '';
+                    if (actName.includes(q)) anyActionMatch = true;
+                });
+            }
+            
+            if (anyActionMatch) {
+                mod.style.display = 'block';
+                anyVisibleInSection = true;
+            } else {
+                mod.style.display = 'none';
+            }
+        });
+        
+        sec.style.display = anyVisibleInSection ? 'block' : 'none';
+    });
+}
+
+function toggleAllPermissions(select) {
+    document.querySelectorAll('.perm-cb').forEach(cb => {
+        cb.checked = select;
+        handlePermChange(cb, false);
+    });
+    syncPermVisuals();
+}
+
+function toggleSection(section, select) {
+    document.querySelectorAll('.perm-section-' + section).forEach(cb => {
+        cb.checked = select;
+        handlePermChange(cb, false);
+    });
+    syncPermVisuals();
+}
+
+function toggleModule(module) {
+    const cbs = document.querySelectorAll('.perm-module-' + module);
+    const select = Array.from(cbs).some(cb => !cb.checked);
+    cbs.forEach(cb => {
+        cb.checked = select;
+        handlePermChange(cb, false);
+    });
+    syncPermVisuals();
+}
+
+function handlePermChange(cb, runSync = true) {
+    const mod = cb.dataset.module;
+    const act = cb.dataset.action;
+    // CRUD actions are independent.  Create/Edit/Delete grant module page
+    // access at runtime, but do not silently select or clear View.
+    if (runSync) syncPermVisuals();
+}
+
+function openAddPrivilegeModal() {
+    showPrivilegeError('');
+    setPrivilegeReadOnly(false);
+    document.getElementById('privilegeModalTitle').textContent = 'Add Privilege Role';
+    document.getElementById('modal_privilege_id').value = '';
+    document.getElementById('modal_name').value = '';
+    document.getElementById('modal_description').value = '';
+    document.getElementById('permMatrixSearch').value = '';
+    filterPermissionsMatrix('');
+    toggleAllPermissions(false);
+    resetReportingScopes();
+    switchTab('permissions');
+    openModal('privilegeModal');
+}
+
+async function openEditPrivilegeModal(id, name, readOnly = false) {
+    showPrivilegeError('Loading role permissions...');
+    setPrivilegeReadOnly(readOnly);
+    document.getElementById('privilegeModalTitle').textContent = readOnly ? 'View Role Permissions' : 'Edit Privilege Role';
+    document.getElementById('modal_privilege_id').value = id;
+    document.getElementById('permMatrixSearch').value = '';
+    filterPermissionsMatrix('');
+    toggleAllPermissions(false);
+    switchTab('permissions');
+    openModal('privilegeModal');
+    try {
+        const resp = await fetch('/api/privileges/' + id + '/details');
+        if (!resp.ok) throw new Error('Unable to load role details.');
+        const data = await resp.json();
+        const p = data.privilege || {};
+        document.getElementById('modal_name').value = p.name || name || '';
+        document.getElementById('modal_description').value = p.description || '';
+        
+        (data.permissions || []).forEach(perm => {
+            const cb = document.querySelector(`input[name="perm_${perm.module}:${perm.action}"]`);
+            if (cb) cb.checked = true;
+        });
+        syncPermVisuals();
+        
+        applyReportingScopes(data.scopes || {});
+        showPrivilegeError('');
+    } catch (err) {
+        showPrivilegeError(err.message || 'Unable to load role details.');
+        document.getElementById('savePrivilegeBtn').style.display = 'none';
+    }
+}
+
+function emptyReportingScope() {
+    return {
+        all_data: false,
+        all_extensions: false,
+        all_queues: false,
+        all_ring_groups: false,
+        items: {extensions: [], queues: [], ring_groups: []}
+    };
+}
+
+function scopeDefinition(scopeType) {
+    return scopeDefinitions.find(scope => scope.id === scopeType) || {id: scopeType, groups: []};
+}
+
+function resetReportingScopes() {
+    scopeIds.forEach(scopeType => {
+        selectedReportingScopes[scopeType] = emptyReportingScope();
+        const scope = selectedReportingScopes[scopeType];
+        const allData = document.querySelector(`input[name="scope_all_data_${scopeType}"]`);
+        if (allData) allData.checked = false;
+        scopeDefinition(scopeType).groups.forEach(group => {
+            const allGroup = document.querySelector(`input[name="scope_all_${group}_${scopeType}"]`);
+            if (allGroup) allGroup.checked = false;
+        });
+        handleReportingScopeChange(scopeType);
+        loadScopeOptions(scopeType, scope);
+    });
+}
+
+function normalizedReportingScopes(scopes) {
+    const reporting = scopes.reporting || {};
+    const result = {};
+    scopeIds.forEach(scopeType => {
+        const source = reporting[scopeType] || {};
+        const oldMode = scopes.settings && scopes.settings[scopeType];
+        const oldItems = (scopes.items && scopes.items[scopeType]) || [];
+        const scope = emptyReportingScope();
+        if (source && Object.keys(source).length) {
+            scope.all_data = !!source.all_data;
+            scope.all_extensions = !!source.all_extensions;
+            scope.all_queues = !!source.all_queues;
+            scope.all_ring_groups = !!source.all_ring_groups;
+            Object.keys(scope.items).forEach(group => scope.items[group] = (source.items && source.items[group] || []).map(String));
+        } else if (oldMode === 'all') {
+            if (scopeType === 'queue_live' || scopeType === 'queue_stats') scope.all_queues = true;
+            else scope.all_data = true;
+        } else if (oldMode === 'selected') {
+            const group = (scopeType === 'queue_live' || scopeType === 'queue_stats') ? 'queues' : 'extensions';
+            scope.items[group] = oldItems.map(String);
+        }
+        result[scopeType] = scope;
+    });
+    return result;
+}
+
+function applyReportingScopes(scopes) {
+    const normalized = normalizedReportingScopes(scopes || {});
+    scopeIds.forEach(scopeType => {
+        selectedReportingScopes[scopeType] = normalized[scopeType];
+        const scope = normalized[scopeType];
+        const allData = document.querySelector(`input[name="scope_all_data_${scopeType}"]`);
+        if (allData) allData.checked = scope.all_data;
+        scopeDefinition(scopeType).groups.forEach(group => {
+            const allGroup = document.querySelector(`input[name="scope_all_${group}_${scopeType}"]`);
+            if (allGroup) allGroup.checked = !!scope['all_' + group];
+        });
+        loadScopeOptions(scopeType, scope);
+    });
+}
+
+async function loadScopeOptions(scopeType, selected = emptyReportingScope()) {
+    if (!loadedScopeOptions[scopeType]) {
+        try {
+            const resp = await fetch('/api/scopes/options/' + scopeType);
+            if (!resp.ok) throw new Error('Unable to load scope options.');
+            loadedScopeOptions[scopeType] = (await resp.json()).groups || {};
+        } catch (error) {
+            scopeDefinition(scopeType).groups.forEach(group => {
+                const box = document.getElementById(`scope_options_${scopeType}_${group}`);
+                if (box) box.replaceChildren(Object.assign(document.createElement('span'), {className: 'pm-sub', textContent: error.message}));
+            });
+            return;
+        }
+    }
+    selectedReportingScopes[scopeType] = selected;
+    scopeDefinition(scopeType).groups.forEach(group => {
+        const box = document.getElementById(`scope_options_${scopeType}_${group}`);
+        if (!box) return;
+        box.replaceChildren();
+        const options = loadedScopeOptions[scopeType][group] || [];
+        if (!options.length) {
+            box.append(Object.assign(document.createElement('span'), {className: 'pm-sub', textContent: 'No items are configured for this scope yet.'}));
+            return;
+        }
+        options.forEach(option => {
+            const label = document.createElement('label');
+            label.className = 'pm-check';
+            label.dataset.optionLabel = String(option.label || option.id).toLowerCase();
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.name = `scope_items_${scopeType}_${group}`;
+            input.value = String(option.id);
+            input.dataset.members = JSON.stringify(option.members || []);
+            input.checked = (selected.items[group] || []).map(String).includes(String(option.id));
+            input.disabled = privilegeReadOnly;
+            if (input.checked) label.classList.add('checked');
+            input.addEventListener('change', () => {
+                label.classList.toggle('checked', input.checked);
+                handleReportingScopeChange(scopeType);
+            });
+            label.append(input, document.createTextNode(' ' + String(option.label || option.id)));
+            box.append(label);
+        });
+    });
+    handleReportingScopeChange(scopeType);
+    // Queue/Ring Group previews use their dynamically returned members and
+    // the extension labels loaded by the CDR/recording scope cards.
+    scopeIds.forEach(renderReportingPreview);
+}
+
+function filterReportingScopeOptions(input) {
+    const query = (input.value || '').toLowerCase().trim();
+    const box = input.nextElementSibling;
+    if (!box) return;
+    box.querySelectorAll('.pm-check').forEach(label => {
+        label.style.display = !query || (label.dataset.optionLabel || '').includes(query) ? 'inline-flex' : 'none';
+    });
+}
+
+function handleReportingScopeChange(scopeType) {
+    const allData = document.querySelector(`input[name="scope_all_data_${scopeType}"]`);
+    const allDataChecked = !!allData?.checked;
+    const definition = scopeDefinition(scopeType);
+    const allExtensions = document.querySelector(`input[name="scope_all_extensions_${scopeType}"]`);
+    const scope = selectedReportingScopes[scopeType] || emptyReportingScope();
+    scope.all_data = allDataChecked;
+    definition.groups.forEach(group => {
+        const allGroup = document.querySelector(`input[name="scope_all_${group}_${scopeType}"]`);
+        const groupAll = !!allGroup?.checked && !allDataChecked;
+        scope['all_' + group] = groupAll;
+        const groupBox = document.getElementById(`scope_options_${scopeType}_${group}`);
+        if (groupBox) {
+            groupBox.querySelectorAll('input[type="checkbox"]').forEach(input => {
+                input.disabled = privilegeReadOnly || allDataChecked || groupAll || (scope.all_extensions && group !== 'extensions');
+                if (allDataChecked || groupAll || (scope.all_extensions && group !== 'extensions')) input.checked = false;
+                const label = input.closest('.pm-check');
+                if (label) label.classList.toggle('checked', input.checked);
+            });
+            scope.items[group] = Array.from(groupBox.querySelectorAll('input[type="checkbox"]:checked')).map(input => String(input.value));
+        }
+        if (allDataChecked && allGroup) allGroup.checked = false;
+    });
+    if (allDataChecked) {
+        scope.all_extensions = scope.all_queues = scope.all_ring_groups = false;
+        definition.groups.forEach(group => {
+            const allGroup = document.querySelector(`input[name="scope_all_${group}_${scopeType}"]`);
+            if (allGroup) allGroup.checked = false;
+        });
+    }
+    if (allExtensions && scope.all_extensions) {
+        definition.groups.filter(group => group !== 'extensions').forEach(group => {
+            const allGroup = document.querySelector(`input[name="scope_all_${group}_${scopeType}"]`);
+            if (allGroup) allGroup.checked = false;
+        });
+    }
+    selectedReportingScopes[scopeType] = scope;
+    renderReportingPreview(scopeType);
+}
+
+function renderReportingPreview(scopeType) {
+    const preview = document.querySelector(`#scope_preview_${scopeType} .reporting-preview-body`);
+    if (!preview) return;
+    const scope = selectedReportingScopes[scopeType] || emptyReportingScope();
+    const extOptions = (loadedScopeOptions.cdr_reports || loadedScopeOptions.call_records || {})['extensions'] || [];
+    const extLabels = Object.fromEntries(extOptions.map(option => [String(option.id), option.label]));
+    const effective = new Map();
+    const addExtension = (id, source) => {
+        id = String(id);
+        if (!effective.has(id)) effective.set(id, []);
+        if (source && !effective.get(id).includes(source)) effective.get(id).push(source);
+    };
+    if (scope.all_data || scope.all_extensions) extOptions.forEach(option => addExtension(option.id, 'Direct / All Extensions'));
+    (scope.items.extensions || []).forEach(id => addExtension(id, 'Direct Extensions'));
+    const addInherited = (group, allFlag, sourceLabel) => {
+        const options = (loadedScopeOptions[scopeType] || {})[group] || [];
+        const selected = allFlag ? options : options.filter(option => (scope.items[group] || []).map(String).includes(String(option.id)));
+        selected.forEach(option => (option.members || []).forEach(member => addExtension(member, `${sourceLabel} ${option.label}`)));
+    };
+    if (!scope.all_data && !scope.all_extensions) {
+        addInherited('queues', scope.all_queues, 'Inherited from Queue');
+        addInherited('ring_groups', scope.all_ring_groups, 'Inherited from Ring Group');
+    }
+    if (!effective.size) {
+        preview.textContent = 'No reporting data selected.';
+        return;
+    }
+    const rows = Array.from(effective.entries()).slice(0, 80).map(([id, sources]) => `<span style="display:inline-block;margin:0 .35rem .25rem 0;padding:.2rem .45rem;border-radius:5px;background:rgba(255,255,255,.06);"><strong>${escapeHtml(extLabels[id] || id)}</strong> <small>(${escapeHtml(sources.join(', '))})</small></span>`);
+    preview.innerHTML = `${rows.join('')}<div style="margin-top:.35rem;color:#38bdf8;">Total Unique Extensions: ${effective.size}</div>`;
+}
+
+function openDuplicatePrivilegeModal(id, name) {
+    document.getElementById('dup_source_name').textContent = name;
+    document.getElementById('new_privilege_name').value = name + ' Copy';
+    document.getElementById('duplicatePrivilegeForm').action = '/privileges/duplicate/' + id;
+    openModal('duplicatePrivilegeModal');
+}
+
+function confirmDeletePrivilege(id, name) {
+    document.getElementById('delete_priv_name_display').textContent = name;
+    document.getElementById('deletePrivilegeForm').action = '/privileges/delete/' + id;
+    openModal('deletePrivilegeModal');
+}
+
+document.getElementById('addPrivilegeBtn')?.addEventListener('click', openAddPrivilegeModal);
+document.querySelectorAll('.privilege-open-btn').forEach(btn => btn.addEventListener('click', () => openEditPrivilegeModal(btn.dataset.privId, btn.dataset.privName || '', btn.dataset.readonly === 'true')));
+document.querySelectorAll('.privilege-duplicate-btn').forEach(btn => btn.addEventListener('click', () => openDuplicatePrivilegeModal(btn.dataset.privId, btn.dataset.privName || '')));
+document.querySelectorAll('.privilege-delete-btn').forEach(btn => btn.addEventListener('click', () => confirmDeletePrivilege(btn.dataset.privId, btn.dataset.privName || '')));
+
+function restorePrivilegeFormState() {
+    if (!privilegeFormState) {
+        syncPermVisuals();
+        return;
+    }
+    const values = privilegeFormState.values || {};
+    setPrivilegeReadOnly(false);
+    document.getElementById('privilegeModalTitle').textContent = privilegeFormState.mode === 'edit' ? 'Edit Privilege Role' : 'Add Privilege Role';
+    document.getElementById('modal_privilege_id').value = values.privilege_id || '';
+    document.getElementById('modal_name').value = values.name || '';
+    document.getElementById('modal_description').value = values.description || '';
+    toggleAllPermissions(false);
+    (values.permissions || []).forEach(permission => {
+        const checkbox = document.querySelector(`input[name="perm_${permission}"]`);
+        if (checkbox) checkbox.checked = true;
+    });
+    syncPermVisuals();
+    const savedScopes = values.scopes || {reporting: {}};
+    applyReportingScopes(savedScopes);
+    showPrivilegeError(privilegeFormState.error || 'Please review the highlighted form fields.');
+    switchTab('permissions');
+    openModal('privilegeModal');
+}
+
+window.addEventListener('click', e => {
+    if (e.target.classList && e.target.classList.contains('pm-modal')) closeModal(e.target.id);
+});
+
+window.addEventListener('keydown', e => {
+    const open = Array.from(document.querySelectorAll('.pm-modal')).find(modal => modal.style.display === 'flex');
+    if (!open) return;
+    if (e.key === 'Escape') {
+        closeModal(open.id);
+        return;
+    }
+    if (e.key === 'Tab') {
+        const focusable = Array.from(open.querySelectorAll('button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), a[href]'));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+});
+
+restorePrivilegeFormState();
+</script>
+{% endblock %}

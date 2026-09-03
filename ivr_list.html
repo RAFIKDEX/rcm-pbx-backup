@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block title %}IVR Auto-Attendant Menus - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --ivr-bg: rgba(30, 41, 59, 0.75);
+        --ivr-border: rgba(255, 255, 255, 0.1);
+        --ivr-primary: #3b82f6;
+        --ivr-cyan: #06b6d4;
+        --ivr-success: #10b981;
+        --ivr-danger: #ef4444;
+        --ivr-purple: #8b5cf6;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .ivr-container {
+        font-family: 'Inter', sans-serif;
+        color: #f8fafc;
+        max-width: 1250px;
+        margin: 0 auto;
+        padding-bottom: 4rem;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .ivr-header-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--ivr-border);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .ivr-panel {
+        background: var(--ivr-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--ivr-border);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    }
+
+    .ivr-btn {
+        background: var(--ivr-primary);
+        color: #fff;
+        border: none;
+        padding: 0.65rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+    .ivr-btn:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
+    .ivr-btn-cyan { background: var(--ivr-cyan); color: #0f172a; }
+    .ivr-btn-cyan:hover { background: #22d3ee; }
+    .ivr-btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; }
+    .ivr-btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
+    .ivr-btn-danger { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .ivr-btn-danger:hover { background: var(--ivr-danger); color: #fff; }
+
+    /* Modern Table */
+    .ivr-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 0.65rem;
+    }
+    .ivr-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .ivr-table td {
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.6);
+        vertical-align: middle;
+        font-size: 0.95rem;
+    }
+    .ivr-table tr td:first-child { border-radius: 12px 0 0 12px; border-left: 4px solid var(--ivr-cyan); }
+    .ivr-table tr td:last-child { border-radius: 0 12px 12px 0; }
+    .ivr-table tr:hover td { background: rgba(30, 41, 59, 0.95); }
+
+    .dtmf-pill {
+        font-size: 0.8rem;
+        background: rgba(6, 182, 212, 0.15);
+        border: 1px solid rgba(6, 182, 212, 0.3);
+        color: #e2e8f0;
+        padding: 0.3rem 0.6rem;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin: 0.2rem;
+    }
+    .dtmf-key {
+        background: var(--ivr-cyan);
+        color: #0f172a;
+        font-weight: 800;
+        font-family: 'Orbitron', monospace;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="ivr-container">
+    <!-- Header Card -->
+    <div class="ivr-header-card">
+        <div>
+            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; background: linear-gradient(to right, #60a5fa, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fa-solid fa-robot" style="margin-right: 0.5rem;"></i> IVR / Auto-Attendant Menus
+            </h1>
+            <div style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.3rem;">
+                Design interactive voice menus, keypad digit routing rules, and multi-level call tree failovers.
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="{{ url_for('ivr_add') }}" class="ivr-btn ivr-btn-cyan">
+                <i class="fa-solid fa-plus"></i> Create New IVR Menu
+            </a>
+        </div>
+    </div>
+
+    <!-- Main List Panel -->
+    <div class="ivr-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem;">
+            <div style="font-size: 1.15rem; font-weight: 700; color: #fff;"><i class="fa-solid fa-list-check" style="color: var(--ivr-primary); margin-right: 0.5rem;"></i> Active Auto-Attendants</div>
+            <span style="font-size: 0.85rem; color: #94a3b8;">Total Configured: <strong style="color: #fff;">{{ ivrs|length }}</strong></span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="ivr-table">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">Extension</th>
+                        <th>Menu Name</th>
+                        <th>Greeting Prompt</th>
+                        <th style="width: 100px;">Timeout</th>
+                        <th style="width: 80px;">Loops</th>
+                        <th>Keypad Routing Mappings</th>
+                        <th style="text-align: right; width: 180px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not ivrs %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #94a3b8; padding: 3.5rem;">
+                            <i class="fa-solid fa-robot" style="font-size: 3rem; color: rgba(255,255,255,0.1); margin-bottom: 1rem; display: block;"></i>
+                            <div style="font-size: 1.1rem; color: #fff; font-weight: 600;">No IVR menus configured yet</div>
+                            <div style="font-size: 0.85rem; margin-top: 0.3rem;">Click "Create New IVR Menu" above to build your first auto-attendant.</div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for ivr in ivrs %}
+                    <tr>
+                        <td>
+                            <strong style="font-family: 'Orbitron', monospace; font-size: 1.15rem; color: #38bdf8;">{{ ivr.num }}</strong>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: #fff; font-size: 1.05rem;">{{ ivr.name }}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.1rem;">Failover: {{ ivr.fail_mode|upper }} {% if ivr.fail_ext %}to {{ ivr.fail_ext }}{% endif %}</div>
+                        </td>
+                        <td>
+                            <span style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-solid fa-volume-high"></i> {{ ivr.prompt_name or ivr.prompt_id or 'default' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span style="font-family: 'Orbitron', monospace; color: #e2e8f0; font-weight: 700;">{{ ivr.timeout }}s</span>
+                        </td>
+                        <td>
+                            <span style="color: #e2e8f0;">{{ ivr.loops }}x</span>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.3rem; max-width: 360px;">
+                                {% for m in ivr.mappings %}
+                                <div class="dtmf-pill">
+                                    <span class="dtmf-key">{{ m.key }}</span>
+                                    <span style="font-size: 0.75rem; color: #94a3b8;">&rarr; {% if m.dest_type %}{{ m.dest_type|title }}:{% endif %} <strong style="color: #fff;">{{ m.dest }}</strong></span>
+                                </div>
+                                {% else %}
+                                <span style="font-size: 0.8rem; color: #64748b; font-style: italic;">No DTMF digits mapped</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: inline-flex; gap: 0.5rem;">
+                                <a href="{{ url_for('ivr_edit', num=ivr.num) }}" class="ivr-btn ivr-btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;" title="Edit IVR">
+                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                </a>
+                                <form action="{{ url_for('ivr_delete', num=ivr.num) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete IVR Menu {{ ivr.num }} ({{ ivr.name }})?');">
+                                    <button type="submit" class="ivr-btn ivr-btn-danger" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;" title="Delete IVR">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

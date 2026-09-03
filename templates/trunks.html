@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+
+{% block title %}Trunks - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<style>
+    .trunks-panel {
+        padding: 1rem;
+    }
+    .trunks-panel .panel-header {
+        margin-bottom: 0.65rem;
+    }
+    #trunks-table {
+        table-layout: fixed;
+        min-width: 760px;
+    }
+    #trunks-table th,
+    #trunks-table td {
+        padding: 0.58rem 0.65rem;
+        font-size: 0.84rem;
+        line-height: 1.25;
+    }
+    #trunks-table th {
+        font-size: 0.68rem;
+        letter-spacing: 0;
+        white-space: nowrap;
+    }
+    #trunks-table .col-name { width: 170px; }
+    #trunks-table .col-status { width: 215px; }
+    #trunks-table .col-type { width: 92px; }
+    #trunks-table .col-mode { width: 118px; }
+    #trunks-table .col-server { width: 170px; }
+    #trunks-table .col-actions { width: 112px; }
+    .trunk-name-cell {
+        color: var(--text-main);
+        font-size: 0.93rem;
+        font-weight: 850;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+        max-width: 100%;
+    }
+    .trunk-muted-cell {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+        max-width: 100%;
+    }
+    .trunk-server-cell code {
+        font-size: 0.78rem;
+        padding: 0.12rem 0.28rem;
+        border-radius: 5px;
+        background: var(--bg-dark);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+        max-width: 100%;
+    }
+    #trunks-table .badge {
+        padding: 0.22rem 0.48rem;
+        font-size: 0.68rem;
+        border-radius: 6px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        max-width: 100%;
+    }
+    .trunk-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.34rem;
+        white-space: nowrap;
+    }
+    .trunk-action-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.035);
+        color: var(--text-muted);
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+        padding: 0;
+        font-size: 0.78rem;
+        line-height: 1;
+    }
+    .trunk-action-btn:hover {
+        transform: translateY(-1px);
+        color: var(--text-main);
+    }
+    .trunk-action-edit {
+        color: #cbd5e1;
+        background: rgba(148, 163, 184, 0.1);
+        border-color: rgba(148, 163, 184, 0.22);
+    }
+    .trunk-action-edit:hover { background: rgba(59, 130, 246, 0.2); border-color: rgba(96, 165, 250, 0.38); }
+    .trunk-action-dod {
+        color: #67e8f9;
+        background: rgba(6, 182, 212, 0.1);
+        border-color: rgba(6, 182, 212, 0.24);
+    }
+    .trunk-action-dod:hover { background: rgba(6, 182, 212, 0.22); }
+    .trunk-action-delete {
+        color: #fca5a5;
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.24);
+    }
+    .trunk-action-delete:hover { background: rgba(239, 68, 68, 0.22); border-color: rgba(248, 113, 113, 0.42); }
+    @media (max-width: 900px) {
+        #trunks-table { min-width: 720px; }
+        #trunks-table .col-status { width: 190px; }
+        #trunks-table .col-server { width: 150px; }
+    }
+</style>
+
+<div class="header-panel">
+    <div>
+        <h1>Trunks Management</h1>
+        <div style="font-size: 0.9rem; color: #888; margin-top: 0.2rem;">Configure external SIP gateways and IP-to-IP peers</div>
+    </div>
+    <div class="action-buttons" style="gap: 0.75rem;">
+        {% if has_permission('trunks', 'export') %}
+        <a href="{{ url_for('trunks_export') }}" class="btn btn-secondary" style="text-decoration: none;" title="Export trunks to Excel">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+        {% endif %}
+        {% if can_create('trunks') %}
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('trunks_import') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+        <a href="{{ url_for('trunks_add') }}" class="btn btn-info" style="padding: 0.75rem 1.5rem; text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Trunk
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search & Limit Panel -->
+<div class="panel" style="padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 250px;">
+        <div style="color: var(--primary); font-size: 1.2rem;"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div style="flex: 1;">
+            <input type="text" id="trunk-search" class="form-control" dir="auto"
+                   placeholder="Search trunks by name, type, gateway IP..." 
+                   onkeyup="loadTrunksTable(1)" style="border: none; background: transparent; padding-left: 0;">
+        </div>
+        <div id="search-count" style="font-size: 0.85rem; color: var(--text-dark); font-weight: bold;"></div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <label for="per_page" style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold;">Rows per page:</label>
+        <select id="per_page" onchange="loadTrunksTable(1)" class="form-control-inline" style="width: 80px; padding: 0.25rem 0.5rem; border-radius: 4px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+            <option value="10" selected>10</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+            <option value="70">70</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+</div>
+
+<!-- Trunks List Panel -->
+<div class="panel trunks-panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-server" style="color: var(--primary);"></i> SIP Trunks</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table" id="trunks-table">
+            <thead>
+                <tr>
+                    <th class="col-name">Name</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-type">Type</th>
+                    <th class="col-mode">Mode</th>
+                    <th class="col-server">Server</th>
+                    {% if can_view('trunks') or can_edit('trunks') or can_delete('trunks') %}
+                    <th class="col-actions" style="text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="{{ 6 if (can_view('trunks') or can_edit('trunks') or can_delete('trunks')) else 5 }}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                        Loading trunks...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="pagination-footer" class="form-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; display: flex; border-top: 1px solid var(--border-color)"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+    .badge-gray {
+        background-color: rgba(148, 163, 184, 0.1);
+        color: #94a3b8;
+        border-color: rgba(148, 163, 184, 0.2);
+    }
+</style>
+<script>
+    const TRUNKS_CAN_VIEW = {{ 'true' if can_view('trunks') else 'false' }};
+    const TRUNKS_CAN_EDIT = {{ 'true' if can_edit('trunks') else 'false' }};
+    const TRUNKS_CAN_DELETE = {{ 'true' if can_delete('trunks') else 'false' }};
+
+    function escapeHTML(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+
+    function getTrunkBadgeHTML(status) {
+        status = String(status || 'Unknown');
+        const s = status.toLowerCase();
+        let badgeClass = 'badge-gray';
+        let icon = 'fa-solid fa-circle-question';
+        
+        if (s === 'disabled') {
+            badgeClass = 'badge-gray';
+            icon = 'fa-solid fa-ban';
+        } else if (s.includes('unregistered') || s.includes('expired') || s.includes('unknown')) {
+            badgeClass = 'badge-gray';
+            icon = 'fa-solid fa-circle-notch';
+        } else if (s.includes('unreachable') || s.includes('offline') || s.includes('reject') || s.includes('failed') || s.includes('timeout')) {
+            badgeClass = 'badge-offline';
+            icon = 'fa-solid fa-circle-exclamation';
+        } else if (s.includes('busy') || s.includes('warning')) {
+            badgeClass = 'badge-busy';
+            icon = 'fa-solid fa-triangle-exclamation';
+        } else if (s.includes('registered') || s.includes('reachable') || s.includes('online') || s.includes('avail') || s.includes('active')) {
+            badgeClass = 'badge-registered';
+            icon = 'fa-solid fa-circle-check';
+        }
+        
+        return `<span class="badge ${badgeClass}"><i class="${icon}"></i> ${escapeHTML(status)}</span>`;
+    }
+
+    let current_page = 1;
+    function loadTrunksTable(page = 1) {
+        current_page = page;
+        const limit = document.getElementById("per_page").value;
+        const q = document.getElementById("trunk-search").value.trim();
+        
+        const colspanVal = (TRUNKS_CAN_VIEW || TRUNKS_CAN_EDIT || TRUNKS_CAN_DELETE) ? 6 : 5;
+        const tbody = document.querySelector("#trunks-table tbody");
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="${colspanVal}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                    Loading trunks...
+                </td>
+            </tr>
+        `;
+        
+        fetch(`/api/trunks-list?page=${page}&limit=${limit}&q=${encodeURIComponent(q)}`)
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data) return;
+                tbody.innerHTML = "";
+                if (data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="${colspanVal}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                                <i class="fa-solid fa-server" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                                No trunks found.
+                            </td>
+                        </tr>
+                    `;
+                    updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadTrunksTable');
+                    return;
+                }
+                
+                data.data.forEach(trunk => {
+                    const tr = document.createElement("tr");
+                    const trunkName = String(trunk.name || '');
+                    const encodedName = encodeURIComponent(trunkName);
+                    tr.id = `trunk-row-${CSS.escape(trunkName)}`;
+                    
+                    const statusText = trunk.enabled ? trunk.status : 'Disabled';
+                    const badge = getTrunkBadgeHTML(statusText);
+                    const regModeRaw = trunk.register_mode ? (trunk.register_mode.charAt(0).toUpperCase() + trunk.register_mode.slice(1)) : 'None (Peer)';
+                    const viewAction = TRUNKS_CAN_VIEW ? `
+                                <button type="button" class="trunk-action-btn trunk-action-view" onclick="showNotification('Trunk details: ${escapeHTML(trunkName)} (${escapeHTML(trunk.type || '-')}, ${escapeHTML(trunk.server_addr || '-')})', 'info')" title="View" aria-label="View trunk ${escapeHTML(trunkName)}">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>` : '';
+                    const editAction = TRUNKS_CAN_EDIT ? `
+                                <a href="/trunks/edit/${encodedName}" class="trunk-action-btn trunk-action-edit" title="Edit" aria-label="Edit trunk ${escapeHTML(trunkName)}">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                                <a href="/trunks/${encodedName}/dods" class="trunk-action-btn trunk-action-dod" title="DOD" aria-label="Manage DOD for trunk ${escapeHTML(trunkName)}">
+                                    <i class="fa-solid fa-id-card"></i>
+                                </a>` : '';
+                    const deleteAction = TRUNKS_CAN_DELETE ? `
+                                <form action="/trunks/delete/${encodedName}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete trunk ${escapeHTML(trunkName)}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="trunk-action-btn trunk-action-delete" title="Delete" aria-label="Delete trunk ${escapeHTML(trunkName)}">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>` : '';
+                    
+                    let actionsCell = "";
+                    if (TRUNKS_CAN_VIEW || TRUNKS_CAN_EDIT || TRUNKS_CAN_DELETE) {
+                        actionsCell = `
+                        <td style="text-align: right;">
+                            <div class="trunk-actions">
+                                ${viewAction}
+                                ${editAction}
+                                ${deleteAction}
+                            </div>
+                        </td>`;
+                    }
+                    
+                    tr.innerHTML = `
+                        <td><span class="trunk-name-cell" title="${escapeHTML(trunkName)}">${escapeHTML(trunkName)}</span></td>
+                        <td>${badge}</td>
+                        <td><span class="trunk-muted-cell" style="text-transform: capitalize;" title="${escapeHTML(trunk.type || '-')}">${escapeHTML(trunk.type || '-')}</span></td>
+                        <td><span class="trunk-muted-cell" title="${escapeHTML(regModeRaw)}">${escapeHTML(regModeRaw)}</span></td>
+                        <td class="trunk-server-cell"><code title="${escapeHTML(trunk.server_addr || '-')}">${escapeHTML(trunk.server_addr || '-')}</code></td>
+                        ${actionsCell}
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadTrunksTable');
+                if (q) {
+                    document.getElementById("search-count").innerText = `Found: ${data.total_rows} total`;
+                } else {
+                    document.getElementById("search-count").innerText = "";
+                }
+            })
+            .catch(err => console.error("Error loading trunks:", err));
+    }
+
+    function updateTrunksStatus() {
+        const rows = document.querySelectorAll("#trunks-table tbody tr");
+        if (rows.length === 0) return;
+        
+        fetch('/api/trunks-status')
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data || !data.trunks) return;
+                data.trunks.forEach(trunk => {
+                    const row = document.getElementById(`trunk-row-${CSS.escape(String(trunk.name || ''))}`);
+                    if (row) {
+                        row.cells[1].innerHTML = getTrunkBadgeHTML(trunk.enabled ? trunk.status : 'Disabled');
+                    }
+                });
+            })
+            .catch(err => console.error("Error updating trunks status:", err));
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        loadTrunksTable(1);
+        setInterval(updateTrunksStatus, 15000);
+    });
+</script>
+{% endblock %}

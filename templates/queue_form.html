@@ -1,0 +1,954 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if queue %}Edit Call Queue - RCM 7021{% else %}Create Call Queue - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --q-panel: rgba(30, 41, 59, 0.75);
+        --q-panel-hover: rgba(51, 65, 85, 0.85);
+        --q-border: rgba(255, 255, 255, 0.1);
+        --q-primary: #3b82f6;
+        --q-primary-glow: rgba(59, 130, 246, 0.3);
+        --q-success: #10b981;
+        --q-warning: #f59e0b;
+        --q-danger: #ef4444;
+        --q-purple: #8b5cf6;
+        --q-cyan: #06b6d4;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .q-studio {
+        font-family: 'Inter', sans-serif;
+        color: #f8fafc;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding-bottom: 4rem;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .q-header-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--q-border);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .q-section {
+        background: var(--q-panel);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--q-border);
+        border-radius: 16px;
+        padding: 1.75rem 2rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+        transition: border-color 0.2s;
+    }
+    .q-section:hover {
+        border-color: rgba(96, 165, 250, 0.3);
+    }
+
+    .q-section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .q-section-title i {
+        color: var(--q-cyan);
+        background: rgba(6, 182, 212, 0.15);
+        padding: 0.6rem;
+        border-radius: 10px;
+        border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    /* Form Grids & Elements */
+    .q-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .q-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 800px) {
+        .q-grid-2, .q-grid-3 { grid-template-columns: 1fr; }
+    }
+
+    .q-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .q-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .q-sublabel { font-size: 0.75rem; color: #94a3b8; }
+
+    .q-input, .q-select {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 0.65rem 1rem;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.2s;
+    }
+    .q-input:focus, .q-select:focus {
+        border-color: var(--q-primary);
+        box-shadow: 0 0 0 3px var(--q-primary-glow);
+    }
+    .q-input[readonly] { background: rgba(0, 0, 0, 0.4); color: #94a3b8; cursor: not-allowed; }
+    .q-check-card {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 1rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+    .q-check-card:hover {
+        border-color: var(--q-primary);
+    }
+    .q-check-card input {
+        width: 18px;
+        height: 18px;
+        margin-top: 0.15rem;
+        accent-color: var(--q-primary);
+        cursor: pointer;
+    }
+
+    /* Strategy Info Box */
+    .q-strategy-info {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+        color: #93c5fd;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    /* Dual List Box Agent Studio */
+    .q-agents-studio {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 1.5rem;
+        align-items: center;
+        margin-top: 1rem;
+    }
+    .q-list-box {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+    }
+    .q-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+    .q-list-search {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.4rem 0.75rem;
+        color: var(--text-main);
+        font-size: 0.8rem;
+        margin-bottom: 0.75rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .q-select-multiple {
+        height: 240px;
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        font-size: 0.9rem;
+        outline: none;
+        width: 100%;
+    }
+    .q-select-multiple option {
+        padding: 0.6rem 0.8rem;
+        border-radius: 6px;
+        margin-bottom: 0.2rem;
+        background: var(--panel-dark);
+        color: var(--text-main);
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .q-select-multiple option:hover { background: rgba(59, 130, 246, 0.4); }
+    .q-select-multiple option:checked { background: var(--q-primary); color: var(--text-main); font-weight: bold; }
+
+    .q-transfer-btns {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .q-btn {
+        background: var(--q-primary);
+        color: var(--text-main);
+        border: none;
+        padding: 0.65rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+    .q-btn:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 12px var(--q-primary-glow); }
+    .q-btn-secondary { background: var(--border-color); border: 1px solid var(--border-color); color: var(--text-main); }
+    .q-btn-secondary:hover { background: var(--border-color); }
+    .q-btn-success { background: var(--q-success); }
+    .q-btn-success:hover { background: #059669; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+
+    /* SLA Slider */
+    .q-slider-container { display: flex; align-items: center; gap: 1rem; }
+    .q-slider { flex: 1; accent-color: var(--q-success); cursor: pointer; }
+    .q-badge {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        padding: 0.3rem 0.75rem;
+        border-radius: 9999px;
+        font-weight: 700;
+        font-family: 'Orbitron', monospace;
+        font-size: 0.9rem;
+    }
+
+    /* 3-Step Wizard / Tab Bar */
+    .q-tabs-header {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        background: var(--bg-dark);
+        border: 1px solid var(--q-border);
+        border-radius: 16px;
+        padding: 0.6rem;
+        backdrop-filter: blur(16px);
+        flex-wrap: wrap;
+    }
+    .q-tab-btn {
+        flex: 1;
+        min-width: 180px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: #94a3b8;
+        padding: 0.9rem 1.25rem;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+    }
+    .q-tab-btn i {
+        font-size: 1.1rem;
+        transition: transform 0.2s;
+    }
+    .q-tab-btn:hover {
+        background: var(--border-color);
+        color: #e2e8f0;
+    }
+    .q-tab-btn.active {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.35));
+        border-color: var(--q-primary);
+        color: var(--text-main);
+        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25);
+    }
+    .q-tab-btn.active i {
+        color: #38bdf8;
+        transform: scale(1.1);
+    }
+    .q-tab-step-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--border-color);
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #cbd5e1;
+    }
+    .q-tab-btn.active .q-tab-step-num {
+        background: var(--q-primary);
+        color: var(--text-main);
+    }
+    .q-tab-pane {
+        display: none;
+        animation: fadeIn 0.3s ease-out;
+    }
+    .q-tab-pane.active {
+        display: block;
+    }
+    .q-tab-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border-color);
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+</style>
+
+<div class="q-studio">
+    <!-- Header Card -->
+    <div class="q-header-card">
+        <div>
+            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; background: linear-gradient(to right, #60a5fa, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fa-solid fa-headset" style="margin-right: 0.5rem;"></i>
+                {% if queue %}Edit Call Queue ({{ queue.queue_number }}){% else %}Create Call Queue Studio{% endif %}
+            </h1>
+            <div style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.3rem;">
+                Configure intelligent ring strategies, agent allocation, custom MOH, and failover routing.
+            </div>
+        </div>
+        <a href="{{ url_for('queue_list') }}" class="q-btn q-btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Queues
+        </a>
+    </div>
+
+    <form action="{% if queue %}{{ url_for('queue_edit', num=queue.queue_number) }}{% else %}{{ url_for('queue_add') }}{% endif %}" method="POST" id="queueForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <!-- Tabs Header Bar -->
+        <div class="q-tabs-header">
+            <button type="button" class="q-tab-btn active" onclick="switchTab('basic')" id="tab-btn-basic">
+                <span class="q-tab-step-num">1</span>
+                <i class="fa-solid fa-sliders"></i>
+                <span>Basic Features</span>
+            </button>
+            <button type="button" class="q-tab-btn" onclick="switchTab('advanced')" id="tab-btn-advanced">
+                <span class="q-tab-step-num">2</span>
+                <i class="fa-solid fa-gears"></i>
+                <span>Advanced Features</span>
+            </button>
+            <button type="button" class="q-tab-btn" onclick="switchTab('agents')" id="tab-btn-agents">
+                <span class="q-tab-step-num">3</span>
+                <i class="fa-solid fa-users-viewfinder"></i>
+                <span>Agents</span>
+            </button>
+            <button type="button" class="q-tab-btn" onclick="switchTab('agent_settings')" id="tab-btn-agent_settings">
+                <span class="q-tab-step-num">4</span>
+                <i class="fa-solid fa-headset"></i>
+                <span>Agent Settings</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: BASIC FEATURES -->
+        <div class="q-tab-pane active" id="tab-pane-basic">
+            <!-- SECTION 1: IDENTITY & STRATEGY -->
+            <div class="q-section">
+                <div class="q-section-title"><i class="fa-solid fa-id-card"></i> Core Queue Identity & Ring Strategy</div>
+                <div class="q-grid-2">
+                    <div class="q-group">
+                        <label class="q-label" for="queue_number">Queue Extension Number <span class="tooltip-container">!<span class="tooltip-text">Unique system extension used by callers and agents to access this queue.</span></span> <span style="color:#ef4444;">*</span></label>
+                        <input type="number" id="queue_number" name="queue_number" class="q-input" placeholder="e.g. 6500 (Range: 6500 - 99999)" min="6500" max="99999" required
+                               {% if queue %}value="{{ queue.queue_number }}" readonly{% endif %}>
+                    </div>
+                    <div class="q-group">
+                        <label class="q-label" for="name">Queue Descriptive Name <span class="tooltip-container">!<span class="tooltip-text">Alphanumeric label displayed on supervisor dashboards and reports.</span></span> <span style="color:#ef4444;">*</span></label>
+                        <input type="text" id="name" name="name" class="q-input" placeholder="e.g. Technical Support Team" required
+                               value="{% if queue %}{{ queue.name }}{% endif %}">
+                    </div>
+                </div>
+
+                <div class="q-grid-2" style="margin-top: 1rem;">
+                    <div class="q-group">
+                        <label class="q-label" for="strategy">Call Ring Strategy <span class="tooltip-container">!<span class="tooltip-text">Determines the algorithm used to distribute incoming calls among available agents.</span></span></label>
+                        <select id="strategy" name="strategy" class="q-select" onchange="updateStrategyDesc()">
+                            <option value="rrmemory" {% if queue and queue.strategy == 'rrmemory' or not queue %}selected{% endif %}>Round Robin Memory (rrmemory)</option>
+                            <option value="ringall" {% if queue and queue.strategy == 'ringall' %}selected{% endif %}>Ring All Simultaneously (ringall)</option>
+                            <option value="roundrobin" {% if queue and queue.strategy == 'roundrobin' %}selected{% endif %}>Round Robin (roundrobin)</option>
+                            <option value="leastrecent" {% if queue and queue.strategy == 'leastrecent' %}selected{% endif %}>Least Recently Called (leastrecent)</option>
+                            <option value="fewestcalls" {% if queue and queue.strategy == 'fewestcalls' %}selected{% endif %}>Fewest Completed Calls (fewestcalls)</option>
+                            <option value="random" {% if queue and queue.strategy == 'random' %}selected{% endif %}>Random Order (random)</option>
+                            <option value="linear" {% if queue and queue.strategy == 'linear' %}selected{% endif %}>Linear Order (linear)</option>
+                        </select>
+                        <div id="strategy-info-box" class="q-strategy-info">
+                            <i class="fa-solid fa-circle-info"></i> <span id="strategy-desc">Round Robin Memory: Rings the agent who has waited longest since their last answered call.</span>
+                        </div>
+                    </div>
+                    <div class="q-group">
+                        <label class="q-label" for="servicelevel">Service Level Target (SLA Threshold) <span class="tooltip-container">!<span class="tooltip-text">Target wait time in seconds for answering calls to maintain green SLA metrics.</span></span></label>
+                        <div class="q-slider-container" style="margin-top: 0.5rem;">
+                            <input type="range" id="servicelevel" name="servicelevel" class="q-slider" min="5" max="180" step="5"
+                                   value="{% if queue %}{{ queue.servicelevel }}{% else %}30{% endif %}" oninput="updateSlaBadge(this.value)">
+                            <span id="sla-badge" class="q-badge">{% if queue %}{{ queue.servicelevel }}{% else %}30{% endif %}s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 4: AUDIO PROMPTS & CALLER EXPERIENCE -->
+            <div class="q-section">
+                <div class="q-section-title"><i class="fa-solid fa-music"></i> Audio Prompts & Caller Experience</div>
+                <div class="q-grid-2">
+                    <div class="q-group">
+                        <label class="q-label" for="music_on_hold">Music On Hold (MOH) Class <span class="tooltip-container">!<span class="tooltip-text">Audio stream played to callers while waiting in queue.</span></span></label>
+                        <select id="music_on_hold" name="music_on_hold" class="q-select">
+                            <option value="default">default (System Default MOH)</option>
+                            {% for cls in moh_classes %}
+                            <option value="{{ cls.name }}" {% if queue and queue.music_on_hold == cls.name %}selected{% endif %}>{{ cls.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="q-group">
+                        <label class="q-label" for="enable_welcome_prompt">Welcome Greeting Prompt <span class="tooltip-container">!<span class="tooltip-text">Play an audio announcement before placing caller into the hold queue.</span></span></label>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <select id="enable_welcome_prompt" name="enable_welcome_prompt" class="q-select" style="width: 140px;">
+                                <option value="off" {% if queue and queue.enable_welcome_prompt == 'off' or not queue %}selected{% endif %}>Disabled</option>
+                                <option value="on" {% if queue and queue.enable_welcome_prompt == 'on' %}selected{% endif %}>Enabled</option>
+                            </select>
+                            <select id="custom_prompt" name="custom_prompt" class="q-select" style="flex: 1;">
+                                <option value="">-- Select Welcome Audio Prompt --</option>
+                                {% for p in prompts %}
+                                <option value="{{ p.id }}" {% if queue and queue.custom_prompt == p.id %}selected{% endif %}>{{ p.name }} ({{ p.type|upper }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="q-grid-2" style="margin-top: 1rem;">
+                    <label class="q-check-card">
+                        <input type="checkbox" id="replace_display_name" name="replace_display_name" value="on" {% if queue and queue.replace_display_name == 'on' %}checked{% endif %}>
+                        <span>
+                            <span class="q-label" style="margin-bottom: 0.25rem; font-size: 0.95rem;">Replace DisplayName</span>
+                            <span class="q-sublabel">Set caller display name prefix to this Queue Name while routing.</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Tab 1 Actions -->
+            <div class="q-tab-actions">
+                <a href="{{ url_for('queue_list') }}" class="q-btn q-btn-secondary" style="text-decoration: none;">Cancel</a>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button type="submit" class="q-btn q-btn-success" style="padding: 0.65rem 1.5rem;">
+                        <i class="fa-solid fa-check-circle"></i> {% if queue %}Update Call Queue{% else %}Create Call Queue{% endif %}
+                    </button>
+                    <button type="button" class="q-btn" onclick="switchTab('advanced')">
+                        Next: Advanced Features <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: ADVANCED FEATURES -->
+        <div class="q-tab-pane" id="tab-pane-advanced">
+            <!-- SECTION 2: TIMERS & CAPACITY -->
+            <div class="q-section">
+                <div class="q-section-title"><i class="fa-solid fa-stopwatch"></i> Timers, Capacity & Empty Queue Policies</div>
+                <div class="q-grid-3">
+                    <div class="q-group">
+                        <label class="q-label" for="ring_time">Agent Ring Time (sec) <span class="tooltip-container">!<span class="tooltip-text">Duration to ring an agent before trying next member.</span></span></label>
+                        <input type="number" id="ring_time" name="ring_time" class="q-input" min="3" max="60"
+                               value="{% if queue %}{{ queue.ring_time }}{% else %}15{% endif %}">
+                    </div>
+                    <div class="q-group">
+                        <label class="q-label" for="retry_time">Retry Interval (sec) <span class="tooltip-container">!<span class="tooltip-text">Delay between ringing successive agents.</span></span></label>
+                        <input type="number" id="retry_time" name="retry_time" class="q-input" min="1" max="60"
+                               value="{% if queue %}{{ queue.retry_time }}{% else %}2{% endif %}">
+                    </div>
+                    <div class="q-group">
+                        <label class="q-label" for="wrapup_time">Wrap-up Time (sec) <span class="tooltip-container">!<span class="tooltip-text">Post-call rest duration before receiving new calls.</span></span></label>
+                        <input type="number" id="wrapup_time" name="wrapup_time" class="q-input" min="0" max="3600"
+                               value="{% if queue %}{{ queue.wrapup_time }}{% else %}5{% endif %}">
+                    </div>
+                </div>
+
+                <div class="q-grid-2" style="margin-top: 1rem;">
+                    <div class="q-group">
+                        <label class="q-label" for="max_queue_length">Max Queue Capacity (Members) <span class="tooltip-container">!<span class="tooltip-text">Max callers allowed waiting simultaneously (0 = Unlimited).</span></span></label>
+                        <input type="number" id="max_queue_length" name="max_queue_length" class="q-input" min="0" max="1000"
+                               value="{% if queue %}{{ queue.max_queue_length }}{% else %}10{% endif %}">
+                    </div>
+                    <div class="q-group">
+                        <label class="q-label" for="max_wait_time">Max Wait Time Timeout (sec) <span class="tooltip-container">!<span class="tooltip-text">Maximum wait duration before redirecting to failover (0 = Unlimited).</span></span></label>
+                        <input type="number" id="max_wait_time" name="max_wait_time" class="q-input" min="0" max="7200"
+                               value="{% if queue and queue.max_wait_time is defined %}{{ queue.max_wait_time }}{% else %}0{% endif %}">
+                        <span class="q-sublabel">0 = Unlimited. If set, it must be greater than Agent Ring Time.</span>
+                        <span id="queue-time-validation" class="q-sublabel" style="display:none; color:#fca5a5; font-weight:700;"></span>
+                    </div>
+                </div>
+
+                <div class="q-grid-2" style="margin-top: 1rem;">
+                    <div class="q-group">
+                        <label class="q-label" for="dial_in_empty_queue">Join Empty Queue Policy <span class="tooltip-container">!<span class="tooltip-text">Determines whether new callers can enter the queue when no agents are currently ready.</span></span></label>
+                        <select id="dial_in_empty_queue" name="dial_in_empty_queue" class="q-select">
+                            <option value="yes" {% if queue and queue.dial_in_empty_queue == 'yes' or not queue %}selected{% endif %}>Yes - Always allow callers to join (Recommended)</option>
+                            <option value="no" {% if queue and queue.dial_in_empty_queue == 'no' %}selected{% endif %}>No - Reject if all agents are logged out or paused</option>
+                            <option value="strict" {% if queue and queue.dial_in_empty_queue == 'strict' %}selected{% endif %}>Strict - Reject if all agents are busy, paused, or logged out</option>
+                        </select>
+                    </div>
+                    <div class="q-group">
+                        <label class="q-label" for="leave_when_empty">Leave When Empty Policy <span class="tooltip-container">!<span class="tooltip-text">Determines whether existing waiting callers are kicked out if all agents suddenly become unavailable.</span></span></label>
+                        <select id="leave_when_empty" name="leave_when_empty" class="q-select">
+                            <option value="no" {% if queue and queue.leave_when_empty == 'no' or not queue %}selected{% endif %}>No - Never remove waiting callers (Recommended)</option>
+                            <option value="yes" {% if queue and queue.leave_when_empty == 'yes' %}selected{% endif %}>Yes - Remove waiting callers immediately if all agents log out</option>
+                            <option value="strict" {% if queue and queue.leave_when_empty == 'strict' %}selected{% endif %}>Strict - Remove waiting callers if all agents become busy/paused</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="q-grid-3" style="margin-top: 1rem;">
+                    <label class="q-check-card">
+                        <input type="checkbox" id="report_hold_time" name="report_hold_time" value="on" {% if queue and queue.report_hold_time == 'on' %}checked{% endif %}>
+                        <span>
+                            <span class="q-label" style="margin-bottom: 0.25rem; font-size: 0.95rem;">Report Hold Time</span>
+                            <span class="q-sublabel">Whispers caller wait duration to agent when answered.</span>
+                        </span>
+                    </label>
+                    <label class="q-check-card">
+                        <input type="checkbox" id="auto_fill" name="auto_fill" value="on" {% if queue and queue.auto_fill == 'on' %}checked{% endif %}>
+                        <span>
+                            <span class="q-label" style="margin-bottom: 0.25rem; font-size: 0.95rem;">Auto Fill Mode</span>
+                            <span class="q-sublabel">Connects multiple waiting callers to free agents simultaneously.</span>
+                        </span>
+                    </label>
+                    <label class="q-check-card">
+                        <input type="checkbox" id="skip_busy_agent" name="skip_busy_agent" value="on" {% if queue and queue.skip_busy_agent == 'on' or not queue %}checked{% endif %}>
+                        <span>
+                            <span class="q-label" style="margin-bottom: 0.25rem; font-size: 0.95rem;">Skip Busy Agents</span>
+                            <span class="q-sublabel">Avoids sending call waiting beeps to agents on active calls.</span>
+                        </span>
+                    </label>
+                    <label class="q-check-card">
+                        <input type="checkbox" id="auto_record" name="auto_record" value="on" {% if queue and queue.auto_record == 'on' %}checked{% endif %}>
+                        <span>
+                            <span class="q-label" style="margin-bottom: 0.25rem; font-size: 0.95rem;">Auto Record</span>
+                            <span class="q-sublabel">Automatically records queue calls from entry until the call ends.</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- SECTION 5: TIMEOUT / FAILOVER ROUTING -->
+            <div class="q-section" style="border-color: rgba(239, 68, 68, 0.3);">
+                <div class="q-section-title" style="color: #fca5a5;"><i class="fa-solid fa-route" style="color: #ef4444; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3);"></i> Timeout & Capacity Failover Destination <span class="tooltip-container" style="font-size:0.9rem; font-weight:normal;">!<span class="tooltip-text">Specify where callers should be redirected if the queue reaches max capacity, exceeds max wait time, or if no valid agents remain.</span></span></div>
+                <div id="queue-dest-selector" style="background: var(--bg-dark); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-color);"></div>
+            </div>
+
+            <!-- SECTION 6: SURVEY INTEGRATION -->
+            <div class="q-section" style="border-color: rgba(16, 185, 129, 0.3);">
+                <div class="q-section-title" style="color: #6ee7b7;"><i class="fa-solid fa-square-poll-vertical" style="color: #10b981; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);"></i> Post-Call Survey <span class="tooltip-container" style="font-size:0.9rem; font-weight:normal;">!<span class="tooltip-text">Select a survey to present to the customer after the agent hangs up.</span></span></div>
+                <div class="q-group" style="background: var(--bg-dark); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 1rem;">
+                    <label class="q-label" for="survey_id">Active Survey <span class="tooltip-container">!<span class="tooltip-text">Choose the survey to use for this queue.</span></span></label>
+                    <select id="survey_id" name="survey_id" class="q-select">
+                        <option value="">None</option>
+                        {% for survey in surveys %}
+                            <option value="{{ survey.id }}" {% if queue and queue.survey_id|string == survey.id|string %}selected{% endif %}>{{ survey.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="q-group" style="background: var(--bg-dark); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                    <label class="q-label" for="survey_callback_exten">Callback Extension <span class="tooltip-container">!<span class="tooltip-text">Select the extension whose permissions will be used to make the outbound callback if the customer hangs up first.</span></span></label>
+                    <select id="survey_callback_exten" name="survey_callback_exten" class="q-select">
+                        <option value="">-- Select Extension --</option>
+                        {% for ext in available_extensions %}
+                            <option value="{{ ext.ext }}" {% if queue and queue.survey_callback_exten == ext.ext %}selected{% endif %}>{{ ext.ext }} - {{ ext.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tab 2 Actions -->
+            <div class="q-tab-actions">
+                <button type="button" class="q-btn q-btn-secondary" onclick="switchTab('basic')">
+                    <i class="fa-solid fa-arrow-left"></i> Previous: Basic Features
+                </button>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="{{ url_for('queue_list') }}" class="q-btn q-btn-secondary" style="text-decoration: none;">Cancel</a>
+                    <button type="submit" class="q-btn q-btn-success" style="padding: 0.65rem 1.5rem;">
+                        <i class="fa-solid fa-check-circle"></i> {% if queue %}Update Call Queue{% else %}Create Call Queue{% endif %}
+                    </button>
+                    <button type="button" class="q-btn" onclick="switchTab('agents')">
+                        Next: Queue Agents <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: AGENTS -->
+        <div class="q-tab-pane" id="tab-pane-agents">
+            <!-- SECTION 3: AGENT ALLOCATION STUDIO -->
+            <div class="q-section">
+                <div class="q-section-title"><i class="fa-solid fa-users-gear"></i> Agent Membership Allocation Studio <span class="tooltip-container" style="font-size:0.9rem; font-weight:normal;">!<span class="tooltip-text">Assign static agents who will automatically be members of this queue upon startup. Dynamic agents can still log in using *45 feature codes.</span></span></div>
+                
+                <div class="q-agents-studio">
+                    <!-- Left Box: Available Extensions -->
+                    <div class="q-list-box">
+                        <div class="q-list-header">
+                            <span style="color: #38bdf8;"><i class="fa-solid fa-user-clock"></i> Available Extensions</span>
+                            <span id="avail-count" class="q-badge" style="font-size:0.75rem; padding:0.2rem 0.5rem;">0</span>
+                        </div>
+                        <input type="text" id="search-avail" class="q-list-search" placeholder="Filter available extensions..." oninput="filterList('avail', 'search-avail')">
+                        <select id="avail" class="q-select-multiple" multiple>
+                            {% for ext in available_extensions %}
+                            <option value="{{ ext.ext }}">{{ ext.ext }} - {{ ext.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Center Buttons -->
+                    <div class="q-transfer-btns">
+                        <button type="button" class="q-btn" onclick="addSelected()" title="Add Selected Agents">
+                            Add <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <button type="button" class="q-btn q-btn-secondary" onclick="removeSelected()" title="Remove Selected Agents">
+                            <i class="fa-solid fa-arrow-left"></i> Remove
+                        </button>
+                        <div style="height: 10px;"></div>
+                        <button type="button" class="q-btn q-btn-secondary" style="font-size: 0.75rem; padding: 0.4rem;" onclick="addAll()">Add All</button>
+                        <button type="button" class="q-btn q-btn-secondary" style="font-size: 0.75rem; padding: 0.4rem;" onclick="removeAll()">Remove All</button>
+                    </div>
+
+                    <!-- Right Box: Assigned Agents -->
+                    <div class="q-list-box" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05);">
+                        <div class="q-list-header">
+                            <span style="color: #34d399;"><i class="fa-solid fa-user-check"></i> Assigned Queue Members</span>
+                            <span id="sel-count" class="q-badge" style="font-size:0.75rem; padding:0.2rem 0.5rem; background:var(--q-success); color: var(--text-main);">0</span>
+                        </div>
+                        <input type="text" id="search-sel" class="q-list-search" placeholder="Filter assigned agents..." oninput="filterList('sel', 'search-sel')">
+                        <select id="sel" class="q-select-multiple" multiple>
+                            {% for ext in selected_extensions %}
+                            <option value="{{ ext.ext }}">{{ ext.ext }} - {{ ext.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div id="hiddenMembers"></div>
+            </div>
+
+            <!-- Tab 3 Actions -->
+            <div class="q-tab-actions">
+                <button type="button" class="q-btn q-btn-secondary" onclick="switchTab('advanced')">
+                    <i class="fa-solid fa-arrow-left"></i> Previous: Advanced Features
+                </button>
+                <button type="button" class="q-btn" onclick="switchTab('agent_settings')">
+                    Next: Agent Settings <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 4: AGENT SETTINGS -->
+        <div class="q-tab-pane" id="tab-pane-agent_settings">
+            <div class="q-section">
+                <div class="q-section-title"><i class="fa-solid fa-user-tie"></i> Supervisors Allocation <span class="tooltip-container" style="font-size:0.9rem; font-weight:normal;">!<span class="tooltip-text">Extensions who will have CON Supervisor access to monitor this queue.</span></span></div>
+                
+                <div class="q-agents-studio">
+                    <!-- Left Box: Available Extensions -->
+                    <div class="q-list-box">
+                        <div class="q-list-header">
+                            <span style="color: #38bdf8;"><i class="fa-solid fa-user-clock"></i> Available Extensions</span>
+                            <span id="sup-avail-count" class="q-badge" style="font-size:0.75rem; padding:0.2rem 0.5rem;">0</span>
+                        </div>
+                        <input type="text" id="search-sup-avail" class="q-list-search" placeholder="Filter available extensions..." oninput="filterList('sup-avail', 'search-sup-avail')">
+                        <select id="sup-avail" class="q-select-multiple" multiple>
+                            {% for ext in available_extensions %}
+                                {% if not queue or ext.ext|string not in queue.get('supervisors', []) %}
+                                <option value="{{ ext.ext }}">{{ ext.ext }} - {{ ext.name }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Center Buttons -->
+                    <div class="q-transfer-btns">
+                        <button type="button" class="q-btn" onclick="addSelectedSup()" title="Add Selected Supervisors">
+                            Add <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <button type="button" class="q-btn q-btn-secondary" onclick="removeSelectedSup()" title="Remove Selected Supervisors">
+                            <i class="fa-solid fa-arrow-left"></i> Remove
+                        </button>
+                    </div>
+
+                    <!-- Right Box: Assigned Supervisors -->
+                    <div class="q-list-box" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05);">
+                        <div class="q-list-header">
+                            <span style="color: #34d399;"><i class="fa-solid fa-user-check"></i> Assigned Supervisors</span>
+                            <span id="sup-sel-count" class="q-badge" style="font-size:0.75rem; padding:0.2rem 0.5rem; background:var(--q-success); color: var(--text-main);">0</span>
+                        </div>
+                        <input type="text" id="search-sup-sel" class="q-list-search" placeholder="Filter assigned supervisors..." oninput="filterList('sup-sel', 'search-sup-sel')">
+                        <select id="sup-sel" class="q-select-multiple" multiple>
+                            {% if queue and queue.get('supervisors') %}
+                                {% for sup_ext in queue.supervisors %}
+                                    {% for ext in available_extensions %}
+                                        {% if ext.ext|string == sup_ext|string %}
+                                        <option value="{{ ext.ext }}">{{ ext.ext }} - {{ ext.name }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="q-section">
+                <div class="q-section-title"><i class="fa-solid fa-scroll"></i> Queue Script</div>
+                <div class="q-group">
+                    <label class="q-label">Agent Call Script <span class="tooltip-container">!<span class="tooltip-text">Script text displayed to agents handling calls from this queue.</span></span></label>
+                    <textarea name="script" class="q-input" rows="6" placeholder="Enter script here...">{% if queue %}{{ queue.get('script', '') }}{% endif %}</textarea>
+                </div>
+            </div>
+
+            <div class="q-section">
+                <div class="q-section-title"><i class="fa-solid fa-mug-hot"></i> Break Configuration</div>
+                <div class="q-group" style="margin-bottom: 1.5rem;">
+                    <label class="q-label">Total Break Limit (Minutes) <span class="tooltip-container">!<span class="tooltip-text">Total combined break time allowed per agent in this queue per day.</span></span></label>
+                    <input type="number" name="total_break_time" class="q-input" value="{{ queue.total_break_time if queue and queue.get('total_break_time') else '60' }}" min="1" required>
+                </div>
+                <div class="q-section-title" style="font-size: 1rem; border: none; margin-bottom: 10px;">Allowed Break Reasons</div>
+                <div id="breaks-container">
+                    {% if queue and queue.get('breaks') %}
+                        {% for b in queue.breaks %}
+                        <div class="q-grid-3 break-row" style="margin-bottom: 0.5rem; grid-template-columns: 1fr auto;">
+                            <input type="text" name="break_reasons[]" class="q-input" value="{{ b.reason }}" placeholder="Reason (e.g. Lunch)" required>
+                            <button type="button" class="q-btn q-btn-danger" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="q-grid-3 break-row" style="margin-bottom: 0.5rem; grid-template-columns: 1fr auto;">
+                            <input type="text" name="break_reasons[]" class="q-input" placeholder="Reason (e.g. Lunch)">
+                            <button type="button" class="q-btn q-btn-danger" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    {% endif %}
+                </div>
+                <button type="button" class="q-btn q-btn-secondary" style="margin-top: 1rem;" onclick="addBreakRow()">
+                    <i class="fa-solid fa-plus"></i> Add Break Reason
+                </button>
+            </div>
+
+            <div class="q-tab-actions">
+                <button type="button" class="q-btn q-btn-secondary" onclick="switchTab('agents')">
+                    <i class="fa-solid fa-arrow-left"></i> Previous: Agents
+                </button>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="{{ url_for('queue_list') }}" class="q-btn q-btn-secondary" style="text-decoration: none;">Cancel</a>
+                    <button type="submit" class="q-btn q-btn-success" style="padding: 0.75rem 2rem; font-size: 1rem;">
+                        <i class="fa-solid fa-check-circle"></i> {% if queue %}Update Call Queue{% else %}Create Call Queue{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </form>
+</div>
+<script>
+function addBreakRow() {
+    const container = document.getElementById('breaks-container');
+    const row = document.createElement('div');
+    row.className = 'q-grid-3 break-row';
+    row.style.marginBottom = '0.5rem';
+    row.style.gridTemplateColumns = '1fr auto';
+    row.innerHTML = `
+        <input type="text" name="break_reasons[]" class="q-input" placeholder="Reason (e.g. Lunch)" required>
+        <button type="button" class="q-btn q-btn-danger" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+    `;
+    container.appendChild(row);
+}
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    /* RING STRATEGY DESCRIPTIONS */
+    const strategies = {
+        "rrmemory": "Round Robin Memory: Rings the agent who has waited longest since their last answered call.",
+        "ringall": "Ring All: Rings all available agents simultaneously until someone answers.",
+        "roundrobin": "Round Robin: Rings each agent in sequential order, starting from position 1.",
+        "leastrecent": "Least Recently Called: Rings the agent who was least recently rung by any queue.",
+        "fewestcalls": "Fewest Completed Calls: Rings the agent who has completed the fewest queue calls.",
+        "random": "Random Order: Distributes incoming calls to available agents randomly.",
+        "linear": "Linear Order: Always rings agents in the exact order they appear in the assigned members list."
+    };
+
+    function updateStrategyDesc() {
+        const val = document.getElementById("strategy").value;
+        document.getElementById("strategy-desc").innerText = strategies[val] || "Standard call distribution strategy.";
+    }
+
+    function updateSlaBadge(val) {
+        document.getElementById("sla-badge").innerText = val + "s";
+    }
+
+
+
+    /* AGENT STUDIO DUAL LIST BOX CONTROLS */
+    function updateCounts() {
+        const availCount = document.getElementById("avail-count");
+        if (availCount) availCount.innerText = document.getElementById("avail").options.length;
+        const selCount = document.getElementById("sel-count");
+        if (selCount) selCount.innerText = document.getElementById("sel").options.length;
+    }
+
+    function updateSupCounts() {
+        const supAvailCount = document.getElementById("sup-avail-count");
+        if (supAvailCount) supAvailCount.innerText = document.getElementById("sup-avail").options.length;
+        const supSelCount = document.getElementById("sup-sel-count");
+        if (supSelCount) supSelCount.innerText = document.getElementById("sup-sel").options.length;
+    }
+
+    function moveOptions(src, dst) {
+        const selOpts = Array.from(src.selectedOptions);
+        selOpts.forEach(o => { dst.add(o); });
+    }
+
+    function addSelected() { moveOptions(document.getElementById("avail"), document.getElementById("sel")); updateCounts(); }
+    function removeSelected() { moveOptions(document.getElementById("sel"), document.getElementById("avail")); updateCounts(); }
+    function addSelectedSup() { moveOptions(document.getElementById("sup-avail"), document.getElementById("sup-sel")); updateSupCounts(); }
+    function removeSelectedSup() { moveOptions(document.getElementById("sup-sel"), document.getElementById("sup-avail")); updateSupCounts(); }
+    
+    function addAll() {
+        const avail = document.getElementById("avail");
+        const sel = document.getElementById("sel");
+        Array.from(avail.options).forEach(o => sel.add(o));
+        updateCounts();
+    }
+    function removeAll() {
+        const avail = document.getElementById("avail");
+        const sel = document.getElementById("sel");
+        Array.from(sel.options).forEach(o => avail.add(o));
+        updateCounts();
+    }
+
+    function filterList(selectId, inputId) {
+        const query = document.getElementById(inputId).value.toLowerCase();
+        const select = document.getElementById(selectId);
+        Array.from(select.options).forEach(opt => {
+            const text = opt.text.toLowerCase();
+            opt.style.display = text.includes(query) ? "block" : "none";
+        });
+    }
+
+    function validateQueueTiming(showAlert = false) {
+        const ringTime = parseInt(document.getElementById("ring_time").value, 10) || 0;
+        const maxWaitTime = parseInt(document.getElementById("max_wait_time").value, 10) || 0;
+        const msgEl = document.getElementById("queue-time-validation");
+        const invalid = maxWaitTime !== 0 && ringTime >= maxWaitTime;
+
+        if (invalid) {
+            const message = `Agent Ring Time (${ringTime}s) must be less than Max Wait Time (${maxWaitTime}s). Use 0 only for unlimited Max Wait Time.`;
+            if (msgEl) {
+                msgEl.textContent = message;
+                msgEl.style.display = "block";
+            }
+            if (showAlert) alert("خطأ في ضبط الأوقات:\n" + message);
+            return false;
+        }
+
+        if (msgEl) {
+            msgEl.textContent = "";
+            msgEl.style.display = "none";
+        }
+        return true;
+    }
+
+    ["ring_time", "max_wait_time"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("input", () => validateQueueTiming(false));
+    });
+
+    /* TAB SWITCHING CONTROLLER */
+    function switchTab(tabName) {
+        document.querySelectorAll('.q-tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.q-tab-pane').forEach(pane => pane.classList.remove('active'));
+
+        const activeBtn = document.getElementById('tab-btn-' + tabName);
+        const activePane = document.getElementById('tab-pane-' + tabName);
+        if (activeBtn) activeBtn.classList.add('active');
+        if (activePane) activePane.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* SUBMIT HANDLER: validate across tabs & auto-generate members[] hidden fields */
+    document.getElementById("queueForm").addEventListener("submit", function(e) {
+        const qNumEl = document.getElementById("queue_number");
+        const qNameEl = document.getElementById("name");
+        
+        if ((qNumEl && !qNumEl.value.trim()) || (qNameEl && !qNameEl.value.trim())) {
+            switchTab('basic');
+            if (qNumEl && !qNumEl.value.trim()) qNumEl.focus();
+            else if (qNameEl) qNameEl.focus();
+            return false;
+        }
+
+        if (!validateQueueTiming(true)) {
+            switchTab('advanced');
+            const maxWaitEl = document.getElementById("max_wait_time");
+            if (maxWaitEl) maxWaitEl.focus();
+            e.preventDefault();
+            return false;
+        }
+        
+        const holder = document.getElementById("hiddenMembers");
+        holder.innerHTML = "";
+        const sel = document.getElementById("sel");
+        Array.from(sel.options).forEach(o => {
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = "members[]";
+            inp.value = o.value;
+            holder.appendChild(inp);
+        });
+
+        const supSel = document.getElementById("sup-sel");
+        Array.from(supSel.options).forEach(o => {
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = "supervisors[]";
+            inp.value = o.value;
+            holder.appendChild(inp);
+        });
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        renderDestinationSelector(
+            "queue-dest-selector",
+            "destination_type",
+            "destination_value",
+            "{% if queue %}{{ queue.destination_type }}{% else %}hangup{% endif %}",
+            "{% if queue %}{{ queue.destination_value }}{% endif %}"
+        );
+        updateStrategyDesc();
+        updateCounts();
+        updateSupCounts();
+    });
+</script>
+{% endblock %}

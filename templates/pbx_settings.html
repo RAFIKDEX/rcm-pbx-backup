@@ -1,0 +1,488 @@
+{% extends 'base.html' %}
+
+{% block title %}PBX Settings - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    .pbx-tabs {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 1.5rem;
+    }
+    .pbx-tab-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        padding: 0.85rem 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .pbx-tab-btn.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+    }
+    .pbx-tab-panel { display: none; }
+    .pbx-tab-panel.active { display: block; }
+    .pbx-section {
+        padding: 1rem 0 1.35rem;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 1.35rem;
+    }
+    .pbx-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    .pbx-section-title {
+        color: var(--text-main);
+        font-size: 1rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .required-mark { color: var(--status-offline); }
+    .endpoint-order-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        max-width: 520px;
+    }
+    .endpoint-order-row select { flex: 1; }
+    .settings-help {
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        margin-top: 0.35rem;
+    }
+    @media (max-width: 760px) {
+        .pbx-tabs { flex-wrap: wrap; }
+        .endpoint-order-row { align-items: stretch; }
+    }
+</style>
+
+<div class="header-panel">
+    <div>
+        <h1>PBX Settings</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage SIP listeners, RTP media ports, and defaults for future extensions</div>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{{ url_for('pbx_settings') }}" method="POST" id="pbx-settings-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="active_tab" id="active_tab" value="{{ active_tab or 'extension' }}">
+
+        <div class="pbx-tabs" role="tablist">
+            <button type="button" class="pbx-tab-btn" id="tab-extension" onclick="showPbxTab('extension')">
+                <i class="fa-solid fa-phone"></i> Extension Settings
+            </button>
+            <button type="button" class="pbx-tab-btn" id="tab-sip" onclick="showPbxTab('sip')">
+                <i class="fa-solid fa-network-wired"></i> SIP Settings
+            </button>
+        </div>
+
+        <!-- LIVE LISTENERS STATUS BADGE -->
+        {% if settings.live_listeners %}
+        <div style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 10px #22c55e;"></div>
+                <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;"><i class="fa-solid fa-server" style="color: var(--primary);"></i> Live OS Transport Sockets:</span>
+            </div>
+            <div style="display: flex; gap: 1.25rem; flex-wrap: wrap;">
+                {% for proto, data in settings.live_listeners.items() %}
+                <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--border-color); padding: 0.4rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <span style="text-transform: uppercase; font-size: 0.8rem; font-weight: 800; color: var(--text-muted);">{{ proto }}:</span>
+                    <strong style="color: var(--text-main); font-size: 0.9rem;">{{ data.port or 'N/A' }}</strong>
+                    {% if data.port %}
+                        {% if data.status == 'unknown' %}
+                        <span style="font-size: 0.75rem; background: rgba(148, 163, 184, 0.15); color: #cbd5e1; padding: 0.15rem 0.5rem; border-radius: 6px; font-weight: 700;">UNKNOWN</span>
+                        {% elif data.listening %}
+                        <span style="font-size: 0.75rem; background: rgba(34, 197, 94, 0.15); color: #4ade80; padding: 0.15rem 0.5rem; border-radius: 6px; font-weight: 700;">ACTIVE</span>
+                        {% else %}
+                        <span style="font-size: 0.75rem; background: rgba(239, 68, 68, 0.15); color: #f87171; padding: 0.15rem 0.5rem; border-radius: 6px; font-weight: 700;">INACTIVE</span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="pbx-tab-panel" id="panel-extension">
+            <div class="pbx-section">
+                <div class="pbx-section-title"><i class="fa-solid fa-gauge-high" style="color: var(--primary);"></i> Global Call & System Capacity</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="max_concurrent_calls">Maximum Concurrent Calls <span class="required-mark">*</span> <span class="tooltip-container">!<span class="tooltip-text">Writes Asterisk maxcalls in asterisk.conf. Existing active calls are not interrupted. Asterisk restart may be required before runtime changes.</span></span></label>
+                        <input type="number" id="max_concurrent_calls" name="max_concurrent_calls" class="form-control" min="0" max="10000" required value="{{ settings.max_concurrent_calls }}">
+                        <div class="settings-help">
+                            Configured: {{ settings.max_concurrent_calls if settings.max_concurrent_calls else 'Unlimited' }} |
+                            Runtime:
+                            {% if settings.core_runtime_available %}
+                                {{ settings.runtime_max_concurrent_calls if settings.runtime_max_concurrent_calls else 'Unlimited / Not set' }}
+                            {% else %}
+                                Unknown
+                            {% endif %}
+                        </div>
+                        {% if settings.maxcalls_restart_required %}
+                        <div style="margin-top: 0.5rem; color: #fef08a; font-size: 0.82rem;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Restart Asterisk to activate the configured concurrent call limit.
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="maxload">System CPU Load Threshold (maxload) <span class="tooltip-container">!<span class="tooltip-text">Writes Asterisk maxload in asterisk.conf. Rejects new incoming calls if system CPU load average exceeds this threshold (e.g. 4.0). Set 0.0 to disable.</span></span></label>
+                        <input type="number" step="0.1" id="maxload" name="maxload" class="form-control" min="0" max="100" value="{{ settings.maxload }}">
+                        <div class="settings-help">Set to 0.0 for unlimited load threshold.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pbx-section">
+                <div class="pbx-section-title"><i class="fa-solid fa-phone-volume" style="color: var(--primary);"></i> New Extension Defaults & Call Features</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dtmf_mode">DTMF Mode <span class="required-mark">*</span> <span class="tooltip-container">!<span class="tooltip-text">Default keypad signaling mode copied into newly created extensions. Existing extensions are not changed.</span></span></label>
+                        <select id="dtmf_mode" name="dtmf_mode" class="form-control" required>
+                            {% for value, label in dtmf_modes.items() %}
+                            <option value="{{ value }}" {% if settings.dtmf_mode == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="blind_transfer_timeout">Blind Transfer Timeout (s) <span class="required-mark">*</span> <span class="tooltip-container">!<span class="tooltip-text">Global Asterisk transfer digit timeout written to features.conf.</span></span></label>
+                        <input type="number" id="blind_transfer_timeout" name="blind_transfer_timeout" class="form-control" min="1" max="300" required value="{{ settings.blind_transfer_timeout }}">
+                        <div class="settings-help">Applied globally through Asterisk features configuration.</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="moh_class">Default Music On Hold Class <span class="required-mark">*</span> <span class="tooltip-container">!<span class="tooltip-text">Default MOH class copied into newly created extensions. Existing extensions are not changed.</span></span></label>
+                        <select id="moh_class" name="moh_class" class="form-control" required>
+                            {% for class_name in settings.moh_classes %}
+                            <option value="{{ class_name }}" {% if settings.moh_class == class_name %}selected{% endif %}>{{ class_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ring_time">Default Ring Time (seconds) <span class="required-mark">*</span></label>
+                        <input type="number" id="ring_time" name="ring_time" class="form-control" min="5" max="300" required value="{{ settings.ring_time }}">
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label for="featuredigittimeout">Feature Digit Timeout (ms) <span class="required-mark">*</span> <span class="tooltip-container">!<span class="tooltip-text">Max time allowed between keypresses when dialing feature codes like *2 or #1.</span></span></label>
+                        <input type="number" id="featuredigittimeout" name="featuredigittimeout" class="form-control" min="100" max="10000" required value="{{ settings.featuredigittimeout }}">
+                        <div class="settings-help">Applied globally through features.conf (default 1000 ms).</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="atxfernoanswertimeout">Attended Transfer Timeout (s) <span class="required-mark">*</span> <span class="tooltip-container">!<span class="tooltip-text">Seconds to ring target on attended transfer (*2) before returning call to original agent if unanswered.</span></span></label>
+                        <input type="number" id="atxfernoanswertimeout" name="atxfernoanswertimeout" class="form-control" min="5" max="300" required value="{{ settings.atxfernoanswertimeout }}">
+                        <div class="settings-help">Applied globally through features.conf (default 15 s).</div>
+                    </div>
+                </div>
+                <div class="switch-group" style="margin-top: 1rem;">
+                    <label class="switch">
+                        <input type="checkbox" name="video_support" {% if settings.video_support %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <div>
+                        <strong>Video Support <span class="tooltip-container">!<span class="tooltip-text">When enabled, newly created extensions include video codecs while preserving audio codecs.</span></span></strong>
+                        <div class="settings-help">Existing extensions and audio codec settings are not modified automatically.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pbx-tab-panel" id="panel-sip">
+            <div class="pbx-section">
+                <div class="pbx-section-title"><i class="fa-solid fa-ethernet" style="color: var(--primary);"></i> SIP Ports</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="udp_port">UDP Port <span class="required-mark">*</span></label>
+                        <input type="number" id="udp_port" name="udp_port" class="form-control" min="1" max="65535" required value="{{ settings.udp_port }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="tcp_port">TCP Port <span class="required-mark">*</span></label>
+                        <input type="number" id="tcp_port" name="tcp_port" class="form-control" min="1" max="65535" required value="{{ settings.tcp_port }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="tls_port">TLS Port <span class="required-mark">*</span></label>
+                        <input type="number" id="tls_port" name="tls_port" class="form-control" min="1" max="65535" required value="{{ settings.tls_port }}">
+                    </div>
+                </div>
+                <div class="settings-help">Existing transport section names and TLS certificate settings are preserved.</div>
+                <div style="margin-top: 0.75rem; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 8px; padding: 0.75rem 1rem; color: #fef08a; font-size: 0.85rem; display: flex; gap: 0.65rem; align-items: center;">
+                    <i class="fa-solid fa-triangle-exclamation" style="color: #eab308; font-size: 1.1rem;"></i>
+                    <span><strong>Note:</strong> Changing SIP binding ports runs a PJSIP transport module reload. If active endpoints lose registration, you may need to perform a full Asterisk service restart.</span>
+                </div>
+            </div>
+
+            <div class="pbx-section">
+                <div class="pbx-section-title"><i class="fa-solid fa-tower-broadcast" style="color: var(--primary);"></i> RTP Port Range & NAT Traversal</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rtp_start">RTP Start Port <span class="required-mark">*</span></label>
+                        <input type="number" id="rtp_start" name="rtp_start" class="form-control" min="1024" max="65535" required value="{{ settings.rtp_start }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="rtp_end">RTP End Port <span class="required-mark">*</span></label>
+                        <input type="number" id="rtp_end" name="rtp_end" class="form-control" min="1024" max="65535" required value="{{ settings.rtp_end }}">
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label for="stunaddr">STUN Server Address <span class="tooltip-container">!<span class="tooltip-text">Optional STUN server address for NAT traversal (e.g., stun.l.google.com:19302). Leaves empty if unused.</span></span></label>
+                        <input type="text" id="stunaddr" name="stunaddr" class="form-control" maxlength="100" value="{{ settings.stunaddr }}" placeholder="e.g. stun.l.google.com:19302">
+                        <div class="settings-help">Assists remote SIP phones and WebRTC clients behind routers.</div>
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 1.5rem; align-items: center; padding-top: 1.5rem;">
+                        <div class="switch-group">
+                            <label class="switch">
+                                <input type="checkbox" name="icesupport" {% if settings.icesupport %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                            <div>
+                                <strong>ICE Support</strong>
+                                <div class="settings-help" style="margin-top:0;">Interactive Connectivity Establishment</div>
+                            </div>
+                        </div>
+                        <div class="switch-group">
+                            <label class="switch">
+                                <input type="checkbox" name="rtpchecksums" {% if settings.rtpchecksums %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                            <div>
+                                <strong>RTP Checksums</strong>
+                                <div class="settings-help" style="margin-top:0;">Enable UDP packet checksums</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pbx-section">
+                <div class="pbx-section-title"><i class="fa-solid fa-stopwatch" style="color: var(--primary);"></i> SIP Keep-Alive & Qualify Timers</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="keep_alive_interval">Keep-Alive Interval (seconds) <span class="required-mark">*</span> <span class="tooltip-container">!<span class="tooltip-text">Time in seconds between sending NAT keep-alive OPTIONS packets to registered devices.</span></span></label>
+                        <input type="number" id="keep_alive_interval" name="keep_alive_interval" class="form-control" min="10" max="3600" required value="{{ settings.keep_alive_interval }}">
+                        <div class="settings-help">Default is 90 seconds. Keeps NAT router sessions open.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="max_forwards">Max Forwards (hops) <span class="required-mark">*</span> <span class="tooltip-container">!<span class="tooltip-text">Maximum SIP routing hops allowed to prevent infinite call loops.</span></span></label>
+                        <input type="number" id="max_forwards" name="max_forwards" class="form-control" min="10" max="255" required value="{{ settings.max_forwards }}">
+                        <div class="settings-help">Default is 70 hops.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pbx-section">
+                <div class="pbx-section-title"><i class="fa-solid fa-id-card-clip" style="color: var(--primary);"></i> SIP Identity</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="user_agent">User Agent <span class="tooltip-container">!<span class="tooltip-text">Custom PJSIP user_agent value. Leave empty to use the effective Asterisk default.</span></span></label>
+                        <input type="text" id="user_agent" name="user_agent" class="form-control" maxlength="80" value="{{ settings.user_agent }}" placeholder="{{ settings.effective_user_agent }}">
+                        <div class="settings-help">Effective value: {{ settings.effective_user_agent }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pbx-section">
+                <div class="pbx-section-title"><i class="fa-solid fa-list-ol" style="color: var(--primary);"></i> Endpoint Identifier Order</div>
+                <div id="endpoint-order-list">
+                    {% for identifier in settings.endpoint_identifier_order %}
+                    <div class="endpoint-order-row">
+                        <select name="endpoint_identifier_order" class="form-control">
+                            {% for option in settings.supported_endpoint_identifiers %}
+                            <option value="{{ option }}" {% if option == identifier %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="moveEndpointRow(this, -1)" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="moveEndpointRow(this, 1)" title="Move down"><i class="fa-solid fa-arrow-down"></i></button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeEndpointRow(this)" title="Remove"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addEndpointRow()" style="margin-top: 0.35rem;">
+                    <i class="fa-solid fa-plus"></i> Add Identifier
+                </button>
+                <div id="endpoint-order-error" style="display:none; margin-top: 0.5rem; color: #f87171; font-size: 0.84rem;"></div>
+                <div class="settings-help">Order affects how inbound PJSIP requests are matched to endpoints.</div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="text-decoration: none;">Cancel</a>
+            {% if has_permission('global_settings', 'update') %}
+            <button type="submit" class="btn btn-info" id="pbx-save-btn"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Reboot Notice Modal on Save Click -->
+<div id="rebootConfirmModal" class="modal" style="display: none; z-index: 10005;">
+    <div class="modal-content" style="max-width: 500px; text-align: center; border: 1px solid rgba(234, 179, 8, 0.4); box-shadow: 0 0 35px rgba(234, 179, 8, 0.18);">
+        <div style="width: 68px; height: 68px; border-radius: 50%; background: rgba(234, 179, 8, 0.15); color: #eab308; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 2rem;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 style="color: var(--text-main); font-size: 1.3rem; margin-bottom: 0.75rem;">System Reboot / Restart Notice</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.75rem;">
+            Applying global PBX transport sockets, RTP ranges, or call limits will update core Asterisk configuration files.<br><br>
+            <strong style="color: #fef08a; font-size: 1rem;">Notice: You will need to perform a System Reboot or Asterisk service restart after saving for all active connections to bind cleanly.</strong>
+        </p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('rebootConfirmModal').style.display='none'">Cancel</button>
+            <button type="button" class="btn btn-info" onclick="proceedWithPbxSave()"><i class="fa-solid fa-check"></i> I Understand, Save Now</button>
+        </div>
+    </div>
+</div>
+
+{% if request.args.get('saved') == '1' %}
+<!-- Post-Save Reboot Reminder Modal -->
+<div id="rebootAfterSaveModal" class="modal" style="display: block; z-index: 10006;">
+    <div class="modal-content" style="max-width: 480px; text-align: center; border: 1px solid rgba(16, 185, 129, 0.4); box-shadow: 0 0 35px rgba(16, 185, 129, 0.15);">
+        <div style="width: 68px; height: 68px; border-radius: 50%; background: rgba(16, 185, 129, 0.15); color: #10b981; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 2rem;">
+            <i class="fa-solid fa-rotate-right"></i>
+        </div>
+        <h3 style="color: var(--text-main); font-size: 1.3rem; margin-bottom: 0.75rem;">PBX Settings Saved</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.75rem;">
+            Your PBX global settings have been saved and reloadable settings were applied.<br><br>
+            <strong style="color: #4ade80; font-size: 1rem;">To ensure all SIP sockets and RTP ranges bind cleanly across the operating system, please remember to Reboot the server or Restart Asterisk when convenient.</strong>
+        </p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('rebootAfterSaveModal').style.display='none'">Close Notice</button>
+        </div>
+    </div>
+</div>
+<script>
+    setTimeout(() => {
+        if (typeof showNotification === 'function') {
+            showNotification('Notice: Please perform a System Reboot or Asterisk Restart to fully bind transport socket changes.', 'warning');
+        }
+    }, 400);
+</script>
+{% endif %}
+
+<script>
+    const endpointOptions = {{ settings.supported_endpoint_identifiers|tojson|safe }};
+
+    function showPbxTab(tab) {
+        document.querySelectorAll('.pbx-tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.pbx-tab-panel').forEach(panel => panel.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        document.getElementById('panel-' + tab).classList.add('active');
+        document.getElementById('active_tab').value = tab;
+    }
+
+    function createEndpointSelect(selected) {
+        const row = document.createElement('div');
+        row.className = 'endpoint-order-row';
+        const select = document.createElement('select');
+        select.name = 'endpoint_identifier_order';
+        select.className = 'form-control';
+        endpointOptions.forEach(option => {
+            const item = document.createElement('option');
+            item.value = option;
+            item.textContent = option;
+            if (option === selected) item.selected = true;
+            select.appendChild(item);
+        });
+        select.addEventListener('change', updateEndpointOrderValidation);
+        row.appendChild(select);
+        row.insertAdjacentHTML('beforeend', `
+            <button type="button" class="btn btn-secondary btn-sm" onclick="moveEndpointRow(this, -1)" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="moveEndpointRow(this, 1)" title="Move down"><i class="fa-solid fa-arrow-down"></i></button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeEndpointRow(this)" title="Remove"><i class="fa-solid fa-trash"></i></button>
+        `);
+        return row;
+    }
+
+    function addEndpointRow() {
+        const list = document.getElementById('endpoint-order-list');
+        const used = Array.from(list.querySelectorAll('select')).map(select => select.value);
+        const next = endpointOptions.find(option => !used.includes(option));
+        if (!next) {
+            updateEndpointOrderValidation('All supported identifiers are already selected.');
+            return;
+        }
+        list.appendChild(createEndpointSelect(next));
+        updateEndpointOrderValidation();
+    }
+
+    function removeEndpointRow(btn) {
+        const list = document.getElementById('endpoint-order-list');
+        if (list.children.length <= 1) return;
+        btn.closest('.endpoint-order-row').remove();
+        updateEndpointOrderValidation();
+    }
+
+    function moveEndpointRow(btn, direction) {
+        const row = btn.closest('.endpoint-order-row');
+        if (direction < 0 && row.previousElementSibling) {
+            row.parentNode.insertBefore(row, row.previousElementSibling);
+        }
+        if (direction > 0 && row.nextElementSibling) {
+            row.parentNode.insertBefore(row.nextElementSibling, row);
+        }
+        updateEndpointOrderValidation();
+    }
+
+    function updateEndpointOrderValidation(message) {
+        const selects = Array.from(document.querySelectorAll('select[name="endpoint_identifier_order"]'));
+        const values = selects.map(select => select.value);
+        const duplicates = values.filter((value, index) => values.indexOf(value) !== index);
+        const error = document.getElementById('endpoint-order-error');
+        const save = document.getElementById('pbx-save-btn');
+        if (message || duplicates.length) {
+            error.textContent = message || 'Duplicate endpoint identifier: ' + duplicates[0];
+            error.style.display = 'block';
+            save.disabled = true;
+        } else {
+            error.textContent = '';
+            error.style.display = 'none';
+            save.disabled = false;
+        }
+    }
+
+    let bypassRebootWarning = false;
+    document.getElementById('pbx-settings-form').addEventListener('submit', function(e) {
+        updateEndpointOrderValidation();
+        if (document.getElementById('endpoint-order-error').style.display === 'block') {
+            e.preventDefault();
+            return false;
+        }
+        if (!bypassRebootWarning) {
+            e.preventDefault();
+            document.getElementById('rebootConfirmModal').style.display = 'block';
+            return false;
+        }
+        const save = document.getElementById('pbx-save-btn');
+        save.disabled = true;
+        save.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    });
+
+    function proceedWithPbxSave() {
+        bypassRebootWarning = true;
+        document.getElementById('rebootConfirmModal').style.display = 'none';
+        const form = document.getElementById('pbx-settings-form');
+        const save = document.getElementById('pbx-save-btn');
+        save.disabled = true;
+        save.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        form.submit();
+    }
+
+    showPbxTab(document.getElementById('active_tab').value || 'extension');
+    document.querySelectorAll('select[name="endpoint_identifier_order"]').forEach(select => {
+        select.addEventListener('change', updateEndpointOrderValidation);
+    });
+    updateEndpointOrderValidation();
+</script>
+{% endblock %}

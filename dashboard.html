@@ -1,0 +1,462 @@
+{% extends 'base.html' %}
+
+{% block title %}System Dashboard - RCM 7021 IP-PBX{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* circular progress visualizer style */
+    .storage-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .storage-card {
+        background-color: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+    }
+    .storage-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--border-color-hover);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+    .progress-circle {
+        position: relative;
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        background: conic-gradient(var(--primary) calc(var(--percent) * 1%), rgba(255, 255, 255, 0.05) 0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.5s ease;
+    }
+    .progress-circle::after {
+        content: '';
+        position: absolute;
+        width: 72px;
+        height: 72px;
+        background-color: var(--panel-dark);
+        border-radius: 50%;
+    }
+    .progress-percent {
+        position: relative;
+        z-index: 10;
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #fff;
+    }
+    .storage-info {
+        flex: 1;
+    }
+    .storage-name {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 0.5rem;
+    }
+    .storage-stat {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+    }
+    .storage-stat strong {
+        color: var(--text-main);
+    }
+
+    /* Resource graphs container */
+    .resource-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .chart-panel {
+        background-color: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+    }
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.75rem;
+    }
+    .chart-header h3 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .chart-value {
+        font-family: 'Orbitron', monospace;
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: var(--primary);
+    }
+    .chart-container {
+        position: relative;
+        height: 200px;
+        width: 100%;
+    }
+    
+    /* Overview grid */
+    .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+    .overview-card {
+        background-color: var(--panel-dark);
+        border-radius: 16px;
+        padding: 1.25rem;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 110px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .overview-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--border-color-hover);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+    .overview-title {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.75px;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .overview-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+        margin-top: 0.5rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .overview-icon {
+        position: absolute;
+        right: -10px;
+        bottom: -10px;
+        font-size: 4rem;
+        color: rgba(255, 255, 255, 0.02);
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>PBX System Dashboard</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">RCM 7021 General PBX Operational Overview (GMT+3)</div>
+    </div>
+    <div style="text-align: right;">
+        <span class="badge badge-green" style="padding: 0.5rem 1rem; font-size: 0.85rem;" id="sys-status">
+            <i class="fa-solid fa-circle-check"></i> System Online
+        </span>
+    </div>
+</div>
+
+<!-- System Overview Grid -->
+<div class="overview-grid">
+    <!-- PBX Model -->
+    <div class="overview-card" style="border-left: 4px solid var(--primary);">
+        <div class="overview-title"><i class="fa-solid fa-server" style="color: var(--primary);"></i> PBX Model</div>
+        <div class="overview-value">RCM 7021</div>
+        <i class="fa-solid fa-server overview-icon"></i>
+    </div>
+
+    <!-- Clock -->
+    <div class="overview-card" style="border-left: 4px solid #3b82f6;">
+        <div class="overview-title"><i class="fa-solid fa-clock" style="color: #3b82f6;"></i> Current PBX Time</div>
+        <div class="overview-value" id="pbx-time" style="font-family: 'Orbitron', sans-serif;">{{ hw.server_time.split(' ')[1] }}</div>
+        <div style="font-size: 0.7rem; color: var(--text-dark);" id="pbx-date">{{ hw.server_time.split(' ')[0] }} (GMT+3)</div>
+        <i class="fa-solid fa-clock overview-icon"></i>
+    </div>
+
+    <!-- Asterisk Version -->
+    <div class="overview-card" style="border-left: 4px solid #a855f7;">
+        <div class="overview-title"><i class="fa-solid fa-code-branch" style="color: #a855f7;"></i> Asterisk Version</div>
+        <div class="overview-value" id="pbx-version" style="font-size: 1.05rem; font-family: monospace;">{{ hw.version }}</div>
+        <i class="fa-solid fa-code-branch overview-icon"></i>
+    </div>
+
+    <!-- Uptime -->
+    <div class="overview-card" style="border-left: 4px solid #10b981;">
+        <div class="overview-title"><i class="fa-solid fa-hourglass-half" style="color: #10b981;"></i> System Uptime</div>
+        <div class="overview-value" id="pbx-uptime" style="font-size: 1.1rem;">{{ hw.uptime }}</div>
+        <i class="fa-solid fa-hourglass-half overview-icon"></i>
+    </div>
+
+    <!-- IP Address -->
+    <div class="overview-card" style="border-left: 4px solid #eab308;">
+        <div class="overview-title"><i class="fa-solid fa-network-wired" style="color: #eab308;"></i> Server IP Address</div>
+        <div class="overview-value" id="pbx-ip" style="font-size: 1.15rem; font-family: monospace;">{{ hw.ip }}</div>
+        <i class="fa-solid fa-network-wired overview-icon"></i>
+    </div>
+
+    <!-- MAC Address -->
+    <div class="overview-card" style="border-left: 4px solid #ec4899;">
+        <div class="overview-title"><i class="fa-solid fa-barcode" style="color: #ec4899;"></i> MAC Address</div>
+        <div class="overview-value" id="pbx-mac" style="font-size: 1.05rem; font-family: monospace;">{{ hw.mac }}</div>
+        <i class="fa-solid fa-barcode overview-icon"></i>
+    </div>
+</div>
+
+<!-- Middle stats (Active Calls & Active Trunks) -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 2rem;">
+    <!-- Active Trunks -->
+    <div class="card card-cyan" style="display: flex; justify-content: space-between; align-items: center; padding: 1.75rem 2rem;">
+        <div>
+            <div class="card-title"><i class="fa-solid fa-server"></i> Active Trunks</div>
+            <div class="card-value" id="active-trunks-val" style="margin-top: 0.5rem;">{{ trunks.registered }} <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ {{ trunks.total }} online</span></div>
+        </div>
+        <div style="font-size: 2.75rem; color: rgba(0, 173, 181, 0.15);"><i class="fa-solid fa-network-wired"></i></div>
+    </div>
+
+    <!-- Active Calls -->
+    <div class="card card-green" style="display: flex; justify-content: space-between; align-items: center; padding: 1.75rem 2rem;">
+        <div>
+            <div class="card-title"><i class="fa-solid fa-headset"></i> Active Calls</div>
+            <div class="card-value" id="active-calls-val" style="margin-top: 0.5rem;">{{ active_calls_count }} <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">live call(s)</span></div>
+        </div>
+        <div style="font-size: 2.75rem; color: rgba(16, 185, 129, 0.15);"><i class="fa-solid fa-phone-volume"></i></div>
+    </div>
+</div>
+
+<!-- Storage Partitions Section -->
+<h2 style="font-size: 1.2rem; font-weight: 600; color: #fff; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+    <i class="fa-solid fa-hard-drive" style="color: var(--primary);"></i> Storage Information
+</h2>
+<div class="storage-container">
+    <!-- Configuration Partition -->
+    <div class="storage-card">
+        <div class="progress-circle" id="config-circle" style="--percent: {{ hw.config_disk.percent }};" data-percent="{{ hw.config_disk.percent }}">
+            <span class="progress-percent" id="config-percent-text">{{ hw.config_disk.percent }}%</span>
+        </div>
+        <div class="storage-info">
+            <div class="storage-name">Configuration Partition</div>
+            <div class="storage-stat">Used space: <strong id="config-used">{{ hw.config_disk.used }}</strong></div>
+            <div class="storage-stat">Total space: <strong id="config-total">{{ hw.config_disk.total }}</strong></div>
+            <div class="storage-stat">Free space: <strong id="config-free">{{ hw.config_disk.free }}</strong></div>
+        </div>
+    </div>
+
+    <!-- Data Partition -->
+    <div class="storage-card">
+        <div class="progress-circle" id="data-circle" style="--percent: {{ hw.data_disk.percent }};" data-percent="{{ hw.data_disk.percent }}">
+            <span class="progress-percent" id="data-percent-text">{{ hw.data_disk.percent }}%</span>
+        </div>
+        <div class="storage-info">
+            <div class="storage-name">Data Partition</div>
+            <div class="storage-stat">Used space: <strong id="data-used">{{ hw.data_disk.used }}</strong></div>
+            <div class="storage-stat">Total space: <strong id="data-total">{{ hw.data_disk.total }}</strong></div>
+            <div class="storage-stat">Free space: <strong id="data-free">{{ hw.data_disk.free }}</strong></div>
+        </div>
+    </div>
+</div>
+
+<!-- Resource Usage Panel -->
+<h2 style="font-size: 1.2rem; font-weight: 600; color: #fff; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+    <i class="fa-solid fa-microchip" style="color: var(--primary);"></i> Resource Usage & Load
+</h2>
+<div class="resource-grid">
+    <!-- CPU Panel -->
+    <div class="chart-panel">
+        <div class="chart-header">
+            <h3><i class="fa-solid fa-cpu" style="color: var(--primary);"></i> CPU Usage</h3>
+            <span class="chart-value" id="cpu-val">0.0%</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="cpuChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Memory Panel -->
+    <div class="chart-panel">
+        <div class="chart-header">
+            <h3><i class="fa-solid fa-memory" style="color: #a855f7;"></i> Memory Usage</h3>
+            <span class="chart-value" id="mem-val">0.0%</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="memChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Load Average Detail -->
+<div class="panel" style="padding: 1.25rem 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fa-solid fa-gauge" style="color: #eab308; font-size: 1.25rem;"></i>
+            <div>
+                <strong style="color: #fff;">System Load Average</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Processes active in CPU run queue over 1, 5, and 15 minute intervals</div>
+            </div>
+        </div>
+        <div class="chart-value" id="load-val" style="color: #eab308; font-size: 1.35rem; letter-spacing: 1px;">0.00 0.00 0.00</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Real-time chart implementation
+    let cpuChart, memChart;
+    const maxDataPoints = 12; // Show last 12 points (60 seconds at 5s interval)
+    const cpuData = Array(maxDataPoints).fill(0);
+    const memData = Array(maxDataPoints).fill(0);
+    const labels = Array(maxDataPoints).fill('');
+
+    function initCharts() {
+        const ctxCpu = document.getElementById('cpuChart').getContext('2d');
+        const ctxMem = document.getElementById('memChart').getContext('2d');
+        
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: { enabled: true }
+            },
+            scales: {
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { display: false } 
+                },
+                y: { 
+                    min: 0, 
+                    max: 100, 
+                    ticks: { stepSize: 25, color: '#64748b', font: { size: 10 } }, 
+                    grid: { color: 'rgba(255, 255, 255, 0.03)' } 
+                }
+            },
+            elements: {
+                line: { tension: 0.4 },
+                point: { radius: 1, hoverRadius: 4 }
+            }
+        };
+        
+        cpuChart = new Chart(ctxCpu, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: cpuData,
+                    borderColor: '#00adb5',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(0, 173, 181, 0.03)'
+                }]
+            },
+            options: chartOptions
+        });
+        
+        memChart = new Chart(ctxMem, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: memData,
+                    borderColor: '#a855f7',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(168, 85, 247, 0.03)'
+                }]
+            },
+            options: chartOptions
+        });
+    }
+
+    function updateDashboard() {
+        fetch('/api/dashboard-status')
+            .then(res => res.json())
+            .then(data => {
+                // System Info
+                document.getElementById('pbx-time').innerText = data.hw.server_time.split(' ')[1];
+                document.getElementById('pbx-date').innerText = data.hw.server_time.split(' ')[0] + ' (GMT+3)';
+                document.getElementById('pbx-uptime').innerText = data.hw.uptime;
+                document.getElementById('pbx-ip').innerText = data.hw.ip;
+                document.getElementById('pbx-mac').innerText = data.hw.mac;
+                document.getElementById('pbx-version').innerText = data.hw.version;
+                
+                // Storage circles
+                const configDisk = data.hw.config_disk;
+                const configCircle = document.getElementById('config-circle');
+                configCircle.style.setProperty('--percent', configDisk.percent);
+                document.getElementById('config-percent-text').innerText = configDisk.percent + '%';
+                document.getElementById('config-used').innerText = configDisk.used;
+                document.getElementById('config-total').innerText = configDisk.total;
+                document.getElementById('config-free').innerText = configDisk.free;
+                
+                const dataDisk = data.hw.data_disk;
+                const dataCircle = document.getElementById('data-circle');
+                dataCircle.style.setProperty('--percent', dataDisk.percent);
+                document.getElementById('data-percent-text').innerText = dataDisk.percent + '%';
+                document.getElementById('data-used').innerText = dataDisk.used;
+                document.getElementById('data-total').innerText = dataDisk.total;
+                document.getElementById('data-free').innerText = dataDisk.free;
+                
+                // Resources
+                document.getElementById('cpu-val').innerText = data.cpu.toFixed(1) + '%';
+                document.getElementById('mem-val').innerText = data.memory.percent.toFixed(1) + '%';
+                document.getElementById('load-val').innerText = data.load;
+                
+                // Stats
+                document.getElementById('active-calls-val').innerHTML = `${data.active_calls_count} <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">live call(s)</span>`;
+                document.getElementById('active-trunks-val').innerHTML = `${data.trunks.registered} <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ ${data.trunks.total} online</span>`;
+                
+                // Update graph arrays
+                const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                cpuChart.data.labels.push(timeStr);
+                cpuChart.data.labels.shift();
+                cpuChart.data.datasets[0].data.push(data.cpu);
+                cpuChart.data.datasets[0].data.shift();
+                cpuChart.update('none'); // silent update without reset transitions
+                
+                memChart.data.labels.push(timeStr);
+                memChart.data.labels.shift();
+                memChart.data.datasets[0].data.push(data.memory.percent);
+                memChart.data.datasets[0].data.shift();
+                memChart.update('none');
+            })
+            .catch(err => console.error("Error refreshing dashboard stats:", err));
+    }
+
+    // Initialize on page load
+    document.addEventListener("DOMContentLoaded", function() {
+        initCharts();
+        updateDashboard();
+        // Live polling every 5 seconds
+        setInterval(updateDashboard, 5000);
+    });
+</script>
+{% endblock %}

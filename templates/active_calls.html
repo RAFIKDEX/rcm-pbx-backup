@@ -1,0 +1,523 @@
+{% extends 'base.html' %}
+
+{% block title %}Live Active Calls - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--border-color);
+    }
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .stat-info h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .stat-info .stat-value {
+        margin: 0.25rem 0 0 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+    
+    .filter-bar {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        background: var(--panel-dark);
+        padding: 1rem;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .filter-input {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        flex: 1;
+        min-width: 250px;
+    }
+    .filter-input:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+    
+    .action-btn-group {
+        display: flex;
+        gap: 0.4rem;
+        justify-content: flex-end;
+    }
+    
+    .spy-modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000;
+        backdrop-filter: blur(5px);
+    }
+    .spy-modal {
+        background: var(--panel-dark); padding: 2rem; border-radius: 12px;
+        width: 400px; max-width: 90%; border: 1px solid var(--primary);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    
+    #toast-container {
+        position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+        display: flex; flex-direction: column; gap: 10px;
+    }
+    .toast {
+        background: var(--panel-dark); color: var(--text-main); padding: 1rem 1.5rem; border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-left: 4px solid var(--primary);
+        opacity: 0; transform: translateX(100%); animation: slideIn 0.3s forwards;
+    }
+    .toast.error { border-left-color: #ef4444; }
+    .toast.success { border-left-color: #10b981; }
+    @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideOut { to { opacity: 0; transform: translateX(100%); } }
+</style>
+
+<div class="header-panel">
+    <div>
+        <h1><i class="fa-solid fa-satellite-dish" style="color: var(--primary);"></i> Live Active Calls</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Real-time enterprise call bridging and monitoring</div>
+    </div>
+    {% if has_permission('active_calls', 'hangup') %}
+    <div>
+        <button onclick="openTerminateModal()" class="btn btn-danger" style="padding: 0.75rem 1.5rem; font-weight: bold; border-radius: 8px;">
+            <i class="fa-solid fa-skull-crossbones"></i> Terminate All Calls
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Stats Row -->
+<div class="stats-container">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+            <i class="fa-solid fa-phone"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Total Calls</h3>
+            <div class="stat-value" id="stat-total">0</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+            <i class="fa-solid fa-phone-flip"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Answered</h3>
+            <div class="stat-value" id="stat-answered">0</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+            <i class="fa-solid fa-phone-volume fa-shake"></i>
+        </div>
+        <div class="stat-info">
+            <h3>Ringing</h3>
+            <div class="stat-value" id="stat-ringing">0</div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filters -->
+<div class="filter-bar">
+    <div style="position: relative; flex: 1;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 10px; color: var(--text-muted);"></i>
+        <input type="text" id="searchInput" class="filter-input" placeholder="Search by Caller ID, Destination, or Extension..." style="padding-left: 2.2rem;">
+    </div>
+    <select id="statusFilter" class="filter-input" style="flex: 0 0 200px;">
+        <option value="all">All Statuses</option>
+        <option value="answered">Answered Only</option>
+        <option value="ringing">Ringing Only</option>
+    </select>
+</div>
+
+<!-- Active Calls Panel -->
+<div class="panel">
+    <div class="table-responsive" style="min-height: 400px;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Caller</th>
+                    <th>Destination</th>
+                    <th>Status</th>
+                    <th>Call Source</th>
+                    <th>Duration</th>
+                    <th style="text-align: right;">Supervisor Actions</th>
+                </tr>
+            </thead>
+            <tbody id="calls-table-body">
+                <tr id="initial-loading-row">
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 4rem;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; margin-bottom: 1rem; color: var(--primary); display: block;"></i>
+                        <span style="font-size: 1.1rem;">Initializing SIP Channel Engine...</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Terminate All Modal -->
+<div id="terminateAllModal" class="spy-modal-overlay">
+    <div class="spy-modal" style="border-color: #ef4444;">
+        <h2 style="color: #ef4444; margin-bottom: 1rem; font-size: 1.4rem;">
+            <i class="fa-solid fa-triangle-exclamation"></i> Terminate All
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            This will drop every live connection immediately. Type <strong>CONFIRM</strong> to proceed.
+        </p>
+        <div class="form-group">
+            <input type="text" id="terminateConfirmInput" class="form-control" autocomplete="off" placeholder="CONFIRM">
+        </div>
+        <div class="form-actions" style="margin-top: 1.5rem;">
+            <button class="btn btn-secondary" onclick="closeTerminateModal()">Cancel</button>
+            <button class="btn btn-danger" id="btn-submit-terminate" onclick="submitTerminateAll()" disabled>
+                <i class="fa-solid fa-skull-crossbones"></i> Terminate All
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const ACTIVE_CALLS_CAN_HANGUP = {{ 'true' if has_permission('active_calls', 'hangup') else 'false' }};
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+    
+    let activeCalls = [];
+    let localTimers = {}; 
+    let timerInterval = null;
+    let currentFilterText = "";
+    let currentStatusFilter = "all";
+
+    // Bind filters
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        currentFilterText = e.target.value.toLowerCase();
+        renderTable();
+    });
+    document.getElementById('statusFilter').addEventListener('change', (e) => {
+        currentStatusFilter = e.target.value;
+        renderTable();
+    });
+
+    function formatDuration(totalSeconds) {
+        if (!totalSeconds || totalSeconds < 0) return "00:00";
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function startLocalTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            activeCalls.forEach(call => {
+                const chanId = call.channel;
+                if (localTimers[chanId] !== undefined && call.state.toLowerCase() === 'answered') {
+                    localTimers[chanId]++;
+                    const timerElem = document.getElementById(`timer-${escapeId(chanId)}`);
+                    if (timerElem) {
+                        timerElem.innerText = formatDuration(localTimers[chanId]);
+                    }
+                }
+            });
+        }, 1000);
+    }
+
+    function escapeId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
+    function escapeHTML(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[char]));
+    }
+
+    function flowBadge(call) {
+        const type = String(call.flow_type || '').toLowerCase();
+        if (type === 'agent') return '<span class="badge badge-registered"><i class="fa-solid fa-user"></i> Extension</span>';
+        if (type === 'queue') return '<span class="badge badge-ringing"><i class="fa-solid fa-users"></i> Queue</span>';
+        if (type === 'ivr') return '<span class="badge badge-gray"><i class="fa-solid fa-list-ol"></i> IVR</span>';
+        return '';
+    }
+
+    async function fetchLiveCalls() {
+        try {
+            const response = await fetch('/api/live-calls');
+            if (!response.ok) return;
+            const data = await response.json();
+            
+            const newTimers = {};
+            let total = 0, answered = 0, ringing = 0;
+            
+            data.forEach(call => {
+                total++;
+                const isAns = (call.state || '').toLowerCase() === 'answered';
+                if (isAns) answered++;
+                else ringing++;
+                
+                const chanId = call.channel;
+                if (!isAns) {
+                    newTimers[chanId] = 0;
+                } else {
+                    newTimers[chanId] = localTimers[chanId] !== undefined ? Math.max(localTimers[chanId], call.duration_sec) : call.duration_sec;
+                }
+            });
+            
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-answered').innerText = answered;
+            document.getElementById('stat-ringing').innerText = ringing;
+            
+            localTimers = newTimers;
+            activeCalls = data;
+            renderTable();
+            startLocalTimer();
+        } catch (error) {
+            console.error("Live calls sync error:", error);
+        } finally {
+            if (window.liveCallsTimeout) clearTimeout(window.liveCallsTimeout);
+            window.liveCallsTimeout = setTimeout(fetchLiveCalls, 2500);
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('calls-table-body');
+        
+        let filtered = activeCalls.filter(call => {
+            if (currentStatusFilter !== 'all') {
+                const isAns = call.state.toLowerCase() === 'answered';
+                if (currentStatusFilter === 'answered' && !isAns) return false;
+                if (currentStatusFilter === 'ringing' && isAns) return false;
+            }
+            if (currentFilterText) {
+                const searchable = `${call.caller} ${call.callee} ${call.trunk_name || ''} ${call.source || ''}`.toLowerCase();
+                if (!searchable.includes(currentFilterText)) return false;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `
+                <tr id="empty-state-row">
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 5rem;">
+                        <i class="fa-solid fa-phone-slash" style="font-size: 3rem; color: rgba(255,255,255,0.05); margin-bottom: 1rem; display: block;"></i>
+                        <div style="font-size: 1.1rem; color: var(--text-main);">No active calls</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.25rem;">There are currently no calls matching your filters.</div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Remove empty state if it exists
+        const emptyState = document.getElementById('empty-state-row');
+        if (emptyState) emptyState.remove();
+
+        // Remove initial loading row if it exists
+        const initialLoad = document.getElementById('initial-loading-row');
+        if (initialLoad) initialLoad.remove();
+
+        const currentIds = new Set(filtered.map(c => 'row-' + escapeId(c.channel)));
+        
+        // Remove rows that no longer exist
+        Array.from(tbody.children).forEach(tr => {
+            if (tr.id && !currentIds.has(tr.id)) {
+                tr.remove();
+            }
+        });
+
+        filtered.forEach(call => {
+            const rowId = 'row-' + escapeId(call.channel);
+            const isAnswered = call.state.toLowerCase() === 'answered';
+            const badgeClass = isAnswered ? 'badge-registered' : 'badge-ringing';
+            const stateIcon = isAnswered ? '<i class="fa-solid fa-phone-flip"></i>' : '<i class="fa-solid fa-phone-volume fa-pulse"></i>';
+            const sourceLabel = escapeHTML(call.trunk_name || call.source || 'Internal');
+            const sourceIcon = (call.source_type || '').toLowerCase() === 'trunk'
+                ? `<i class="fa-solid fa-tower-broadcast"></i> ${sourceLabel}`
+                : '<i class="fa-solid fa-user-shield"></i> Internal';
+                
+            let actionsHtml = '<div class="action-btn-group">';
+
+
+            if (ACTIVE_CALLS_CAN_HANGUP) {
+                actionsHtml += `
+                    <button onclick="hangupChannel('${call.channel}')" class="btn btn-danger btn-sm" title="Terminate Call">
+                        <i class="fa-solid fa-phone-slash"></i>
+                    </button>`;
+            }
+            actionsHtml += '</div>';
+            
+            const rowContent = `
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                                <i class="fa-solid fa-user" style="color: var(--text-muted);"></i>
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <strong style="color: var(--text-main); font-size: 1.05rem;">${escapeHTML(call.caller_name || call.caller)}</strong>
+                                ${call.caller_name && call.caller_name !== call.caller ? `<span style="font-size: 0.85rem; color: var(--text-muted);">${escapeHTML(call.caller)}</span>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <div style="display: flex; flex-direction: column;">
+                                <strong style="color: var(--text-main); font-size: 1.05rem;">${escapeHTML(call.callee)}</strong>
+                                ${call.callee_num && call.callee_num !== call.callee ? `<span style="font-size: 0.85rem; color: var(--text-muted);">${escapeHTML(call.callee_num)}</span>` : ''}
+                            </div>
+                            ${flowBadge(call)}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge ${badgeClass}" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                            ${stateIcon} ${call.state}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.9rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(0,0,0,0.2); padding: 0.25rem 0.6rem; border-radius: 6px;">
+                            ${sourceIcon}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); padding: 0.3rem 0.6rem; border-radius: 6px; display: inline-block;">
+                            <code id="timer-${escapeId(call.channel)}" style="font-family: 'Orbitron', monospace; color: #60a5fa; font-weight: bold; font-size: 1rem;">${formatDuration(localTimers[call.channel])}</code>
+                        </div>
+                    </td>
+                    <td>${actionsHtml}</td>
+            `;
+
+            // Fingerprint to avoid unnecessary DOM updates
+            const fingerprint = `${call.state}|${call.callee}|${call.callee_num}|${call.caller}|${call.caller_name}|${call.source}`;
+            let tr = document.getElementById(rowId);
+            
+            if (!tr) {
+                tr = document.createElement('tr');
+                tr.id = rowId;
+                tr.style.animation = "fadeIn 0.3s ease-out";
+                tr.dataset.fingerprint = fingerprint;
+                tr.innerHTML = rowContent;
+                tbody.appendChild(tr);
+            } else if (tr.dataset.fingerprint !== fingerprint) {
+                tr.dataset.fingerprint = fingerprint;
+                tr.innerHTML = rowContent;
+            }
+        });
+    }
+
+    // TOAST NOTIFICATIONS
+    function showToast(message, type='info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<i class="fa-solid ${type==='error' ? 'fa-triangle-exclamation' : 'fa-circle-info'}"></i> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    // HANGUP ACTIONS
+    async function hangupChannel(channel) {
+        if (!ACTIVE_CALLS_CAN_HANGUP) return;
+        if (!confirm(`Are you sure you want to terminate this call?`)) return;
+        try {
+            const formData = new FormData();
+            formData.append('channel', channel);
+            formData.append('csrf_token', CSRF_TOKEN); // Provide CSRF for security completeness
+            
+            const response = await fetch('/api/hangup', {
+                method: 'POST',
+                body: formData
+            });
+            if (response.ok) {
+                activeCalls = activeCalls.filter(c => c.channel !== channel);
+                delete localTimers[channel];
+                renderTable();
+                fetchLiveCalls();
+            }
+        } catch (error) {
+            console.error("Error hanging up:", error);
+        }
+    }
+
+    // TERMINATE ALL MODAL LOGIC
+    const terminateInput = document.getElementById('terminateConfirmInput');
+    const terminateBtn = document.getElementById('btn-submit-terminate');
+    
+    if (terminateInput) {
+        terminateInput.addEventListener('input', (e) => {
+            terminateBtn.disabled = e.target.value !== 'CONFIRM';
+        });
+    }
+
+    function openTerminateModal() {
+        if (terminateInput) terminateInput.value = '';
+        if (terminateBtn) terminateBtn.disabled = true;
+        document.getElementById('terminateAllModal').style.display = 'flex';
+        if (terminateInput) terminateInput.focus();
+    }
+    
+    function closeTerminateModal() {
+        document.getElementById('terminateAllModal').style.display = 'none';
+    }
+
+    async function submitTerminateAll() {
+        try {
+            const formData = new FormData();
+            formData.append('csrf_token', CSRF_TOKEN);
+            const response = await fetch('/api/hangup-all', {
+                method: 'POST',
+                body: formData
+            });
+            if (response.ok) {
+                activeCalls = [];
+                localTimers = {};
+                renderTable();
+                showToast("All active calls have been terminated.", "success");
+                closeTerminateModal();
+            } else {
+                showToast("Failed to terminate all calls.", "error");
+            }
+        } catch (error) {
+            console.error("Error hanging up all:", error);
+            showToast("Network error occurred.", "error");
+        }
+    }
+
+    // Auto refresh starts here
+    fetchLiveCalls();
+</script>
+{% endblock %}

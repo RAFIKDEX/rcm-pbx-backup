@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Speed Dial - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Speed Dial System</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Map short speed dial codes directly to internal extensions or external numbers</div>
+    </div>
+    <div>
+        <a href="{{ url_for('speed_dial_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Speed Dial
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-phone-flip" style="color: var(--primary);"></i> Speed Dials</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Speed Dial Number</th>
+                    <th>Destination Number</th>
+                    <th>Description</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not speed_dials %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-phone-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Speed Dials configured in the system.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for sd in speed_dials %}
+                <tr>
+                    <td><strong style="color: #fff; font-size: 1.05rem;"><i class="fa-solid fa-star" style="color: var(--primary); font-size: 0.85rem;"></i> {{ sd.speed_dial_num }}</strong></td>
+                    <td><code>{{ sd.destination_num }}</code></td>
+                    <td>{{ sd.description or '-' }}</td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            <a href="{{ url_for('speed_dial_edit', num=sd.speed_dial_num) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form action="{{ url_for('speed_dial_delete', num=sd.speed_dial_num) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Speed Dial {{ sd.speed_dial_num }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

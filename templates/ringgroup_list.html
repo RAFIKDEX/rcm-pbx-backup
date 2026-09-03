@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Ring Groups - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Clean & Simple Ring Groups UI */
+    .search-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+    }
+
+    .search-input-box {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.4rem 0.8rem;
+        flex: 1;
+        max-width: 400px;
+    }
+
+    .search-input-box input {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        width: 100%;
+        outline: none;
+        font-size: 0.9rem;
+    }
+
+    .simple-badge {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge-ringall {
+        background: rgba(14, 165, 233, 0.15);
+        color: #38bdf8;
+        border: 1px solid rgba(14, 165, 233, 0.3);
+    }
+
+    .badge-ordered {
+        background: rgba(168, 85, 247, 0.15);
+        color: #c084fc;
+        border: 1px solid rgba(168, 85, 247, 0.3);
+    }
+
+    .tag-chip {
+        display: inline-block;
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.82rem;
+        margin: 2px;
+        color: var(--text-main);
+    }
+
+    .failover-tag {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.82rem;
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        color: #e2e8f0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Ring Groups</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Simultaneous or sequential ringing groups for inbound or internal calls (Range 6400 - 6499)
+        </div>
+    </div>
+    <div class="action-buttons" style="gap: 0.75rem;">
+        {% if can_view('ring_groups') %}
+        <a href="{{ url_for('ringgroup_export') }}" class="btn btn-secondary" style="text-decoration: none;" title="Export ring groups to Excel">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+        {% endif %}
+        {% if can_create('ring_groups') %}
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('ringgroup_import') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+        <a href="{{ url_for('ringgroup_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Create Ring Group
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel">
+    <div class="search-toolbar">
+        <div class="search-input-box">
+            <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+            <input type="text" id="rg-search" placeholder="Search by number, name, or member extension..." onkeyup="filterRingGroups()">
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+            Total Groups: <strong style="color: var(--text-main);" id="visibleCount">{{ groups|length }}</strong>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        {% set show_actions = can_view('ring_groups') or can_edit('ring_groups') or can_delete('ring_groups') %}
+        <table class="table" id="rg-table">
+            <thead>
+                <tr>
+                    <th>Group Number</th>
+                    <th>Group Name</th>
+                    <th>Ring Strategy</th>
+                    <th>Timing</th>
+                    <th>Members List</th>
+                    <th>Failover Destination</th>
+                    {% if show_actions %}
+                    <th style="text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if not groups %}
+                <tr>
+                    <td colspan="{{ 7 if show_actions else 6 }}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        No Ring Groups configured. Click "Create Ring Group" above to add one.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for group in groups %}
+                <tr class="rg-row" data-id="{{ group.id }}" data-name="{{ group.name }}" data-members="{{ group.members|join(' ') }}">
+                    <td>
+                        <strong style="color: var(--text-main); font-size: 1.05rem;">{{ group.id }}</strong>
+                    </td>
+                    <td>
+                        <span style="color: var(--text-main);">{{ group.name }}</span>
+                        {% if group.pre_ring_announcement %}
+                        <div style="font-size: 0.78rem; color: #34d399; margin-top: 0.15rem;">
+                            <i class="fa-solid fa-volume-high"></i> Pre-ring prompt
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if group.strategy == 'ordered' %}
+                        <span class="simple-badge badge-ordered">Ordered</span>
+                        {% else %}
+                        <span class="simple-badge badge-ringall">Ringall</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if group.strategy == 'ordered' %}
+                        <span style="color: var(--text-main);">{{ group.per_try }}s</span> <span style="font-size: 0.82rem; color: var(--text-muted);">per member</span>
+                        {% else %}
+                        <span style="color: var(--text-main);">{{ group.timeout }}s</span> <span style="font-size: 0.82rem; color: var(--text-muted);">total</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="max-width: 280px;">
+                            {% for m in group.members %}
+                            <span class="tag-chip">{{ m }}</span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        {% set fail_type = group.failover_type or ('extension' if group.failover else 'hangup') %}
+                        {% set fail_val = group.failover_value or group.failover %}
+                        
+                        {% if fail_type == 'hangup' or not fail_val %}
+                        <span class="failover-tag" style="color: #f87171; border-color: rgba(239, 68, 68, 0.3);">
+                            Hangup Call
+                        </span>
+                        {% elif fail_type == 'ivr' %}
+                        <span class="failover-tag">IVR &rarr; {{ fail_val }}</span>
+                        {% elif fail_type == 'queue' %}
+                        <span class="failover-tag">Queue &rarr; {{ fail_val }}</span>
+                        {% elif fail_type == 'ringgroup' %}
+                        <span class="failover-tag">Group &rarr; {{ fail_val }}</span>
+                        {% elif fail_type == 'voicemail' %}
+                        <span class="failover-tag">Voicemail &rarr; {{ fail_val }}</span>
+                        {% else %}
+                        <span class="failover-tag">{{ fail_type|upper }} &rarr; {{ fail_val }}</span>
+                        {% endif %}
+                    </td>
+                    {% if show_actions %}
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            {% if can_view('ring_groups') %}
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showNotification('Ring Group {{ group.id }} details: {{ group.name }} | Strategy: {{ group.strategy }} | Members: {{ group.members|join(", ") }}', 'info')" title="View details">
+                                <i class="fa-solid fa-eye"></i> View
+                            </button>
+                            {% endif %}
+                            {% if can_edit('ring_groups') %}
+                            <a href="{{ url_for('ringgroup_edit', id=group.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            {% endif %}
+                            {% if can_delete('ring_groups') %}
+                            <form action="{{ url_for('ringgroup_delete', id=group.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete Ring Group {{ group.id }} ({{ group.name }})?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function filterRingGroups() {
+        const query = document.getElementById("rg-search").value.toLowerCase().trim();
+        const rows = document.querySelectorAll("#rg-table tbody tr.rg-row");
+        let visible = 0;
+        
+        rows.forEach(row => {
+            const id = row.getAttribute("data-id").toLowerCase();
+            const name = row.getAttribute("data-name").toLowerCase();
+            const members = row.getAttribute("data-members").toLowerCase();
+            
+            if (id.includes(query) || name.includes(query) || members.includes(query)) {
+                row.style.display = "";
+                visible++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+        
+        const countElem = document.getElementById("visibleCount");
+        if (countElem) {
+            countElem.textContent = visible;
+        }
+    }
+</script>
+{% endblock %}

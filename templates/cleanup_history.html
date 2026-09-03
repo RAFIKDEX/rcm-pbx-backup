@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block title %}Cleanup History - RCM 7021{% endblock %}
+{% block content %}
+
+
+
+
+<style>
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.95) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .history-title { margin: 0; color: #f8fafc; font-size: 1.8rem; font-weight: 700; }
+    .history-desc { color: #94a3b8; margin-top: 0.5rem; font-size: 0.95rem; }
+    .back-btn { background: var(--border-color); border: 1px solid var(--border-color); color: #cbd5e1; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 600; }
+    .back-btn:hover { background: var(--border-color); color: white; border-color: var(--border-color); }
+    
+    .table-container { background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .modern-table { width: 100%; text-align: left; border-collapse: collapse; }
+    .modern-table th { padding: 1.25rem 1rem; background: var(--border-color); color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color); }
+    .modern-table td { padding: 1rem; color: #e2e8f0; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+    .modern-table tr:hover td { background: var(--border-color); }
+    
+    .status-badge { padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
+    .status-completed { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .status-failed { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .status-cancelled { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    
+    .job-type-badge { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+    
+    .btn-view { background: var(--border-color); border: 1px solid var(--border-color); color: #cbd5e1; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; font-weight: 600; }
+    .btn-view:hover { background: var(--border-color); color: white; border-color: var(--border-color); }
+    
+    /* Custom Modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-content { background: var(--bg-dark); border: 1px solid #1e293b; border-radius: 12px; padding: 2rem; width: 90%; max-width: 600px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); max-height: 80vh; overflow-y: auto; }
+    .modal-close { float: right; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
+    .modal-close:hover { color: white; }
+
+    /* --- Light Mode Fixes --- */
+    [data-theme="light"] .history-header {
+        background: linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(255, 255, 255, 0.95) 100%);
+    }
+    [data-theme="light"] .history-title,
+    [data-theme="light"] .modal-content h3,
+    [data-theme="light"] .modern-table td {
+        color: #0f172a !important;
+    }
+    [data-theme="light"] .history-desc,
+    [data-theme="light"] .modern-table th {
+        color: #475569 !important;
+    }
+    [data-theme="light"] .table-container,
+    [data-theme="light"] .modal-content {
+        background: #ffffff;
+    }
+    [data-theme="light"] .modern-table th {
+        background: #f1f5f9;
+        border-bottom-color: #cbd5e1;
+    }
+    [data-theme="light"] .modern-table tr:hover td {
+        background: #f8fafc;
+    }
+</style>
+
+
+<div class="history-header">
+    <div>
+        <h1 class="history-title">Cleanup History</h1>
+        <p class="history-desc">Comprehensive audit log of all manual and automated maintenance tasks.</p>
+    </div>
+    <a href="/cleanup/" class="back-btn"><i class="fa-solid fa-arrow-left" style="margin-right: 8px;"></i> Dashboard</a>
+</div>
+
+<div class="table-container">
+    <table class="modern-table">
+        <thead>
+            <tr>
+                <th>Job ID</th>
+                <th>Type</th>
+                <th>Initiator</th>
+                <th>Status</th>
+                <th>Date / Time</th>
+                <th>Freed Storage</th>
+                <th style="text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in records %}
+            <tr>
+                <td style="font-weight: bold; color: #94a3b8;">#{{ row.id }}</td>
+                <td><span class="job-type-badge">{{ row.job_type|replace('_', ' ') }}</span></td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-user-circle" style="color: #64748b; font-size: 1.2rem;"></i> {{ row.user }}
+                    </div>
+                </td>
+                <td>
+                    {% if row.status == 'Completed' %}
+                        <span class="status-badge status-completed"><i class="fa-solid fa-check-circle" style="margin-right: 4px;"></i> Completed</span>
+                    {% elif row.status == 'Cancelled' %}
+                        <span class="status-badge status-cancelled"><i class="fa-solid fa-ban" style="margin-right: 4px;"></i> Cancelled</span>
+                    {% else %}
+                        <span class="status-badge status-failed"><i class="fa-solid fa-circle-exclamation" style="margin-right: 4px;"></i> {{ row.status }}</span>
+                    {% endif %}
+                </td>
+                <td style="color: #cbd5e1;">{{ row.start_time }}</td>
+                <td style="font-weight: 600; color: #10b981;">{{ (row.freed_bytes / 1048576)|round(2) }} MB</td>
+                <td style="text-align: right;">
+                    <button class="btn-view" onclick="openDetailsModal({{ row.id }})"><i class="fa-solid fa-eye"></i> View</button>
+                    <!-- Hidden Data for Modal -->
+                    <div id="cfg_{{ row.id }}" style="display:none;">{{ row.config_json }}</div>
+                    <div id="stat_{{ row.id }}" style="display:none;">{{ row.summary_json }}</div>
+                    <div id="err_{{ row.id }}" style="display:none;">{{ row.error_details }}</div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" style="padding: 3rem; text-align: center; color: #64748b; font-size: 1.1rem;"><i class="fa-solid fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 10px; color: #334155;"></i> No cleanup history available yet.</td></tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+</div>
+
+<div class="pagination-container" style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 30px; margin-bottom: 20px;">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}" class="secondary-btn" style="padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: 600;"><i class="fa-solid fa-chevron-left" style="margin-right: 8px;"></i> Previous</a>
+    {% else %}
+    <span class="secondary-btn" style="padding: 10px 20px; opacity: 0.3; cursor: not-allowed; border-radius: 8px; font-weight: 600;"><i class="fa-solid fa-chevron-left" style="margin-right: 8px;"></i> Previous</span>
+    {% endif %}
+    
+    <span style="color: var(--text-light); font-weight: 600; background: var(--bg-dark); padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color);">Page <span style="color: var(--primary-color);">{{ page }}</span> of {{ total_pages }}</span>
+    
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}" class="secondary-btn" style="padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: 600;">Next <i class="fa-solid fa-chevron-right" style="margin-left: 8px;"></i></a>
+    {% else %}
+    <span class="secondary-btn" style="padding: 10px 20px; opacity: 0.3; cursor: not-allowed; border-radius: 8px; font-weight: 600;">Next <i class="fa-solid fa-chevron-right" style="margin-left: 8px;"></i></span>
+    {% endif %}
+</div>
+
+
+<!-- Modal -->
+<div id="detailsModal" class="modal-overlay">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h2 style="color: white; margin-top: 0; border-bottom: 1px solid #1e293b; padding-bottom: 10px;">Job Details <span id="modal-job-id" style="color: #3b82f6;"></span></h2>
+        
+        <h4 style="color: #94a3b8; margin: 1.5rem 0 0.5rem 0; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">Configuration Used</h4>
+        <pre id="modal-cfg" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid #1e293b; color: #10b981; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;"></pre>
+        
+        <h4 style="color: #94a3b8; margin: 1.5rem 0 0.5rem 0; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">Deletion Summary</h4>
+        <pre id="modal-stat" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid #1e293b; color: #60a5fa; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;"></pre>
+        
+        <div id="modal-err-container" style="display:none;">
+            <h4 style="color: #ef4444; margin: 1.5rem 0 0.5rem 0; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">Error Details</h4>
+            <pre id="modal-err" style="background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+function openDetailsModal(id) {
+    document.getElementById('modal-job-id').innerText = '#' + id;
+    
+    // Parse and pretty print JSON if possible
+    let cfgRaw = document.getElementById('cfg_' + id).innerText;
+    let statRaw = document.getElementById('stat_' + id).innerText;
+    let errRaw = document.getElementById('err_' + id).innerText;
+    
+    try { document.getElementById('modal-cfg').innerText = JSON.stringify(JSON.parse(cfgRaw), null, 4); } 
+    catch(e) { document.getElementById('modal-cfg').innerText = cfgRaw || 'None'; }
+    
+    try { document.getElementById('modal-stat').innerText = JSON.stringify(JSON.parse(statRaw), null, 4); } 
+    catch(e) { document.getElementById('modal-stat').innerText = statRaw || 'None'; }
+    
+    if (errRaw && errRaw.trim() !== '' && errRaw !== 'None') {
+        document.getElementById('modal-err-container').style.display = 'block';
+        document.getElementById('modal-err').innerText = errRaw;
+    } else {
+        document.getElementById('modal-err-container').style.display = 'none';
+    }
+    
+    document.getElementById('detailsModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('detailsModal').style.display = 'none';
+}
+
+// Close on outside click
+window.onclick = function(event) {
+    if (event.target == document.getElementById('detailsModal')) {
+        closeModal();
+    }
+}
+</script>
+{% endblock %}

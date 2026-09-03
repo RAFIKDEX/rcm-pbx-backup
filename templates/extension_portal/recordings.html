@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}My Recordings{% endblock %}
+{% block content %}
+
+<div class="portal-page-header">
+    <div class="header-text">
+        <h1>Call Recordings</h1>
+        <p>Review and download recordings for extension {{ session.get('extension_ext') }}</p>
+    </div>
+    <div class="header-meta">
+        {{ total }} total files
+    </div>
+</div>
+
+<form method="get" class="controls-bar">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+        <label>Search</label>
+        <input class="modern-input" name="q" value="{{ q }}" placeholder="Caller or destination...">
+    </div>
+    <div class="form-group">
+        <label>Sort By</label>
+        <select class="modern-select" name="sort">
+            {% for value, label in [('date','Date'),('caller','Caller'),('callee','Destination'),('duration','Duration')] %}
+            <option value="{{ value }}" {% if sort_by == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Order</label>
+        <select class="modern-select" name="order">
+            <option value="desc" {% if sort_order != 'asc' %}selected{% endif %}>Descending</option>
+            <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Rows</label>
+        <select class="modern-select" name="per_page">
+            {% for size in [10,20,30,50,70,100] %}
+            <option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button class="btn-modern" type="submit">
+        <i class="fa-solid fa-filter"></i> Apply
+    </button>
+</form>
+
+<div class="saas-table-container">
+    {% if recordings %}
+    <table class="saas-table">
+        <thead>
+            <tr>
+                <th>Date & Time</th>
+                <th>Call Path</th>
+                <th>Duration</th>
+                <th>Playback</th>
+                <th style="text-align:right">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rec in recordings %}
+            <tr>
+                <td class="cell-date">
+                    {{ rec.date }}
+                </td>
+                <td class="cell-party">
+                    {{ rec.caller }}
+                    <i class="fa-solid fa-arrow-right-long party-direction"></i>
+                    {{ rec.callee }}
+                </td>
+                <td class="cell-duration">
+                    {{ rec.duration }}
+                </td>
+                <td>
+                    <audio class="minimal-audio" controls preload="none" src="{{ url_for('extension_portal_recording_file', filename=rec.filename) }}"></audio>
+                </td>
+                <td class="cell-actions">
+                    <a href="{{ url_for('extension_portal_recording_file', filename=rec.filename, download=1) }}" class="btn-icon-minimal" title="Download">
+                        <i class="fa-solid fa-download"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="pagination-modern">
+        <span>Showing up to {{ per_page }} rows &middot; Page {{ page }} of {{ total_pages }}</span>
+        <div class="page-controls">
+            {% if page > 1 %}
+            <a href="{{ url_for('extension_portal_recordings', page=page-1, q=q, per_page=per_page, sort=sort_by, order=sort_order) }}" title="Previous"><i class="fa-solid fa-chevron-left"></i></a>
+            {% endif %}
+            {% if page < total_pages %}
+            <a href="{{ url_for('extension_portal_recordings', page=page+1, q=q, per_page=per_page, sort=sort_by, order=sort_order) }}" title="Next"><i class="fa-solid fa-chevron-right"></i></a>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-box">
+        <i class="fa-solid fa-inbox"></i>
+        <h3>No recordings found</h3>
+        <p>There are no recordings matching your search criteria.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

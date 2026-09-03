@@ -1,0 +1,746 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if extension %}Edit Extension - RCM 7021{% else %}Add Extension - RCM 7021{% endif %}
+
+
+
+
+
+
+
+
+{% endblock %}
+
+{% block extra_head %}
+
+
+
+
+
+
+
+
+
+
+
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if extension %}Edit Extension ({{ extension.ext }}){% else %}Add Extension{% endif %}</h1>
+        <p class="text-muted" style="margin-top: 0.2rem;">Configure PBX user extension and feature codes</p>
+    </div>
+</div>
+
+<div class="content-panel">
+    <div class="tabs-header">
+        <button type="button" class="tab-btn active" onclick="switchTab(event, 'tab-basic')"><i class="fa-solid fa-sliders"></i> Basic Settings</button>
+        <button type="button" class="tab-btn" onclick="switchTab(event, 'tab-media')"><i class="fa-solid fa-photo-film"></i> Media & NAT</button>
+        <button type="button" class="tab-btn" onclick="switchTab(event, 'tab-features')"><i class="fa-solid fa-share"></i> Features</button>
+        <button type="button" class="tab-btn" onclick="switchTab(event, 'tab-spy')"><i class="fa-solid fa-user-shield"></i> Spy Permissions</button>
+        <button type="button" class="tab-btn" onclick="switchTab(event, 'tab-followme')"><i class="fa-solid fa-route"></i> Follow Me</button>
+    </div>
+
+    <form action="{% if extension %}{{ url_for('extensions_edit', ext=extension.ext) }}{% else %}{{ url_for('extensions_add') }}{% endif %}" method="POST" autocomplete="off" id="extensionForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- TAB: BASIC -->
+        <div id="tab-basic" class="tab-content active">
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-id-card"></i> Core Identity</h3>
+                
+                <div class="form-row">
+                    <div class="form-group" >
+                        <label>Enable Extension</label>
+                        <div class="switch-group" style="margin-top: 0.5rem;">
+                            <label class="switch">
+                                <input type="checkbox" name="enabled" {% if not extension or extension.enabled %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                            <div><strong>Active</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ext">Extension Number <span class="text-danger">*</span></label>
+                        <input type="number" id="ext" name="ext" class="form-control" placeholder="e.g. 2001" min="100" max="6299" required 
+                               {% if extension %}value="{{ extension.ext }}" readonly style="background-color: var(--border-color);"{% endif %}>
+                    </div>
+                    <div class="form-group">
+                        <label for="name">Display Name</label>
+                        <input type="text" id="name" name="name" class="form-control" placeholder="e.g. John Doe"
+                               value="{% if extension %}{{ extension.name or '' }}{% endif %}">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="callerid_number">CallerID Number</label>
+                        <input type="text" id="callerid_number" name="callerid_number" class="form-control" placeholder="Defaults to Extension Number"
+                               value="{% if extension %}{{ extension.callerid_number or '' }}{% endif %}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-key"></i> Security & Authentication</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="secret">SIP Password <span class="text-danger">*</span></label>
+                        <input type="text" id="secret" name="secret" class="form-control" required
+                               value="{% if extension %}{{ extension.secret }}{% else %}Abc@1234{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label for="web_password">Web Portal Password</label>
+                        <input type="password" id="web_password" name="web_password" class="form-control" autocomplete="new-password"
+                               placeholder="{% if extension %}Leave blank to keep unchanged{% else %}Leave blank for auto-generate{% endif %}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="max_contacts">Max Registrations</label>
+                        <select id="max_contacts" name="max_contacts" class="form-control">
+                            {% if extension and extension.max_contacts and extension.max_contacts > 10 %}
+                                <option value="{{ extension.max_contacts }}" selected>{{ extension.max_contacts }} Device(s) (Current)</option>
+                            {% endif %}
+                            {% for i in range(1, 11) %}
+                                <option value="{{ i }}" {% if extension and extension.max_contacts == i %}selected{% elif not extension and i == 3 %}selected{% endif %}>{{ i }} Device(s)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="max_expiration">Max Registration Expiry (sec)</label>
+                        <input type="number" id="max_expiration" name="max_expiration" class="form-control" min="30" max="86400"
+                               value="{% if extension %}{{ extension.max_expiration or 120 }}{% else %}120{% endif %}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ring_time">Ring Time (sec)</label>
+                        <input type="number" id="ring_time" name="ring_time" class="form-control" min="5" max="300"
+                               value="{% if extension %}{{ extension.ring_time or 60 }}{% else %}60{% endif %}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-address-book"></i> Directory Details</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mobile">Mobile Number</label>
+                        <input type="text" id="mobile" name="mobile" class="form-control" placeholder="+123456789"
+                               value="{% if extension %}{{ extension.mobile or '' }}{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" class="form-control" placeholder="user@example.com"
+                               value="{% if extension %}{{ extension.email or '' }}{% endif %}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <div class="switch-group" style="margin-top: 0.5rem;">
+                            <label class="switch">
+                                <input type="checkbox" name="sync_ldap" {% if not extension or extension.sync_ldap %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                            <div><strong>Sync to LDAP Directory</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: MEDIA & NAT -->
+        <div id="tab-media" class="tab-content">
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-network-wired"></i> NAT Settings</h3>
+                <div class="form-group">
+                    <div class="switch-group" style="margin-top: 0.5rem;">
+                        <label class="switch">
+                            <input type="checkbox" name="nat" {% if extension and extension.nat %}checked{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                        <div><strong>Enable NAT Support</strong> <span class="text-muted">(Required for remote extensions)</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-music"></i> Media & Codecs</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="transport">Transport Layer</label>
+                        <select id="transport" name="transport" class="form-control">
+                            <option value="transport-udp" {% if not extension or extension.transport == 'transport-udp' %}selected{% endif %}>UDP (Standard)</option>
+                            <option value="transport-tcp" {% if extension and extension.transport == 'transport-tcp' %}selected{% endif %}>TCP</option>
+                            <option value="transport-tls" {% if extension and extension.transport == 'transport-tls' %}selected{% endif %}>TLS (Encrypted)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="moh_class">Music On Hold Class</label>
+                        <select id="moh_class" name="moh_class" class="form-control">
+                            <option value="default" {% if not extension or extension.moh_class == 'default' %}selected{% endif %}>Default</option>
+                            {% for mclass in moh_classes %}
+                                {% if mclass != 'default' %}
+                                    <option value="{{ mclass }}" {% if extension and extension.moh_class == mclass %}selected{% endif %}>{{ mclass }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="record_mode">Call Recording Mode</label>
+                        <select id="record_mode" name="record_mode" class="form-control">
+                            {% set rec_modes = {'no': 'Disabled (No)',
+                                                'noo': 'Never (noo)',
+                                                'in': 'Inbound Only',
+                                                'out': 'Outbound Only',
+                                                'all': 'All Calls'} %}
+                            {% for key, label in rec_modes.items() %}
+                                <option value="{{ key }}" {% if extension and extension.record_mode == key %}selected{% elif not extension and key == 'noo' %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="dtmf_mode">DTMF Mode</label>
+                        <select id="dtmf_mode" name="dtmf_mode" class="form-control">
+                            {% for key, label in dtmf_modes.items() %}
+                                <option value="{{ key }}" {% if extension and extension.dtmf_mode == key %}selected{% elif not extension and key == 'rfc4733' %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <div class="switch-group" style="margin-top: 0.5rem;">
+                            <label class="switch">
+                                <input type="checkbox" name="direct_media" {% if extension and extension.direct_media %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                            <div><strong>Enable Direct Media</strong> <span class="text-muted">(RTP streams bypass this PBX for lower latency)</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                
+
+                {% set selected_codecs = (extension.codecs.split(',') if extension and extension.codecs else ['ulaw', 'alaw']) %}
+                {% set all_audio_codecs = [('ulaw', 'G.711 U-Law'), ('alaw', 'G.711 A-Law'), ('g722', 'G.722 HD'), ('g729', 'G.729'), ('gsm', 'GSM'), ('opus', 'Opus')] %}
+                
+                <div class="form-group" style="grid-column: 1 / -1; display: block; margin-top: 2rem;">
+                    <label style="display: block; font-size: 1.05rem; margin-bottom: 0.8rem; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-volume-high" style="margin-right: 8px;"></i> Audio Codecs Prioritization
+                    </label>
+                    <div class="dual-listbox">
+                        <div class="listbox-col">
+                            <label>Available Codecs</label>
+                            <select id="audio_codecs_available" multiple ondblclick="moveOptionsCodecs('audio_codecs_available', 'audio_codecs_selected')">
+                                {% for codec, label in all_audio_codecs %}
+                                    {% if codec not in selected_codecs %}
+                                        <option value="{{ codec }}">{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="listbox-controls">
+                            <button type="button" onclick="moveOptionsCodecs('audio_codecs_available', 'audio_codecs_selected')" title="Add Codec"><i class="fa-solid fa-arrow-right"></i></button>
+                            <button type="button" onclick="moveOptionsCodecs('audio_codecs_selected', 'audio_codecs_available')" title="Remove Codec"><i class="fa-solid fa-arrow-left"></i></button>
+                        </div>
+                        <div class="listbox-col">
+                            <label>Selected & Prioritized</label>
+                            <select id="audio_codecs_selected" name="codecs[]" multiple ondblclick="moveOptionsCodecs('audio_codecs_selected', 'audio_codecs_available')">
+                                {% for codec in selected_codecs %}
+                                    {% for c_id, c_label in all_audio_codecs %}
+                                        {% if c_id == codec %}
+                                            <option value="{{ c_id }}">{{ c_label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="listbox-controls">
+                            <button type="button" onclick="moveUpCodecs('audio_codecs_selected')" title="Move Priority Up"><i class="fa-solid fa-arrow-up"></i></button>
+                            <button type="button" onclick="moveDownCodecs('audio_codecs_selected')" title="Move Priority Down"><i class="fa-solid fa-arrow-down"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                {% set all_video_codecs = [('h264', 'H.264'), ('vp8', 'VP8'), ('vp9', 'VP9'), ('h263', 'H.263'), ('h263p', 'H.263+')] %}
+                
+                <div class="form-group" style="grid-column: 1 / -1; display: block; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color);">
+                    <label style="display: block; font-size: 1.05rem; margin-bottom: 0.8rem; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-video" style="margin-right: 8px;"></i> Video Codecs Prioritization
+                    </label>
+                    
+                    <label style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-main); font-weight: 600; margin-bottom: 1.5rem; background: rgba(0, 0, 0, 0.1); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <input type="checkbox" id="video_support_checkbox" name="video_support" {% if extension and extension.video_support %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
+                        Enable Video Support
+                    </label>
+                    
+                    <div id="video_codecs_container" style="display: none;">
+                        <div class="dual-listbox">
+                        <div class="listbox-col">
+                            <label>Available Video Codecs</label>
+                            <select id="video_codecs_available" multiple ondblclick="moveOptionsCodecs('video_codecs_available', 'video_codecs_selected')">
+                                {% for codec, label in all_video_codecs %}
+                                    {% if codec not in selected_codecs %}
+                                        <option value="{{ codec }}">{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="listbox-controls">
+                            <button type="button" onclick="moveOptionsCodecs('video_codecs_available', 'video_codecs_selected')" title="Add Codec"><i class="fa-solid fa-arrow-right"></i></button>
+                            <button type="button" onclick="moveOptionsCodecs('video_codecs_selected', 'video_codecs_available')" title="Remove Codec"><i class="fa-solid fa-arrow-left"></i></button>
+                        </div>
+                        <div class="listbox-col">
+                            <label>Selected & Prioritized</label>
+                            <select id="video_codecs_selected" name="codecs[]" multiple ondblclick="moveOptionsCodecs('video_codecs_selected', 'video_codecs_available')">
+                                {% for codec in selected_codecs %}
+                                    {% for c_id, c_label in all_video_codecs %}
+                                        {% if c_id == codec %}
+                                            <option value="{{ c_id }}">{{ c_label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="listbox-controls">
+                            <button type="button" onclick="moveUpCodecs('video_codecs_selected')" title="Move Priority Up"><i class="fa-solid fa-arrow-up"></i></button>
+                            <button type="button" onclick="moveDownCodecs('video_codecs_selected')" title="Move Priority Down"><i class="fa-solid fa-arrow-down"></i></button>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- TAB: FEATURES -->
+        <div id="tab-features" class="tab-content">
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-phone-slash"></i> General Features</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dnd_status">Do Not Disturb (DND)</label>
+                        <select id="dnd_status" name="dnd_status" class="form-control">
+                            <option value="off" {% if not extension or extension.dnd_status != 'on' %}selected{% endif %}>Off</option>
+                            <option value="on" {% if extension and extension.dnd_status == 'on' %}selected{% endif %}>On</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="voicemail">Voicemail Box</label>
+                        <div class="switch-group" style="margin-top: 0.5rem;">
+                            <label class="switch">
+                                <input type="checkbox" id="voicemail" name="vm_enabled" value="1" 
+                                       {% if extension and extension.vm_enabled %}checked{% endif %}
+                                       onchange="toggleVoicemail(this)">
+                                <span class="slider"></span>
+                            </label>
+                            <div><strong>Enable Voicemail</strong></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row" id="vm_password_group" style="display: {% if extension and extension.voicemail %}flex{% else %}none{% endif %};">
+                    <div class="form-group">
+                        <label for="vm_password">Voicemail PIN</label>
+                        <input type="number" id="vm_password" name="vm_password" class="form-control" placeholder="Numbers only (e.g. 1234)"
+                               value="{% if extension %}{{ extension.vm_password or '' }}{% endif %}">
+                    </div>
+                </div>
+            </div>
+            
+            
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-forward"></i> Call Forwarding</h3>
+                
+                <div class="form-row">
+                    <div class="form-group" >
+                        <label for="fwd_always_status">Forward Always</label>
+                        <select id="fwd_always_status" name="fwd_always_status" class="form-control" onchange="toggleFwdField(this, 'fwd_always')">
+                            <option value="off" {% if not extension or extension.fwd_always_status != 'on' %}selected{% endif %}>Off</option>
+                            <option value="on" {% if extension and extension.fwd_always_status == 'on' %}selected{% endif %}>On</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fwd_always">Destination Number</label>
+                        <input type="text" id="fwd_always" name="fwd_always" class="form-control" placeholder="e.g. 5551234"
+                               value="{% if extension %}{{ extension.fwd_always or '' }}{% endif %}"
+                               {% if not extension or extension.fwd_always_status != 'on' %}disabled{% endif %}>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" >
+                        <label for="fwd_noanswer_status">Forward on No Answer</label>
+                        <select id="fwd_noanswer_status" name="fwd_noanswer_status" class="form-control" onchange="toggleFwdField(this, 'fwd_noanswer')">
+                            <option value="off" {% if not extension or extension.fwd_noanswer_status != 'on' %}selected{% endif %}>Off</option>
+                            <option value="on" {% if extension and extension.fwd_noanswer_status == 'on' %}selected{% endif %}>On</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fwd_noanswer">Destination Number</label>
+                        <input type="text" id="fwd_noanswer" name="fwd_noanswer" class="form-control" placeholder="e.g. 5551234"
+                               value="{% if extension %}{{ extension.fwd_noanswer or '' }}{% endif %}"
+                               {% if not extension or extension.fwd_noanswer_status != 'on' %}disabled{% endif %}>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" >
+                        <label for="fwd_busy_status">Forward on Busy</label>
+                        <select id="fwd_busy_status" name="fwd_busy_status" class="form-control" onchange="toggleFwdField(this, 'fwd_busy')">
+                            <option value="off" {% if not extension or extension.fwd_busy_status != 'on' %}selected{% endif %}>Off</option>
+                            <option value="on" {% if extension and extension.fwd_busy_status == 'on' %}selected{% endif %}>On</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fwd_busy">Destination Number</label>
+                        <input type="text" id="fwd_busy" name="fwd_busy" class="form-control" placeholder="e.g. 5551234"
+                               value="{% if extension %}{{ extension.fwd_busy or '' }}{% endif %}"
+                               {% if not extension or extension.fwd_busy_status != 'on' %}disabled{% endif %}>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+
+        <!-- TAB: SPY -->
+        <div id="tab-spy" class="tab-content">
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-user-secret"></i> Spy Settings</h3>
+                <p class="text-muted" style="margin-bottom: 1.5rem;">Select which extensions are allowed to use Spy, Whisper and Barge on this extension.</p>
+                
+                <div class="dual-listbox">
+                    <div class="listbox-col">
+                        <label>Available (Not Allowed)</label>
+                        <input type="text" id="spy_filter_available" placeholder="Search..." onkeyup="filterDualList('spy_filter_available', 'spy_available')">
+                        <select id="spy_available" multiple ondblclick="moveOptions('spy_available', 'spy_allowed')">
+                            {% for spy_ext in available_spy_extensions %}
+                                {% set spy_value = spy_ext.ext|string %}
+                                {% if spy_value not in selected_spy_extensions %}
+                                <option value="{{ spy_value }}">{{ spy_ext.ext }} - {{ spy_ext.name or 'Unnamed Extension' }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="listbox-controls">
+                        <button type="button" onclick="moveOptions('spy_available', 'spy_allowed')" title="Allow Selected"><i class="fa-solid fa-arrow-right"></i></button>
+                        <button type="button" onclick="moveOptions('spy_allowed', 'spy_available')" title="Revoke Selected"><i class="fa-solid fa-arrow-left"></i></button>
+                        <button type="button" onclick="moveAll('spy_available', 'spy_allowed')" title="Allow All"><i class="fa-solid fa-angles-right"></i></button>
+                        <button type="button" onclick="moveAll('spy_allowed', 'spy_available')" title="Revoke All"><i class="fa-solid fa-angles-left"></i></button>
+                    </div>
+                    <div class="listbox-col">
+                        <label>Allowed Extensions</label>
+                        <input type="text" id="spy_filter_allowed" placeholder="Search..." onkeyup="filterDualList('spy_filter_allowed', 'spy_allowed')">
+                        <select id="spy_allowed" name="allowed_spy_extensions[]" multiple ondblclick="moveOptions('spy_allowed', 'spy_available')">
+                            {% for spy_ext in available_spy_extensions %}
+                                {% set spy_value = spy_ext.ext|string %}
+                                {% if spy_value in selected_spy_extensions %}
+                                <option value="{{ spy_value }}">{{ spy_ext.ext }} - {{ spy_ext.name or 'Unnamed Extension' }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 1.5rem; grid-column: 1 / -1;">
+                    <div class="switch-group" style="margin-top: 0.5rem;">
+                        <label class="switch">
+                            <input type="checkbox" name="allow_spy" {% if not extension or extension.allow_spy %}checked{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                        <div><strong>Allow this extension to be spied on</strong> <span class="text-muted">(Other extensions may Monitor/Whisper/Barge this extension when enabled)</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: FOLLOW ME -->
+        <div id="tab-followme" class="tab-content">
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fa-solid fa-route"></i> Follow Me Strategy</h3>
+                <p class="text-muted" style="margin-bottom: 1.5rem;">Set backup extension routes to dial concurrently or sequentially if primary endpoint is offline.</p>
+                
+                <table class="fm-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60%; text-align: left;">Destination Number / Ext</th>
+                            <th style="width: 30%; text-align: left;">Ring Time (sec)</th>
+                            <th style="text-align: center; width: 10%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="followme-tbody">
+                        <!-- Rendered dynamically by JavaScript -->
+                    </tbody>
+                </table>
+
+                <button type="button" class="btn btn-secondary" onclick="addFollowMeRow()">
+                    <i class="fa-solid fa-plus"></i> Add Number
+                </button>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('extensions') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info" style="min-width: 150px;"><i class="fa-solid fa-floppy-disk"></i> Save Extension</button>
+        </div>
+    </form>
+</div>
+
+
+
+
+
+
+
+
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function switchTab(evt, tabId) {
+        const contents = document.getElementsByClassName("tab-content");
+        for (let i = 0; i < contents.length; i++) {
+            contents[i].classList.remove("active");
+        }
+        const buttons = document.getElementsByClassName("tab-btn");
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].classList.remove("active");
+        }
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+
+    
+    function toggleFwdField(selectElement, inputId) {
+        const inputField = document.getElementById(inputId);
+        if (selectElement.value === 'on') {
+            inputField.disabled = false;
+            inputField.required = true;
+        } else {
+            inputField.disabled = true;
+            inputField.required = false;
+            // Optionally clear it out if they turn it off
+            // inputField.value = '';
+        }
+    }
+
+    function toggleVoicemail(checkbox) {
+        const passwordGroup = document.getElementById("vm_password_group");
+        passwordGroup.style.display = checkbox.checked ? "flex" : "none";
+    }
+
+    function escapeAttribute(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function(ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    }
+
+    let followmeData = [];
+    {% if extension and extension.followme %}
+        followmeData = {{ extension.followme|tojson }};
+    {% endif %}
+
+    const tbody = document.getElementById("followme-tbody");
+
+    function renderFollowMe() {
+        tbody.innerHTML = "";
+        if (followmeData.length === 0) {
+            addFollowMeRow();
+            return;
+        }
+        followmeData.forEach(row => {
+            appendRowHtml(row.number, row.ring);
+        });
+    }
+
+    function appendRowHtml(num = '', ring = 15) {
+        const tr = document.createElement("tr");
+        tr.style.animation = "fadeIn 0.2s ease-out";
+        const safeNum = escapeAttribute(num);
+        const safeRing = escapeAttribute(ring);
+        tr.innerHTML = `
+            <td>
+                <input type="text" name="fm_number[]" class="form-control" placeholder="e.g. 2121 or external cell" value="${safeNum}">
+            </td>
+            <td>
+                <input type="number" name="fm_ring[]" class="form-control" min="5" max="300" value="${safeRing}">
+            </td>
+            <td style="text-align: center;">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteFollowMeRow(this)" style="padding: 0.5rem 0.75rem;">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function addFollowMeRow() {
+        appendRowHtml('', 15);
+    }
+
+    function deleteFollowMeRow(button) {
+        const tr = button.parentElement.parentElement;
+        tr.remove();
+        if (tbody.children.length === 0) {
+            addFollowMeRow();
+        }
+    }
+
+
+    // Select all allowed spy extensions before form submission
+    document.getElementById('extensionForm').addEventListener('submit', function() {
+        const allowedSelect = document.getElementById('spy_allowed');
+        for (let i = 0; i < allowedSelect.options.length; i++) {
+            allowedSelect.options[i].selected = true;
+        }
+    });
+
+    function moveOptions(fromId, toId) {
+        const fromSelect = document.getElementById(fromId);
+        const toSelect = document.getElementById(toId);
+        Array.from(fromSelect.selectedOptions).forEach(option => {
+            toSelect.appendChild(option);
+            option.selected = false;
+        });
+        sortSelect(toSelect);
+    }
+    
+    function moveAll(fromId, toId) {
+        const fromSelect = document.getElementById(fromId);
+        const toSelect = document.getElementById(toId);
+        Array.from(fromSelect.options).forEach(option => {
+            if (!option.hidden) {
+                toSelect.appendChild(option);
+            }
+        });
+        sortSelect(toSelect);
+    }
+
+    function sortSelect(selectEl) {
+        let options = Array.from(selectEl.options);
+        options.sort((a, b) => a.text.localeCompare(b.text));
+        selectEl.innerHTML = '';
+        options.forEach(opt => selectEl.appendChild(opt));
+    }
+
+    function filterDualList(inputId, selectId) {
+        const input = document.getElementById(inputId);
+        const select = document.getElementById(selectId);
+        if (!input || !select) return;
+        
+        const query = input.value.toLowerCase().trim();
+        Array.from(select.options).forEach(option => {
+            option.hidden = query && !option.text.toLowerCase().includes(query);
+        });
+    }
+
+
+    renderFollowMe();
+</script>
+
+
+
+
+
+
+
+
+
+
+<script>
+// Codecs Dual Listbox logic
+function moveOptionsCodecs(sourceId, destId) {
+    const src = document.getElementById(sourceId);
+    const dest = document.getElementById(destId);
+    if (!src || !dest) return;
+    Array.from(src.selectedOptions).forEach(opt => {
+        dest.appendChild(opt);
+        opt.selected = false;
+    });
+}
+
+function moveUpCodecs(selectId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    Array.from(sel.selectedOptions).forEach(opt => {
+        const prev = opt.previousElementSibling;
+        if (prev) {
+            sel.insertBefore(opt, prev);
+        }
+    });
+}
+
+function moveDownCodecs(selectId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    Array.from(sel.selectedOptions).reverse().forEach(opt => {
+        const next = opt.nextElementSibling;
+        if (next) {
+            sel.insertBefore(next, opt);
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const videoCheckbox = document.getElementById('video_support_checkbox');
+    const videoContainer = document.getElementById('video_codecs_container');
+    
+    function toggleVideoCodecs() {
+        if (videoCheckbox && videoContainer) {
+            if (videoCheckbox.checked) {
+                videoContainer.style.display = 'block';
+                videoContainer.style.animation = 'fadeInDown 0.3s ease-out';
+            } else {
+                videoContainer.style.display = 'none';
+            }
+        }
+    }
+    
+    if (videoCheckbox) {
+        videoCheckbox.addEventListener('change', toggleVideoCodecs);
+        toggleVideoCodecs(); // Initialize on load
+    }
+    
+    // Bind submission logic directly to the form
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const videoSupport = document.getElementById('video_support_checkbox');
+            const videoSel = document.getElementById('video_codecs_selected');
+            
+            // Front-end validation for Video Codecs
+            if (videoSupport && videoSupport.checked && videoSel) {
+                if (videoSel.options.length === 0) {
+                    e.preventDefault();
+                    alert('ERROR: Missing Video Codecs\n\nYou enabled Video Support but did not assign any Video Codecs. Please assign at least one Video Codec, or disable Video Support.');
+                    return false;
+                }
+            }
+
+            const audioSel = document.getElementById('audio_codecs_selected');
+            if(audioSel) {
+                Array.from(audioSel.options).forEach(opt => opt.selected = true);
+            }
+            if(videoSel && videoSupport && videoSupport.checked) {
+                Array.from(videoSel.options).forEach(opt => opt.selected = true);
+            } else if (videoSel) {
+                Array.from(videoSel.options).forEach(opt => opt.selected = false);
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

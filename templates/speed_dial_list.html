@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}Speed Dials - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Clean & Simple Speed Dial UI */
+    .search-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+    }
+
+    .search-input-box {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.4rem 0.8rem;
+        flex: 1;
+        max-width: 400px;
+    }
+
+    .search-input-box input {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        width: 100%;
+        outline: none;
+        font-size: 0.9rem;
+    }
+
+    .code-badge {
+        display: inline-block;
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        padding: 0.25rem 0.65rem;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .dest-badge {
+        font-family: monospace;
+        font-size: 0.95rem;
+        color: var(--text-light);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Speed Dials</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Create quick dialing shortcuts mapped to internal destinations or external phone numbers
+        </div>
+    </div>
+    <div class="action-buttons" style="gap: 0.75rem;">
+        {% if can_view('speed_dial') %}
+        <a href="{{ url_for('speed_dial_export') }}" class="btn btn-secondary" style="text-decoration: none;" title="Export speed dials to Excel">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('speed_dial_import') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+        {% endif %}
+        {% if can_create('speed_dial') %}
+        <a href="{{ url_for('speed_dial_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Speed Dial
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel">
+    <div class="search-toolbar">
+        <div class="search-input-box">
+            <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+            <input type="text" id="sd-search" placeholder="Search by speed dial code, destination, or description..." onkeyup="filterSpeedDials()">
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+            Total Speed Dials: <strong style="color: var(--text-main);" id="visibleCount">{{ speed_dials|length }}</strong>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        {% set show_actions = can_view('speed_dial') or can_edit('speed_dial') or can_delete('speed_dial') %}
+        <table class="table" id="sd-table">
+            <thead>
+                <tr>
+                    <th>Speed Dial Code</th>
+                    <th>Target Destination</th>
+                    <th>Description</th>
+                    {% if show_actions %}
+                    <th style="text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if not speed_dials %}
+                <tr>
+                    <td colspan="{{ 4 if show_actions else 3 }}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        No Speed Dials configured. Click "Add Speed Dial" above to create one.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for sd in speed_dials %}
+                <tr class="sd-row" data-num="{{ sd.speed_dial_num }}" data-dest="{{ sd.destination_num }}" data-desc="{{ sd.description or '' }}">
+                    <td>
+                        <span class="code-badge">{{ sd.speed_dial_num }}</span>
+                    </td>
+                    <td>
+                        {% if sd.dest_type %}
+                        <span style="text-transform: capitalize; color: var(--text-muted); font-size: 0.85rem;">{{ sd.dest_type }}: </span>
+                        {% endif %}
+                        <span class="dest-badge">{{ sd.destination_num }}</span>
+                    </td>
+                    <td>{{ sd.description or '-' }}</td>
+                    {% if show_actions %}
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            {% if can_view('speed_dial') %}
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showNotification('Speed Dial details: {{ sd.speed_dial_num }} | Target: {{ sd.destination_num }} | Desc: {{ sd.description or "-" }}', 'info')" title="View details">
+                                <i class="fa-solid fa-eye"></i> View
+                            </button>
+                            {% endif %}
+                            {% if can_edit('speed_dial') %}
+                            <a href="{{ url_for('speed_dial_edit', num=sd.speed_dial_num) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            {% endif %}
+                            {% if can_delete('speed_dial') %}
+                            <form action="{{ url_for('speed_dial_delete', num=sd.speed_dial_num) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete Speed Dial ({{ sd.speed_dial_num }})?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function filterSpeedDials() {
+        const query = document.getElementById("sd-search").value.toLowerCase().trim();
+        const rows = document.querySelectorAll("#sd-table tbody tr.sd-row");
+        let visible = 0;
+        
+        rows.forEach(row => {
+            const num = row.getAttribute("data-num").toLowerCase();
+            const dest = row.getAttribute("data-dest").toLowerCase();
+            const desc = row.getAttribute("data-desc").toLowerCase();
+            
+            if (num.includes(query) || dest.includes(query) || desc.includes(query)) {
+                row.style.display = "";
+                visible++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+        
+        const countElem = document.getElementById("visibleCount");
+        if (countElem) {
+            countElem.textContent = visible;
+        }
+    }
+</script>
+{% endblock %}

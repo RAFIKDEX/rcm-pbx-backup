@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if holiday %}Edit{% else %}Add{% endif %} Holiday - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if holiday %}Edit{% else %}Create{% endif %} Holiday</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure holiday periods and closures</div>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if holiday %}{{ url_for('holiday_edit', holiday_id=holiday.id) }}{% else %}{{ url_for('holiday_add') }}{% endif %}" method="POST" id="holidayForm">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-umbrella-beach" style="color: var(--primary);"></i> Holiday Details</h2>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="name">Holiday Name <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Christmas" value="{% if holiday %}{{ holiday.name }}{% endif %}" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="start_date">Start Date <span style="color: #ff4a4a;">*</span></label>
+                <!-- Use date picker, but parse DD/MM/YYYY into YYYY-MM-DD for form display if needed, or handle text inputs. 
+                     Standard <input type="date"> works beautifully and submits YYYY-MM-DD, which our Python backend parses perfectly! -->
+                <input type="date" id="start_date" name="start_date" class="form-control" value="{% if holiday %}{{ holiday.start_date }}{% endif %}" required>
+            </div>
+            <div class="form-group">
+                <label for="end_date">End Date <span style="color: #ff4a4a;">*</span></label>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="{% if holiday %}{{ holiday.end_date }}{% endif %}" required>
+            </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group" style="max-width: 50%;">
+                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; user-select: none; background: var(--bg-card); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                    <input type="checkbox" id="recurring" name="recurring" {% if holiday and holiday.recurring %}checked{% endif %} style="accent-color: var(--primary); scale: 1.2;">
+                    <div>
+                        <span style="color: #fff; font-weight: 600; display: block;">Recurring Holiday</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.1rem;">Automatically repeat this holiday date range every year</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2.5rem;">
+            <a href="{{ url_for('time_conditions_list') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Holiday</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.getElementById("holidayForm").addEventListener("submit", function(e) {
+        const start = new Date(document.getElementById("start_date").value);
+        const end = new Date(document.getElementById("end_date").value);
+        if (end < start) {
+            e.preventDefault();
+            alert("End date cannot be earlier than start date.");
+        }
+    });
+</script>
+{% endblock %}

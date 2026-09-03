@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+
+{% block title %}Call Detail Records (CDR) - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .resource-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .chart-panel {
+        background-color: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+    }
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.75rem;
+    }
+    .chart-header h3 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .chart-container {
+        position: relative;
+        height: 220px;
+        width: 100%;
+    }
+    .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+    .overview-card {
+        background-color: var(--panel-dark);
+        border-radius: 16px;
+        padding: 1.25rem;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 110px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .overview-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--border-color-hover);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+    .overview-title {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.75px;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .overview-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #fff;
+        margin-top: 0.5rem;
+    }
+    .overview-icon {
+        position: absolute;
+        right: -10px;
+        bottom: -10px;
+        font-size: 4rem;
+        color: rgba(255, 255, 255, 0.02);
+        pointer-events: none;
+    }
+    .form-control-inline {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: #fff;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    .form-control-inline:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    }
+    select.form-control-inline {
+        color-scheme: dark;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Call Detail Records (CDR)</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Analyze historical call statistics, search records, and playback voice recordings</div>
+    </div>
+</div>
+
+<!-- Filters Panel -->
+<div class="panel" style="padding: 1.5rem; margin-bottom: 2rem;">
+    <div style="display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-end;">
+        <!-- Date From -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="date_from" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Date From</label>
+            <input type="date" id="date_from" class="form-control-inline" onchange="refreshCdrTable(true)">
+        </div>
+
+        <!-- Date To -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="date_to" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Date To</label>
+            <input type="date" id="date_to" class="form-control-inline" onchange="refreshCdrTable(true)">
+        </div>
+
+        <!-- Extension filter -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="extension" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Extension</label>
+            <input type="text" id="extension" class="form-control-inline" placeholder="e.g. 3001" onkeyup="refreshCdrTable(true)" style="width: 130px;">
+        </div>
+
+        <!-- Status filter -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="status" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Disposition</label>
+            <select id="status" class="form-control-inline" onchange="refreshCdrTable(true)" style="width: 150px;">
+                <option value="">-- All Statuses --</option>
+                <option value="ANSWERED">ANSWERED</option>
+                <option value="NO ANSWER">NO ANSWER</option>
+                <option value="BUSY">BUSY</option>
+                <option value="FAILED">FAILED</option>
+            </select>
+        </div>
+
+        <!-- Global Search -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 200px;">
+            <label for="q" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Global Search</label>
+            <input type="text" id="q" class="form-control-inline" placeholder="Search callers, destinations, channel tags..." onkeyup="refreshCdrTable(true)">
+        </div>
+
+        <!-- Limit / Page sizing -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label for="per_page" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Per Page</label>
+            <select id="per_page" class="form-control-inline" onchange="refreshCdrTable(true)" style="width: 90px;">
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+
+        <!-- Reset Button -->
+        <div>
+            <button onclick="resetCdrFilters()" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Panel -->
+<div class="resource-grid">
+    <div class="chart-panel">
+        <div class="chart-header">
+            <h3><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Daily Call Distribution by Hour (GMT+3)</h3>
+            <span class="chart-value" id="total-chart-calls">0 calls</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="cdrChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Table Container (AJAX Target) -->
+<div id="cdrTableContainer">
+    {% include 'cdr_table_partial.html' %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let cdrChart = null;
+    let playingAudioId = null;
+
+    function initCdrChart() {
+        const ctx = document.getElementById('cdrChart').getContext('2d');
+        const labels = Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`);
+        
+        cdrChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Call Volume',
+                    data: Array(24).fill(0),
+                    backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1.5,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b', font: { size: 10 } }
+                    },
+                    y: {
+                        min: 0,
+                        ticks: { color: '#64748b', font: { size: 10 }, stepSize: 1 },
+                        grid: { color: 'rgba(255, 255, 255, 0.03)' }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateCdrChart(hourlyData) {
+        if (!cdrChart) return;
+        cdrChart.data.datasets[0].data = hourlyData;
+        const total = hourlyData.reduce((a, b) => a + b, 0);
+        document.getElementById("total-chart-calls").innerText = `${total} call(s) today`;
+        cdrChart.update();
+    }
+
+    function refreshCdrTable(resetPage = false) {
+        const dateFrom = document.getElementById("date_from").value;
+        const dateTo = document.getElementById("date_to").value;
+        const extension = document.getElementById("extension").value;
+        const status = document.getElementById("status").value;
+        const q = document.getElementById("q").value;
+        const perPage = document.getElementById("per_page").value;
+        
+        let page = 1;
+        if (!resetPage) {
+            const pageElem = document.getElementById("current_page");
+            if (pageElem) page = pageElem.value;
+        }
+
+        const params = new URLSearchParams({
+            ajax: 1,
+            date_from: dateFrom,
+            date_to: dateTo,
+            extension: extension,
+            status: status,
+            q: q,
+            per_page: perPage,
+            page: page
+        });
+
+        fetch('/cdr?' + params.toString())
+            .then(res => res.text())
+            .then(html => {
+                // If audio was playing, pause it before swapping content
+                if (playingAudioId) {
+                    const aud = document.getElementById('audio-' + playingAudioId);
+                    if (aud) aud.pause();
+                    playingAudioId = null;
+                }
+                
+                document.getElementById("cdrTableContainer").innerHTML = html;
+                
+                // Read and update chart
+                const holder = document.getElementById("chart-data-holder");
+                if (holder) {
+                    const hourlyData = JSON.parse(holder.getAttribute("data-hourly"));
+                    updateCdrChart(hourlyData);
+                }
+            })
+            .catch(err => console.error("Error updating CDR table:", err));
+    }
+
+    function changeCdrPage(page) {
+        const pageElem = document.getElementById("current_page");
+        if (pageElem) {
+            pageElem.value = page;
+            refreshCdrTable(false);
+        }
+    }
+
+    function resetCdrFilters() {
+        document.getElementById("date_from").value = "";
+        document.getElementById("date_to").value = "";
+        document.getElementById("extension").value = "";
+        document.getElementById("status").value = "";
+        document.getElementById("q").value = "";
+        document.getElementById("per_page").value = "25";
+        refreshCdrTable(true);
+    }
+
+    function triggerCsvExport() {
+        const dateFrom = document.getElementById("date_from").value;
+        const dateTo = document.getElementById("date_to").value;
+        const extension = document.getElementById("extension").value;
+        const status = document.getElementById("status").value;
+        const q = document.getElementById("q").value;
+        
+        const params = new URLSearchParams({
+            export: 1,
+            date_from: dateFrom,
+            date_to: dateTo,
+            extension: extension,
+            status: status,
+            q: q
+        });
+        
+        window.location.href = '/cdr?' + params.toString();
+    }
+
+    // Audio Playback handler
+    function togglePlayAudio(uid) {
+        const aud = document.getElementById('audio-' + uid);
+        const icon = document.getElementById('icon-play-' + uid);
+        const btn = document.getElementById('btn-play-' + uid);
+
+        if (!aud) return;
+
+        if (playingAudioId && playingAudioId !== uid) {
+            // Pause previously playing audio
+            const prevAud = document.getElementById('audio-' + playingAudioId);
+            const prevIcon = document.getElementById('icon-play-' + playingAudioId);
+            const prevBtn = document.getElementById('btn-play-' + playingAudioId);
+            if (prevAud) prevAud.pause();
+            if (prevIcon) {
+                prevIcon.classList.remove('fa-pause');
+                prevIcon.classList.add('fa-play');
+            }
+            if (prevBtn) {
+                prevBtn.classList.remove('btn-secondary');
+                prevBtn.classList.add('btn-info');
+            }
+        }
+
+        if (aud.paused) {
+            aud.play();
+            playingAudioId = uid;
+            icon.classList.remove('fa-play');
+            icon.classList.add('fa-pause');
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+            
+            aud.onended = () => {
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-info');
+                playingAudioId = null;
+            };
+        } else {
+            aud.pause();
+            icon.classList.remove('fa-pause');
+            icon.classList.add('fa-play');
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-info');
+            playingAudioId = null;
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        initCdrChart();
+        // Trigger initial chart draw
+        const holder = document.getElementById("chart-data-holder");
+        if (holder) {
+            const hourlyData = JSON.parse(holder.getAttribute("data-hourly"));
+            updateCdrChart(hourlyData);
+        }
+        
+        // Auto refresh table every 5 seconds
+        setInterval(refreshCdrTable, 5000);
+    });
+</script>
+{% endblock %}

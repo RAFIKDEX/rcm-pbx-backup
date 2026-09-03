@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Feature Codes - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+
+{% macro render_feature_card(f) %}
+<div class="card" style="background: rgba(255,255,255,0.015); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;">
+    <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <strong style="font-size: 1rem; color: var(--text-main);">{{ f.feature_name }}</strong>
+            {% if f.enabled %}
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25);">Active</span>
+            {% else %}
+                <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25);">Disabled</span>
+            {% endif %}
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.5rem 0 1rem 0;">{{ f.description or 'No description provided.' }}</p>
+        
+        <div style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-muted);">Feature Code:</span>
+                <code style="color: var(--primary); font-weight: bold; font-size: 0.95rem;">{{ f.feature_code }}</code>
+            </div>
+        </div>
+    </div>
+    
+    <div style="text-align: right; margin-top: 0.5rem;">
+        {% if can_edit('feature_codes') %}
+        <button type="button" class="btn btn-secondary btn-sm" 
+                data-id="{{ f.id }}"
+                data-name="{{ f.feature_name }}"
+                data-code="{{ f.feature_code }}"
+                data-enabled="{{ f.enabled }}"
+                onclick="openEditModal(this, false)"
+                style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">
+            <i class="fa-solid fa-sliders"></i> Configure
+        </button>
+        {% elif can_view('feature_codes') %}
+        <button type="button" class="btn btn-secondary btn-sm" 
+                data-id="{{ f.id }}"
+                data-name="{{ f.feature_name }}"
+                data-code="{{ f.feature_code }}"
+                data-enabled="{{ f.enabled }}"
+                onclick="openEditModal(this, true)"
+                style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">
+            <i class="fa-solid fa-eye"></i> View
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+<div class="header-panel">
+    <div>
+        <h1>Feature Codes Management</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Group, customize, and configure PBX feature codes mapped to Asterisk dialplans and features.
+        </div>
+    </div>
+</div>
+
+<!-- Category selector / layout -->
+<div style="margin-bottom: 2rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    {% set categories = [
+        ("Voicemail", "fa-envelope-open", "#category-voicemail"),
+        ("Presence & Availability", "fa-user-clock", "#category-presence"),
+        ("Call Pickup", "fa-hand-holding-hand", "#category-pickup"),
+        ("Call Transfer", "fa-arrow-right-arrow-left", "#category-transfer"),
+        ("Call Monitoring", "fa-user-shield", "#category-monitoring"),
+        ("Queue Management", "fa-people-group", "#category-queue"),
+        ("Call Forwarding", "fa-phone-arrow-right", "#category-forward")
+    ] %}
+    {% for cat_name, icon, link in categories %}
+    <a href="{{ link }}" class="btn btn-secondary btn-sm" style="text-decoration: none; display: flex; align-items: center; gap: 0.4rem; background: var(--border-color); border-color: var(--border-color);">
+        <i class="fa-solid {{ icon }}"></i> {{ cat_name }}
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Grouped Sections -->
+<div style="display: flex; flex-direction: column; gap: 2.5rem; margin-bottom: 3rem;">
+
+    <!-- 1. VOICEMAIL -->
+    <div id="category-voicemail" class="panel" style="border-left: 4px solid #38bdf8;">
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: #38bdf8; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-top: 0;">
+            <i class="fa-solid fa-envelope-open"></i> Voicemail Features
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+            {% for f in fc_list if f.feature_category == 'Voicemail' %}
+                {{ render_feature_card(f) }}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 2. PRESENCE & AVAILABILITY -->
+    <div id="category-presence" class="panel" style="border-left: 4px solid #34d399;">
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: #34d399; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-top: 0;">
+            <i class="fa-solid fa-user-clock"></i> Presence & Availability (DND)
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+            {% for f in fc_list if f.feature_category == 'Presence & Availability' %}
+                {{ render_feature_card(f) }}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 3. CALL PICKUP -->
+    <div id="category-pickup" class="panel" style="border-left: 4px solid #fb7185;">
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: #fb7185; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-top: 0;">
+            <i class="fa-solid fa-hand-holding-hand"></i> Call Pickup
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+            {% for f in fc_list if f.feature_category == 'Call Pickup' %}
+                {{ render_feature_card(f) }}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 4. CALL TRANSFER -->
+    <div id="category-transfer" class="panel" style="border-left: 4px solid #f59e0b;">
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: #f59e0b; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-top: 0;">
+            <i class="fa-solid fa-arrow-right-arrow-left"></i> Call Transfer
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+            {% for f in fc_list if f.feature_category == 'Call Transfer' %}
+                {{ render_feature_card(f) }}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 5. CALL MONITORING -->
+    <div id="category-monitoring" class="panel" style="border-left: 4px solid #a855f7;">
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: #a855f7; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-top: 0;">
+            <i class="fa-solid fa-user-shield"></i> Call Spy & Monitoring
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+            {% for f in fc_list if f.feature_category == 'Call Monitoring' %}
+                {{ render_feature_card(f) }}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 6. QUEUE MANAGEMENT -->
+    <div id="category-queue" class="panel" style="border-left: 4px solid #e11d48;">
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: #e11d48; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-top: 0;">
+            <i class="fa-solid fa-people-group"></i> Queue Management
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+            {% for f in fc_list if f.feature_category == 'Queue Management' %}
+                {{ render_feature_card(f) }}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 7. CALL FORWARDING -->
+    <div id="category-forward" class="panel" style="border-left: 4px solid #6366f1;">
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: #6366f1; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-top: 0;">
+            <i class="fa-solid fa-phone-arrow-right"></i> Call Forwarding
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+            {% for f in fc_list if f.feature_category == 'Call Forwarding' %}
+                {{ render_feature_card(f) }}
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<!-- EDIT FEATURE CODE MODAL -->
+<div id="editFeatureModal" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+    <div class="modal-content" style="max-width: 500px; width: 90%; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; position: relative;">
+        <span class="close-modal" onclick="closeModal('editFeatureModal')" style="position: absolute; right: 1.5rem; top: 1rem; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem; color: var(--primary); margin-top: 0;">
+            <i class="fa-solid fa-pen-to-square"></i> Configure Feature
+        </h2>
+        
+        <form action="{{ url_for('feature_codes_update') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="edit_id" name="id">
+            <input type="hidden" id="edit_name" name="name">
+            
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Feature Name</label>
+                <input type="text" id="display_name" class="form-control" disabled style="background: var(--border-color); color: #bbb;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Current Feature Code</label>
+                <input type="text" id="display_current_code" class="form-control" disabled style="background: var(--border-color); color: #bbb;">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="edit_code" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">New Feature Code</label>
+                <input type="text" id="edit_code" name="code" class="form-control" placeholder="Enter new code (leave blank to keep current)">
+            </div>
+            
+            <div class="form-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editFeatureModal')">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+function openEditModal(btn, readOnly = false) {
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name');
+    const code = btn.getAttribute('data-code');
+    
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('display_name').value = name;
+    document.getElementById('display_current_code').value = code;
+    document.getElementById('edit_code').value = ''; // Leave blank by default for entering a new code
+    document.getElementById('edit_code').disabled = readOnly;
+    const submitBtn = document.querySelector('#editFeatureModal button[type="submit"]');
+    if (submitBtn) submitBtn.style.display = readOnly ? 'none' : 'inline-block';
+    
+    // Open Modal with flex display
+    document.getElementById('editFeatureModal').style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if ann %}Edit Announcement - RCM 7021{% else %}Create Announcement - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if ann %}Edit Announcement ({{ ann.num }}){% else %}Create Announcement{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure playback audio prompt and next route destinations</div>
+    </div>
+    <div>
+        <a href="{{ url_for('announcement_list') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Announcements
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if ann %}{{ url_for('announcement_edit', num=ann.num) }}{% else %}{{ url_for('announcement_add') }}{% endif %}" method="POST" id="annForm">
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="num">Announcement Number <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="num" name="num" class="form-control" placeholder="e.g. 8000" required
+                       {% if ann %}value="{{ ann.num }}" readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">{% if ann %}Announcement Number cannot be changed.{% else %}The extension number dialed to play this announcement.{% endif %}</span>
+            </div>
+            <div class="form-group">
+                <label for="name">Announcement Name <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. holiday_greeting" required
+                       value="{% if ann %}{{ ann.name }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="prompt_id">Audio Prompt File <span style="color: #ff4a4a;">*</span></label>
+                <select id="prompt_id" name="prompt_id" class="form-control" required>
+                    <option value="">-- Select Audio Prompt --</option>
+                    {% for p in prompts %}
+                    <option value="{{ p.id }}" {% if ann and ann.prompt_id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.type|upper }})</option>
+                    {% endfor %}
+                </select>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">The audio file to play. Manage prompts in <a href="{{ url_for('media_center') }}">Media Center</a>.</span>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="dest_type">Destination After Playback</label>
+                <select id="dest_type" name="dest_type" class="form-control" onchange="toggleDest()">
+                    <option value="hangup" {% if ann and ann.dest_type == 'hangup' %}selected{% endif %}>Hangup Call</option>
+                    <option value="extension" {% if ann and ann.dest_type == 'extension' %}selected{% endif %}>Goto Extension</option>
+                    <option value="ivr" {% if ann and ann.dest_type == 'ivr' %}selected{% endif %}>Goto IVR</option>
+                    <option value="queue" {% if ann and ann.dest_type == 'queue' %}selected{% endif %}>Goto Queue</option>
+                </select>
+            </div>
+            <div class="form-group" id="dest_val_group">
+                <label for="dest_val" id="dest_val_label">Destination Value</label>
+                <input type="text" id="dest_val" name="dest_val" class="form-control" placeholder="Extension number"
+                       value="{% if ann %}{{ ann.dest_val or '' }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('announcement_list') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Announcement</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleDest() {
+        const type = document.getElementById("dest_type").value;
+        const valGroup = document.getElementById("dest_val_group");
+        const valInput = document.getElementById("dest_val");
+        const label = document.getElementById("dest_val_label");
+        
+        if (type === "hangup") {
+            valGroup.style.display = "none";
+            valInput.required = false;
+        } else {
+            valGroup.style.display = "block";
+            valInput.required = true;
+            if (type === "ivr") {
+                label.textContent = "IVR Number";
+                valInput.placeholder = "e.g. 7000";
+            } else if (type === "queue") {
+                label.textContent = "Queue Number";
+                valInput.placeholder = "e.g. 7700";
+            } else {
+                label.textContent = "Extension Number";
+                valInput.placeholder = "e.g. 5001";
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleDest();
+    });
+</script>
+{% endblock %}

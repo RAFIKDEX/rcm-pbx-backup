@@ -1,0 +1,359 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if group %}Edit Ring Group - RCM 7021{% else %}Create Ring Group - RCM 7021{% endif %}{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Clean & Minimalist Ring Group Form Styles */
+    .section-header {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .dual-list-container {
+        display: flex;
+        gap: 1.25rem;
+        align-items: stretch;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .list-box {
+        flex: 1;
+        min-width: 250px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.75rem;
+    }
+
+    .list-box label {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 0.4rem;
+    }
+
+    .list-search {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.3rem 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .list-search input {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        font-size: 0.82rem;
+        width: 100%;
+        outline: none;
+    }
+
+    .list-box select {
+        width: 100%;
+        height: 220px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-main);
+        padding: 0.4rem;
+    }
+
+    .list-box select option {
+        padding: 0.35rem 0.5rem;
+        margin-bottom: 1px;
+    }
+
+    .transfer-actions {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem 0;
+    }
+
+    .transfer-actions button {
+        width: 110px;
+    }
+
+    .strategy-info {
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+        color: #cbd5e1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if group %}Edit Ring Group #{{ group.id }}{% else %}Create Ring Group{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Configure group members, ring timing strategies, and failover destinations
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('ringgroup_list') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Ring Groups
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if group %}{{ url_for('ringgroup_edit', id=group.id) }}{% else %}{{ url_for('ringgroup_add') }}{% endif %}" method="POST" id="rgForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="section-header">Basic Information</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="id">Ring Group Number (6400 - 6499) <span style="color: #ff4a4a;">*</span></label>
+                <input type="number" id="id" name="id" class="form-control" placeholder="e.g. 6400" min="6400" max="6499" required
+                       {% if group %}value="{{ group.id }}" readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+            </div>
+            <div class="form-group">
+                <label for="name">Group Name <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Support Team" required
+                       value="{% if group %}{{ group.name }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="pre_ring_announcement">Pre-Ring Announcement</label>
+                <select id="pre_ring_announcement" name="pre_ring_announcement" class="form-control">
+                    <option value="">-- None (Immediate ringing to members) --</option>
+                    {% for p in prompts %}
+                    <option value="{{ p.id }}" {% if group and group.pre_ring_announcement == p.id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="section-header">Ring Strategy & Timers</div>
+        <div class="form-row">
+            <div class="form-group" style="flex: 1.5;">
+                <label for="strategy">Ringing Strategy</label>
+                <select id="strategy" name="strategy" class="form-control" onchange="toggleStrategy()">
+                    <option value="ringall" {% if group and group.strategy == 'ringall' %}selected{% endif %}>ringall &mdash; Ring all group members simultaneously</option>
+                    <option value="ordered" {% if group and group.strategy == 'ordered' %}selected{% endif %}>ordered &mdash; Ring each member sequentially in order</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="timeout_group" style="flex: 1;">
+                <label for="timeout">Total Timeout (seconds)</label>
+                <input type="number" id="timeout" name="timeout" class="form-control" min="5" max="300"
+                       value="{% if group %}{{ group.timeout }}{% else %}20{% endif %}">
+            </div>
+
+            <div class="form-group" id="per_try_group" style="display: none; flex: 1;">
+                <label for="per_try">Per-Member Try (seconds)</label>
+                <input type="number" id="per_try" name="per_try" class="form-control" min="3" max="60"
+                       value="{% if group %}{{ group.per_try }}{% else %}10{% endif %}">
+            </div>
+        </div>
+
+        <div class="strategy-info" id="strategyDesc">
+            <strong>RINGALL Strategy:</strong> All selected extensions ring simultaneously for the duration of Total Timeout.
+        </div>
+
+        <div class="section-header">Assigned Group Members <span style="color: #ff4a4a;">*</span></div>
+        <div class="dual-list-container">
+            <div class="list-box">
+                <label>Available Extensions</label>
+                <div class="list-search">
+                    <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+                    <input type="text" id="filterAvail" placeholder="Search..." onkeyup="filterSelect('avail', 'filterAvail')">
+                </div>
+                <select id="avail" multiple ondblclick="addSelected()">
+                    {% for ext in available_extensions %}
+                    <option value="{{ ext.ext }}">{{ ext.ext }} &mdash; {{ ext.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="transfer-actions">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addSelected()">Add &rarr;</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="removeSelected()">&larr; Remove</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addAll()" style="margin-top: 0.4rem;">Add All</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="removeAll()">Clear All</button>
+                <div style="height: 4px; border-bottom: 1px solid var(--border-color); margin: 4px 0;"></div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="moveUp()"><i class="fa-solid fa-arrow-up"></i> Move Up</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="moveDown()"><i class="fa-solid fa-arrow-down"></i> Move Down</button>
+            </div>
+
+            <div class="list-box">
+                <label>Assigned Members <span style="font-size: 0.75rem; color: #38bdf8;">(Order matters for Ordered mode)</span></label>
+                <div class="list-search">
+                    <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+                    <input type="text" id="filterSel" placeholder="Search..." onkeyup="filterSelect('sel', 'filterSel')">
+                </div>
+                <select id="sel" multiple ondblclick="removeSelected()">
+                    {% for ext in selected_extensions %}
+                    <option value="{{ ext.ext }}">{{ ext.ext }} &mdash; {{ ext.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="section-header">Failover Destination (No Answer / Timeout)</div>
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label>Target Route</label>
+                <div id="ringgroup-dest-selector"></div>
+            </div>
+        </div>
+
+        <div id="hiddenMembers"></div>
+
+        <div class="form-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <a href="{{ url_for('ringgroup_list') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Ring Group</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleStrategy() {
+        const strat = document.getElementById("strategy").value;
+        const totalTimeout = document.getElementById("timeout_group");
+        const perTryTimeout = document.getElementById("per_try_group");
+        const descElem = document.getElementById("strategyDesc");
+        
+        if (strat === "ordered") {
+            totalTimeout.style.display = "none";
+            perTryTimeout.style.display = "block";
+            if (descElem) {
+                descElem.innerHTML = "<strong>ORDERED Strategy:</strong> Calls ring each member sequentially one by one according to their order in Assigned Members. Each member rings for the 'Per-Member Try' seconds.";
+            }
+        } else {
+            totalTimeout.style.display = "block";
+            perTryTimeout.style.display = "none";
+            if (descElem) {
+                descElem.innerHTML = "<strong>RINGALL Strategy:</strong> All assigned members ring simultaneously for the duration of Total Timeout before moving to Failover Destination.";
+            }
+        }
+    }
+
+    function filterSelect(selectId, inputId) {
+        const query = document.getElementById(inputId).value.toLowerCase().trim();
+        const selectElem = document.getElementById(selectId);
+        const options = selectElem.options;
+        for (let i = 0; i < options.length; i++) {
+            const text = options[i].text.toLowerCase();
+            const val = options[i].value.toLowerCase();
+            options[i].style.display = (text.includes(query) || val.includes(query)) ? "" : "none";
+        }
+    }
+
+    function moveOptions(src, dst) {
+        const selOpts = Array.from(src.selectedOptions);
+        selOpts.forEach(o => {
+            o.style.display = "";
+            o.selected = false;
+            dst.add(o);
+        });
+    }
+
+    function addSelected() {
+        moveOptions(document.getElementById("avail"), document.getElementById("sel"));
+    }
+
+    function removeSelected() {
+        moveOptions(document.getElementById("sel"), document.getElementById("avail"));
+    }
+
+    function addAll() {
+        const avail = document.getElementById("avail");
+        const sel = document.getElementById("sel");
+        Array.from(avail.options).forEach(o => {
+            if (o.style.display !== "none") {
+                o.selected = false;
+                sel.add(o);
+            }
+        });
+    }
+
+    function removeAll() {
+        const avail = document.getElementById("avail");
+        const sel = document.getElementById("sel");
+        Array.from(sel.options).forEach(o => {
+            if (o.style.display !== "none") {
+                o.selected = false;
+                avail.add(o);
+            }
+        });
+    }
+
+    function moveUp() {
+        const sel = document.getElementById("sel");
+        const opts = Array.from(sel.options);
+        for (let i = 1; i < opts.length; i++) {
+            if (opts[i].selected && !opts[i-1].selected) {
+                sel.insertBefore(opts[i], opts[i-1]);
+            }
+        }
+    }
+
+    function moveDown() {
+        const sel = document.getElementById("sel");
+        const opts = Array.from(sel.options);
+        for (let i = opts.length - 2; i >= 0; i--) {
+            if (opts[i].selected && !opts[i+1].selected) {
+                sel.insertBefore(opts[i+1], opts[i]);
+            }
+        }
+    }
+
+    document.getElementById("rgForm").addEventListener("submit", function(e) {
+        const holder = document.getElementById("hiddenMembers");
+        holder.innerHTML = "";
+        
+        const sel = document.getElementById("sel");
+        const opts = Array.from(sel.options);
+        
+        if (opts.length === 0) {
+            e.preventDefault();
+            alert("Please select at least one group member extension.");
+            return;
+        }
+
+        opts.forEach(o => {
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = "members[]";
+            inp.value = o.value;
+            holder.appendChild(inp);
+        });
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleStrategy();
+        renderDestinationSelector(
+            "ringgroup-dest-selector",
+            "failover_type",
+            "failover_value",
+            "{% if group and group.failover_type %}{{ group.failover_type }}{% elif group and group.failover %}extension{% else %}hangup{% endif %}",
+            "{% if group %}{{ group.failover_value or group.failover }}{% endif %}"
+        );
+    });
+</script>
+{% endblock %}

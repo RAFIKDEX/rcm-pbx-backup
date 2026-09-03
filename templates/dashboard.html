@@ -1,0 +1,577 @@
+{% extends 'base.html' %}
+
+{% block title %}System Dashboard - RCM 7021 IP-PBX{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* Consistent Dark Theme Dashboard Layout */
+    .dashboard-wrapper {
+        font-family: 'Inter', sans-serif;
+    }
+
+    .ld-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    /* Standardize row sizes for the 3 main columns on desktop */
+    @media (min-width: 1024px) {
+        .ld-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .info-card {
+            grid-column: 3;
+            grid-row: 1 / span 3;
+        }
+        /* First row items */
+        .res-card { grid-column: 1 / span 2; grid-row: 1; }
+        
+        /* Second row items */
+        .ts-card { grid-column: 1; grid-row: 2; }
+        .ext-card { grid-column: 2; grid-row: 2; }
+
+        /* Third row items */
+        .trk-card { grid-column: 1; grid-row: 3; }
+        .intf-card { grid-column: 2; grid-row: 3; }
+    }
+
+    .ld-card {
+        background-color: var(--panel-dark);
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--border-color);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .ld-card:hover {
+        border-color: var(--border-color-hover);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .ld-card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Resource Layout */
+    .res-layout {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        flex: 1;
+    }
+    .res-chart {
+        flex: 1;
+        position: relative;
+        height: 130px;
+    }
+    .res-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        min-width: 90px;
+    }
+    .res-val {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--text-main);
+        font-family: 'Orbitron', sans-serif;
+    }
+    .res-lbl-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .res-box {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+    }
+
+    /* Donut Layout */
+    .donut-layout {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        flex: 1;
+    }
+    .donut-wrapper {
+        position: relative;
+        width: 110px;
+        height: 110px;
+        flex-shrink: 0;
+    }
+    .donut-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .di-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 0.75rem;
+    }
+    .di-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 0.4rem;
+    }
+    .di-dot { font-size: 0.6rem; }
+    .di-val-strong {
+        color: var(--text-main);
+        font-weight: 600;
+        margin-left: auto;
+    }
+    .di-divider {
+        border-top: 1px solid var(--border-color);
+        margin: 0.75rem 0;
+    }
+
+    /* Trunks */
+    .trunks-list {
+        margin-top: 1.25rem;
+        border-top: 1px solid var(--border-color);
+        padding-top: 0.75rem;
+        max-height: 120px;
+        overflow-y: auto;
+    }
+    .tl-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.35rem 0;
+        font-size: 0.85rem;
+        color: var(--text-main);
+    }
+    .tl-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    /* Interfaces */
+    .intf-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        font-size: 0.9rem;
+        color: var(--text-main);
+        border-bottom: 1px solid var(--border-color);
+    }
+    .intf-item:last-child { border: none; }
+    .intf-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .intf-icon { width: 20px; text-align: center; color: var(--text-muted); }
+
+    /* Interfaces Accordion */
+    .accordion-item {
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 0.25rem;
+    }
+    .accordion-item:last-child {
+        border-bottom: none;
+    }
+    .accordion-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0.25rem;
+        cursor: pointer;
+        font-size: 0.95rem;
+        color: var(--text-main);
+        transition: background 0.3s ease;
+        border-radius: 6px;
+    }
+    .accordion-header:hover {
+        background: var(--border-color-hover);
+    }
+    .acc-header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .acc-header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .acc-icon { width: 22px; text-align: center; color: var(--text-muted); }
+    .acc-arrow {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .accordion-item.active .acc-arrow {
+        transform: rotate(180deg);
+    }
+    .accordion-body {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.4s ease;
+        padding: 0 1rem;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 6px;
+    }
+    .accordion-item.active .accordion-body {
+        max-height: 300px;
+        padding: 0.5rem 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .acc-subitem {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.4rem 0;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        border-bottom: 1px dashed rgba(255,255,255,0.05);
+    }
+    .acc-subitem:last-child {
+        border-bottom: none;
+    }
+    .status-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+    }
+    
+    .no-transition .accordion-body, .no-transition .acc-arrow { transition: none !important; }
+    /* Info */
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .info-item:last-child { border: none; }
+    .info-lbl { color: var(--text-muted); font-size: 0.85rem; }
+    .info-val { color: var(--text-main); font-size: 0.9rem; font-weight: 600; text-align: right; }
+
+    /* Utility */
+    .c-green { color: var(--status-registered); } .bg-green { background-color: var(--status-registered); }
+    .c-red { color: var(--status-offline); } .bg-red { background-color: var(--status-offline); }
+    .c-blue { color: var(--primary); } .bg-blue { background-color: var(--primary); }
+    .c-orange { color: var(--status-busy); } .bg-orange { background-color: var(--status-busy); }
+    .c-grey { color: var(--text-muted); } .bg-grey { background-color: var(--border-color-hover); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-bar">
+    <div class="header-title">
+        <h1><i class="fa-solid fa-chart-line"></i> Dashboard</h1>
+        <p class="subtitle">System Overview & Live Status</p>
+    </div>
+</div>
+
+<div class="dashboard-wrapper">
+    <div class="ld-grid">
+
+        <!-- Resource Usage -->
+        <div class="ld-card res-card">
+            <div class="ld-card-title"><i class="fa-solid fa-microchip" style="color: #0ea5e9;"></i> Resource Usage</div>
+            <div class="res-layout">
+                <div class="res-chart"><canvas id="resourceChart"></canvas></div>
+                <div class="res-stats">
+                    <div>
+                        <div class="res-val" id="mem-cur">0%</div>
+                        <div class="res-lbl-row"><div class="res-box" style="background: rgba(168, 85, 247, 0.4); border: 1px solid #a855f7;"></div> Memory</div>
+                    </div>
+                    <div>
+                        <div class="res-val" id="cpu-cur">0%</div>
+                        <div class="res-lbl-row"><div class="res-box" style="background: var(--primary);"></div> CPU</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Storage -->
+        <div class="ld-card ts-card">
+            <div class="ld-card-title"><i class="fa-solid fa-server" style="color: #8b5cf6;"></i> Total Storage</div>
+            <div class="donut-layout">
+                <div class="donut-wrapper"><canvas id="totalDonut"></canvas></div>
+                <div class="donut-info">
+                    <div class="di-row"><span class="di-dot c-green">●</span> Available: <span class="di-val-strong" id="ts-avail">-</span></div>
+                    <div class="di-row"><span class="di-dot c-red">●</span> Used: <span class="di-val-strong" id="ts-used">-</span></div>
+                    <div class="di-divider"></div>
+                    <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem; display: flex; justify-content: space-between;">Total: <span id="ts-total">-</span></div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Extension -->
+        <div class="ld-card ext-card">
+            <div class="ld-card-title"><i class="fa-solid fa-phone" style="color: var(--primary);"></i> Extensions</div>
+            <div class="donut-layout">
+                <div class="donut-wrapper"><canvas id="extDonut"></canvas></div>
+                <div class="donut-info">
+                    <div class="di-row"><span class="di-dot c-green">●</span> Registered: <span class="di-val-strong" id="ext-reg">0</span></div>
+                    <div class="di-row"><span class="di-dot c-grey">●</span> Unregistered: <span class="di-val-strong" id="ext-unreg">0</span></div>
+                    <div class="di-divider"></div>
+                    <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem; display: flex; justify-content: space-between;">Total: <span id="ext-total">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trunks -->
+        <div class="ld-card trk-card">
+            <div class="ld-card-title"><i class="fa-solid fa-network-wired" style="color: #14b8a6;"></i> Trunks</div>
+            <div class="donut-layout" style="margin-bottom: 0.5rem;">
+                <div class="donut-wrapper"><canvas id="trunkDonut"></canvas></div>
+                <div class="donut-info">
+                    <div class="di-row"><span class="di-dot c-green">●</span> Available: <span class="di-val-strong" id="trk-avail">0</span></div>
+                    <div class="di-row"><span class="di-dot c-red">●</span> Unavailable: <span class="di-val-strong" id="trk-unavail">0</span></div>
+                    <div class="di-row"><span class="di-dot c-grey">●</span> Unmonitored: <span class="di-val-strong" id="trk-unmon">0</span></div>
+                </div>
+            </div>
+            <div class="trunks-list" id="trunk-list-container">
+                <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center;">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Interfaces -->
+        <div class="ld-card intf-card">
+            <div class="ld-card-title"><i class="fa-solid fa-ethernet" style="color: #f59e0b;"></i> Interfaces</div>
+            <div id="interfaces-container" style="display: flex; flex-direction: column; gap: 0;">
+                <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center;">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Information -->
+        <div class="ld-card info-card">
+            <div class="ld-card-title"><i class="fa-solid fa-circle-info" style="color: #8b5cf6;"></i> System Information</div>
+            <div class="info-item"><span class="info-lbl">Model</span><span class="info-val" id="inf-model">-</span></div>
+            <div class="info-item"><span class="info-lbl">Firmware</span><span class="info-val" id="inf-fw">-</span></div>
+            <div class="info-item"><span class="info-lbl">LAN MAC</span><span class="info-val" id="inf-mac">-</span></div>
+            <div class="info-item"><span class="info-lbl">LAN IP</span><span class="info-val" id="inf-ip">-</span></div>
+            <div class="info-item"><span class="info-lbl">Active Calls</span><span class="info-val" id="inf-calls">0</span></div>
+            <div class="info-item"><span class="info-lbl">System Date</span><span class="info-val" id="inf-date">-</span></div>
+            <div class="info-item"><span class="info-lbl">System Time</span><span class="info-val" id="inf-time">-</span></div>
+            <div class="info-item"><span class="info-lbl">Up Time</span><span class="info-val" id="inf-uptime">-</span></div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const rootStyle = getComputedStyle(document.documentElement);
+    const getVar = (name) => rootStyle.getPropertyValue(name).trim();
+
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = getVar('--text-muted') || '#94a3b8';
+
+    const col = {
+        green: getVar('--status-registered') || '#10b981',
+        red: getVar('--status-offline') || '#ef4444',
+        blue: getVar('--primary') || '#00adb5',
+        grey: 'rgba(255, 255, 255, 0.08)',
+        darkGrey: getVar('--text-muted') || '#94a3b8',
+        memFill: 'rgba(168, 85, 247, 0.1)',
+        memLine: '#a855f7',
+        cpuLine: getVar('--primary') || '#00adb5',
+        chartGrid: 'rgba(255, 255, 255, 0.05)'
+    };
+
+    function initDonut(ctxId, colors) {
+        return new Chart(document.getElementById(ctxId).getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [1, 1], // placeholders
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    cutout: '75%',
+                    rotation: -90,
+                    circumference: 360
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                animation: { duration: 0 }
+            }
+        });
+    }
+
+    const tDonut = initDonut('totalDonut', [col.green, col.red]);
+    
+    const eDonut = initDonut('extDonut', [col.green, col.grey]);
+    const trDonut = initDonut('trunkDonut', [col.green, col.red, col.grey]);
+
+    const resCtx = document.getElementById('resourceChart').getContext('2d');
+    const resChart = new Chart(resCtx, {
+        type: 'line',
+        data: {
+            labels: Array(20).fill(''),
+            datasets: [
+                { data: Array(20).fill(0), borderColor: col.memLine, backgroundColor: col.memFill, borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, order: 2 },
+                { data: Array(20).fill(0), borderColor: col.cpuLine, backgroundColor: 'transparent', borderWidth: 2, fill: false, tension: 0.4, pointRadius: 0, order: 1 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { display: false }, tooltip: {enabled: false} },
+            scales: {
+                x: { display: false },
+                y: { min: 0, suggestedMax: 30, grid: { color: col.chartGrid, drawBorder: false }, ticks: { stepSize: 10, color: col.darkGrey, font: {size: 10} } }
+            }
+        }
+    });
+
+    function update() {
+        fetch('/api/dashboard-status')
+            .then(r => r.json())
+            .then(data => {
+                // Resources
+                document.getElementById('cpu-cur').innerText = Math.round(data.cpu) + '%';
+                document.getElementById('mem-cur').innerText = Math.round(data.memory.percent) + '%';
+                resChart.data.labels.push(''); resChart.data.labels.shift();
+                resChart.data.datasets[1].data.push(data.cpu); resChart.data.datasets[1].data.shift();
+                resChart.data.datasets[0].data.push(data.memory.percent); resChart.data.datasets[0].data.shift();
+                let mx = Math.max(...resChart.data.datasets[0].data, ...resChart.data.datasets[1].data);
+                resChart.options.scales.y.suggestedMax = mx > 25 ? (mx > 75 ? 100 : 50) : 30;
+                resChart.update('none');
+
+                // Storage
+                const cd = data.hw.disk_total ? {t: data.hw.disk_total, u: data.hw.disk_used, f: data.hw.disk_free, p: data.hw.disk_percent} : {t:"0B",u:"0B",f:"0B",p:0};
+                tDonut.data.datasets[0].data = [100 - cd.p, cd.p]; tDonut.update();
+                document.getElementById('ts-total').innerText = cd.t;
+                document.getElementById('ts-avail').innerText = cd.f;
+                document.getElementById('ts-used').innerText = cd.u;
+
+                
+
+                // Ext
+                const e = data.extensions;
+                eDonut.data.datasets[0].data = [e.active, e.total - e.active]; eDonut.update();
+                document.getElementById('ext-reg').innerText = e.active;
+                document.getElementById('ext-unreg').innerText = e.total - e.active;
+                document.getElementById('ext-total').innerText = e.total;
+
+                // Trunks
+                const tr = data.trunks;
+                const trTotA = tr.available + tr.busy;
+                const trUnm = tr.total - trTotA - tr.offline;
+                trDonut.data.datasets[0].data = [trTotA, tr.offline, trUnm]; trDonut.update();
+                document.getElementById('trk-avail').innerText = trTotA;
+                document.getElementById('trk-unavail').innerText = tr.offline;
+                document.getElementById('trk-unmon').innerText = trUnm;
+                
+                let tHtml = '';
+                tr.list.forEach(t => {
+                    let c = 'bg-grey';
+                    if(t.status==='Available'||t.status==='Busy') c = 'bg-green';
+                    else if(t.status==='Offline') c = 'bg-red';
+                    tHtml += `<div class="tl-item"><span>${t.name}</span><div class="tl-dot ${c}"></div></div>`;
+                });
+                if(!tHtml) tHtml = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center;">No trunks</div>';
+                document.getElementById('trunk-list-container').innerHTML = tHtml;
+                
+                // Interfaces (Accordion) - Only update if data actually changed
+                const currentInterfacesStr = JSON.stringify(data.interfaces);
+                if (window.lastInterfacesStr !== currentInterfacesStr) {
+                    window.lastInterfacesStr = currentInterfacesStr;
+                    
+                    // 1. Remember which accordions are currently open
+                    let activeCats = [];
+                    document.querySelectorAll('#interfaces-container .accordion-item.active .acc-header-left span').forEach(el => {
+                        activeCats.push(el.innerText);
+                    });
+
+                    let iHtml = '';
+                    const cats = data.interfaces;
+                    const icons = { 'LAN': 'fa-ethernet', 'NAS': 'fa-server', 'USB': 'fa-usb' };
+                    
+                    for (const [catName, catData] of Object.entries(cats)) {
+                        const icon = icons[catName] || 'fa-network-wired';
+                        const mainDot = catData.status === 'up' ? 'bg-green' : 'bg-red';
+                        
+                        let subHtml = '';
+                        catData.items.forEach(item => {
+                            const subDot = item.state === 'up' ? 'bg-green' : 'bg-red';
+                            subHtml += `
+                                <div class="acc-subitem">
+                                    <span>${item.name}</span>
+                                    <div class="status-dot ${subDot}"></div>
+                                </div>
+                            `;
+                        });
+                        
+                        const isActive = activeCats.includes(catName);
+                        const activeClass = isActive ? 'active no-transition' : '';
+                        
+                        iHtml += `
+                            <div class="accordion-item ${activeClass}" onclick="this.classList.remove('no-transition'); this.classList.toggle('active')">
+                                <div class="accordion-header">
+                                    <div class="acc-header-left">
+                                        <i class="fa-solid ${icon} acc-icon"></i>
+                                        <span style="font-weight: 600;">${catName}</span>
+                                    </div>
+                                    <div class="acc-header-right">
+                                        <div class="status-dot ${mainDot}"></div>
+                                        <i class="fa-solid fa-chevron-down acc-arrow"></i>
+                                    </div>
+                                </div>
+                                <div class="accordion-body" ${isActive ? 'style="max-height: 300px;"' : ''}>
+                                    ${subHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    document.getElementById('interfaces-container').innerHTML = iHtml;
+                    
+                    setTimeout(() => {
+                        document.querySelectorAll('#interfaces-container .accordion-body').forEach(el => {
+                            el.style.maxHeight = '';
+                        });
+                    }, 50);
+                }
+
+                // Info
+                const hw = data.hw;
+                const tp = hw.server_time.split(' ');
+                document.getElementById('inf-model').innerText = hw.pbx_version;
+                document.getElementById('inf-fw').innerText = hw.version;
+                document.getElementById('inf-mac').innerText = hw.mac;
+                document.getElementById('inf-ip').innerText = hw.ip;
+                document.getElementById('inf-calls').innerText = data.active_calls_count;
+                document.getElementById('inf-date').innerText = tp[0] || '-';
+                document.getElementById('inf-time').innerText = (tp[1] || '') + ' ' + (tp.slice(2).join(' ') || '');
+                document.getElementById('inf-uptime').innerText = hw.uptime;
+            })
+            .catch(console.error);
+    }
+    document.addEventListener("DOMContentLoaded", () => { update(); setInterval(update, 5000); });
+</script>
+{% endblock %}

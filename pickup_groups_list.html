@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Pickup Groups - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Pickup Groups</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure pickup groups to allow extensions to answer other ringing endpoints in their group</div>
+    </div>
+    <div>
+        <a href="{{ url_for('pickup_groups_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Create Pickup Group
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-hand-holding-hand" style="color: var(--primary);"></i> Call Pickup Groups</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Group Number</th>
+                    <th>Group Name</th>
+                    <th>Extensions</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not groups %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-people-carry-box" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Pickup Groups configured in the system.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for group in groups %}
+                <tr>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">{{ group.num }}</strong></td>
+                    <td>{{ group.name }}</td>
+                    <td>
+                        {% for m in group.members %}
+                        <span style="font-size: 0.85rem; color: #fff; background: rgba(255,255,255,0.05); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                            {{ m }}
+                        </span>
+                        {% endfor %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            <a href="{{ url_for('pickup_groups_edit', num=group.num) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form action="{{ url_for('pickup_groups_delete', num=group.num) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Pickup Group {{ group.num }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

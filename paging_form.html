@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if item %}Edit Paging Group - RCM 7021{% else %}Create Paging Group - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if item %}Edit Paging Group ({{ item.id }}){% else %}Create Paging Group{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure broadcasting options and allowed originators</div>
+    </div>
+    <div>
+        <a href="{{ url_for('paging_list') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Paging Groups
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if item %}{{ url_for('paging_edit', id=item.id) }}{% else %}{{ url_for('paging_add') }}{% endif %}" method="POST" id="pagingForm">
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="id">Paging Extension Number <span class="tooltip-container">!<span class="tooltip-text">A unique number callers dial to broadcast a message.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="id" name="id" class="form-control" placeholder="e.g. 7200" required
+                       {% if item %}value="{{ item.id }}" readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+            </div>
+            <div class="form-group">
+                <label for="name">Group Name <span class="tooltip-container">!<span class="tooltip-text">Descriptive name for this paging group.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Warehouse Page" required
+                       value="{% if item %}{{ item.name }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="welcome_prompt">Welcome Announcement <span class="tooltip-container">!<span class="tooltip-text">Audio played to recipients before broadcasting the speech.</span></span></label>
+                <select id="welcome_prompt" name="welcome_prompt" class="form-control">
+                    <option value="">-- None (Speak immediately) --</option>
+                    {% for p in prompts %}
+                    <option value="{{ p.id }}" {% if item and item.welcome_prompt == p.id %}selected{% endif %}>{{ p.name }} ({{ p.type|upper }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="allowed_callers">Allowed Originating Extensions <span class="tooltip-container">!<span class="tooltip-text">Comma-separated extensions allowed to initiate the page. Leave blank for all.</span></span></label>
+                <input type="text" id="allowed_callers" name="allowed_callers" class="form-control" placeholder="e.g. 5001, 5002, 5003"
+                       value="{% if item %}{{ item.allowed_callers|join(', ') }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="description">Description <span class="tooltip-container">!<span class="tooltip-text">Optional description/notes for the group.</span></span></label>
+                <input type="text" id="description" name="description" class="form-control" placeholder="e.g. All Warehouse Paging Speakers"
+                       value="{% if item %}{{ item.description or '' }}{% endif %}">
+            </div>
+        </div>
+
+        <!-- Duplex Mode Switch -->
+        <div class="switch-group" style="margin-bottom: 2rem;">
+            <label class="switch">
+                <input type="checkbox" name="duplex" {% if item and item.duplex %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+            <div>
+                <strong>Enable Duplex Mode (Intercom) <span class="tooltip-container">!<span class="tooltip-text">Recipients' microphones are unmuted for two-way audio. Default is one-way broadcast.</span></span></strong>
+            </div>
+        </div>
+
+        <!-- Dual Selection Lists for Members -->
+        <div style="margin-top: 2rem; margin-bottom: 2rem;">
+            <label style="font-weight: bold; margin-bottom: 0.5rem; display: block; font-family: 'Orbitron', sans-serif;">Paging Recipients</label>
+            <div style="display: flex; gap: 1.5rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+                
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 0.85rem; color: var(--text-muted);">Available Extensions</label>
+                    <select id="avail" class="form-control" multiple style="height: 200px;">
+                        {% for ext in available_extensions %}
+                        <option value="{{ ext.ext }}">{{ ext.ext }} - {{ ext.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addSelected()" style="width: 100px;">Add &rarr;</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="removeSelected()" style="width: 100px;">&larr; Remove</button>
+                </div>
+
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 0.85rem; color: var(--text-muted);">Selected Members</label>
+                    <select id="sel" class="form-control" multiple style="height: 200px;">
+                        {% for ext in selected_extensions %}
+                        <option value="{{ ext.ext }}">{{ ext.ext }} - {{ ext.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="hiddenMembers"></div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('paging_list') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Paging Group</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function moveOptions(src, dst) {
+        const selOpts = Array.from(src.selectedOptions);
+        selOpts.forEach(o => {
+            dst.add(o);
+        });
+    }
+
+    function addSelected() {
+        moveOptions(document.getElementById("avail"), document.getElementById("sel"));
+    }
+
+    function removeSelected() {
+        moveOptions(document.getElementById("sel"), document.getElementById("avail"));
+    }
+
+    document.getElementById("pagingForm").addEventListener("submit", function(e) {
+        const holder = document.getElementById("hiddenMembers");
+        holder.innerHTML = "";
+        
+        const sel = document.getElementById("sel");
+        const opts = Array.from(sel.options);
+        
+        if (opts.length === 0) {
+            e.preventDefault();
+            alert("Please select at least one page recipient extension.");
+            return;
+        }
+
+        opts.forEach(o => {
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = "members[]";
+            inp.value = o.value;
+            holder.appendChild(inp);
+        });
+    });
+</script>
+{% endblock %}

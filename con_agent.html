@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}CON Agent Console{% endblock %}
+
+{% block content %}
+<div class="q-container">
+    <div class="q-header">
+        <div class="q-header-title">
+            <h1><i class="fa-solid fa-headset"></i> Agent Console</h1>
+            <p>Extension: {{ ext }} ({{ agent_type }})</p>
+        </div>
+    </div>
+
+    <div class="q-grid-2">
+        <!-- Agent Live Status -->
+        <div class="q-card">
+            <div class="q-card-header">
+                <h2><i class="fa-solid fa-circle-dot"></i> Live Status</h2>
+            </div>
+            <div class="q-card-content" style="text-align: center;">
+                <div id="status-badge" class="q-badge" style="font-size: 1.5rem; padding: 1rem 2rem; border-radius: 8px;">Loading...</div>
+                <div id="status-timer" style="margin-top: 1rem; font-size: 1.2rem; color: #64748b;">00:00</div>
+                
+                <div id="active-call-info" style="display: none; margin-top: 2rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; text-align: left;">
+                    <div style="font-weight: 600; color: #0f172a; margin-bottom: 0.5rem;"><i class="fa-solid fa-phone"></i> Active Call</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <div style="font-size: 0.85rem; color: #64748b;">Caller ID</div>
+                            <div id="caller-id" style="font-weight: bold; font-size: 1.1rem;">-</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.85rem; color: #64748b;">Queue</div>
+                            <div id="queue-id" style="font-weight: bold; font-size: 1.1rem;">-</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                        <button class="q-btn q-btn-danger" onclick="callAction('hangup')" style="flex: 1;"><i class="fa-solid fa-phone-slash"></i> Hangup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Break Management -->
+        <div class="q-card">
+            <div class="q-card-header">
+                <h2><i class="fa-solid fa-mug-hot"></i> Break Control</h2>
+            </div>
+            <div class="q-card-content">
+                <p style="color: #64748b; margin-bottom: 1rem;">Selecting a break will pause your agent globally across all assigned queues.</p>
+                <div id="break-buttons" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <!-- Break buttons dynamically loaded based on queue config -->
+                </div>
+                
+                <div id="active-break-control" style="display: none; text-align: center; margin-top: 1.5rem;">
+                    <div style="margin-bottom: 1rem; font-weight: bold; color: #f59e0b;" id="active-break-reason">On Break</div>
+                    <button class="q-btn q-btn-success" onclick="stopBreak()" style="width: 100%; padding: 1rem;"><i class="fa-solid fa-play"></i> Return to Queue (Unpause)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agent Script -->
+    <div class="q-card" style="margin-top: 2rem;">
+        <div class="q-card-header">
+            <h2><i class="fa-solid fa-scroll"></i> Call Script</h2>
+        </div>
+        <div class="q-card-content">
+            <div id="call-script" style="min-height: 150px; background: #f8fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; font-family: monospace; white-space: pre-wrap;">
+                Waiting for a call...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let lastStatus = null;
+let timerSeconds = 0;
+let timerInterval = null;
+
+function formatTime(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function updateStatus() {
+    fetch("{{ url_for('con_bp.api_con_agent_status') }}")
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+            
+            // Handle Status UI
+            const badge = document.getElementById("status-badge");
+            badge.textContent = data.status;
+            
+            if (data.status === "Available" || data.status === "Idle") {
+                badge.className = "q-badge q-badge-success";
+            } else if (data.status === "Pause") {
+                badge.className = "q-badge q-badge-warning";
+                badge.textContent = "On Break (" + (data.paused_reason || "Paused") + ")";
+            } else if (data.status === "Talking" || data.status === "Busy") {
+                badge.className = "q-badge q-badge-danger";
+            } else {
+                badge.className = "q-badge";
+            }
+            
+            // Handle Timer
+            if (lastStatus !== data.status) {
+                lastStatus = data.status;
+                timerSeconds = data.status_duration || 0;
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    timerSeconds++;
+                    document.getElementById("status-timer").textContent = formatTime(timerSeconds);
+                }, 1000);
+            }
+            
+            // Handle Call Info & Script
+            if (data.caller) {
+                document.getElementById("active-call-info").style.display = "block";
+                document.getElementById("caller-id").textContent = data.caller;
+                document.getElementById("queue-id").textContent = data.queue;
+                document.getElementById("call-script").textContent = data.script || "No script configured for this queue.";
+            } else {
+                document.getElementById("active-call-info").style.display = "none";
+                document.getElementById("call-script").textContent = "Waiting for a call...";
+            }
+            
+            // Handle Break Controls
+            const breakBtns = document.getElementById("break-buttons");
+            const activeBreak = document.getElementById("active-break-control");
+            
+            if (data.paused) {
+                breakBtns.style.display = "none";
+                activeBreak.style.display = "block";
+                document.getElementById("active-break-reason").textContent = "Currently on break: " + (data.paused_reason || "Paused");
+            } else {
+                breakBtns.style.display = "flex";
+                activeBreak.style.display = "none";
+                
+                // Rebuild break buttons based on available breaks in current assigned queues
+                if (data.breaks && data.breaks.length > 0) {
+                    breakBtns.innerHTML = "";
+                    data.breaks.forEach(b => {
+                        const btn = document.createElement("button");
+                        btn.className = "q-btn q-btn-secondary";
+                        btn.style.justifyContent = "space-between";
+                        btn.innerHTML = `<span><i class="fa-solid fa-mug-hot"></i> ${b.reason}</span> <span class="q-badge">${b.duration}m</span>`;
+                        btn.onclick = () => startBreak(b.reason);
+                        breakBtns.appendChild(btn);
+                    });
+                } else if (breakBtns.children.length === 0) {
+                    breakBtns.innerHTML = `<button class="q-btn q-btn-secondary" onclick="startBreak('Break')"><i class="fa-solid fa-mug-hot"></i> Standard Break</button>`;
+                }
+            }
+        });
+}
+
+function startBreak(reason) {
+    fetch("{{ url_for('con_bp.api_con_agent_break') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action: "start", reason: reason})
+    }).then(r => r.json()).then(d => {
+        if(d.success) updateStatus();
+        else alert("Failed to start break: " + d.error);
+    });
+}
+
+function stopBreak() {
+    fetch("{{ url_for('con_bp.api_con_agent_break') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action: "stop"})
+    }).then(r => r.json()).then(d => {
+        if(d.success) updateStatus();
+        else alert("Failed to stop break.");
+    });
+}
+
+function callAction(action) {
+    fetch("{{ url_for('con_bp.api_con_agent_call_control') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action: action})
+    }).then(r => r.json()).then(d => {
+        if(d.success) updateStatus();
+        else alert("Action failed: " + d.error);
+    });
+}
+
+setInterval(updateStatus, 2000);
+updateStatus();
+</script>
+{% endblock %}

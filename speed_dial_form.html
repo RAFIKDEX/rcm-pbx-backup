@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if speed_dial %}Edit Speed Dial - RCM 7021{% else %}Add Speed Dial - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+{% set sd = speed_dial %}
+{% set is_custom = false %}
+{% if sd and sd.destination_num and sd.destination_num not in all_vals %}
+    {% set is_custom = true %}
+{% endif %}
+
+<div class="header-panel">
+    <div>
+        <h1>{% if sd %}Edit Speed Dial ({{ sd.speed_dial_num }}){% else %}Add Speed Dial{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Map a custom short digit sequence to any internal or external phone number</div>
+    </div>
+    <div>
+        <a href="{{ url_for('speed_dial_list') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Speed Dials
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if sd %}{{ url_for('speed_dial_edit', num=sd.speed_dial_num) }}{% else %}{{ url_for('speed_dial_add') }}{% endif %}" method="POST" id="speedDialForm">
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="speed_dial_num">Speed Dial Code / Number <span class="tooltip-container">!<span class="tooltip-text">A single-digit code (0-9) used as a quick shortcut to dial the destination number.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="number" id="speed_dial_num" name="speed_dial_num" class="form-control" placeholder="e.g. 9" min="0" max="9" required
+                       {% if sd %}value="{{ sd.speed_dial_num }}" readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+            </div>
+            <div class="form-group">
+                <label for="destination_select">Destination Number <span class="tooltip-container">!<span class="tooltip-text">Select a destination from the list or choose Custom to enter an external number.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <select id="destination_select" class="form-control" onchange="toggleDestinationInput()" required>
+                    <option value="">-- Select Destination --</option>
+                    <optgroup label="Extensions">
+                        {% for val, label in extensions_list %}
+                        <option value="{{ val }}" {% if sd and sd.destination_num == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    <optgroup label="IVRs">
+                        {% for val, label in ivrs_list %}
+                        <option value="{{ val }}" {% if sd and sd.destination_num == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    <optgroup label="Ring Groups">
+                        {% for val, label in ring_groups_list %}
+                        <option value="{{ val }}" {% if sd and sd.destination_num == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    <optgroup label="Queues">
+                        {% for val, label in queues_list %}
+                        <option value="{{ val }}" {% if sd and sd.destination_num == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    <optgroup label="Announcements">
+                        {% for val, label in announcements_list %}
+                        <option value="{{ val }}" {% if sd and sd.destination_num == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    <option value="custom" {% if is_custom %}selected{% endif %}>Custom / External Number</option>
+                </select>
+                
+                <div class="form-group" id="custom_destination_group" style="{% if not is_custom %}display: none;{% endif %} margin-top: 1rem;">
+                    <label for="custom_destination_num">Custom Destination Number <span class="tooltip-container">!<span class="tooltip-text">Enter the custom or external phone number.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                    <input type="text" id="custom_destination_num" class="form-control" placeholder="e.g. 077123456"
+                           value="{% if is_custom %}{{ sd.destination_num }}{% endif %}">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="description">Description <span class="tooltip-container">!<span class="tooltip-text">Optional notes or description to identify this speed dial entry.</span></span></label>
+                <input type="text" id="description" name="description" class="form-control" placeholder="e.g. Manager Speed Dial"
+                       value="{% if sd %}{{ sd.description or '' }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('speed_dial_list') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Speed Dial</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleDestinationInput() {
+        const select = document.getElementById("destination_select");
+        const customGroup = document.getElementById("custom_destination_group");
+        const customInput = document.getElementById("custom_destination_num");
+        
+        if (select.value === "custom") {
+            customGroup.style.display = "block";
+            customInput.setAttribute("name", "destination_num");
+            customInput.required = true;
+            select.removeAttribute("name");
+        } else {
+            customGroup.style.display = "none";
+            customInput.removeAttribute("name");
+            customInput.required = false;
+            select.setAttribute("name", "destination_num");
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleDestinationInput();
+    });
+</script>
+{% endblock %}

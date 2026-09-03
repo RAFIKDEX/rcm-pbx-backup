@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if extension %}Edit Extension - RCM 7021{% else %}Add Extension - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if extension %}Edit Extension ({{ extension.ext }}){% else %}Add SIP Extension{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure sip endpoint credentials, voicemail, call recording and Follow Me routing</div>
+    </div>
+    <div>
+        <a href="{{ url_for('extensions') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="panel" style="padding: 1.5rem;">
+    <!-- Tabs Header -->
+    <div class="tabs-header">
+        <button type="button" class="tab-btn active" onclick="switchTab(event, 'tab-basic')"><i class="fa-solid fa-sliders"></i> Basic Settings</button>
+        <button type="button" class="tab-btn" onclick="switchTab(event, 'tab-media')"><i class="fa-solid fa-photo-film"></i> Media & NAT</button>
+        <button type="button" class="tab-btn" onclick="switchTab(event, 'tab-followme')"><i class="fa-solid fa-route"></i> Follow Me</button>
+    </div>
+
+    <!-- Configuration Form -->
+    <form action="{% if extension %}{{ url_for('extensions_edit', ext=extension.ext) }}{% else %}{{ url_for('extensions_add') }}{% endif %}" method="POST" id="extensionForm">
+        
+        <!-- ==================== BASIC TAB ==================== -->
+        <div id="tab-basic" class="tab-content active">
+            
+            <div class="switch-group">
+                <label class="switch">
+                    <input type="checkbox" name="enabled" {% if not extension or extension.enabled %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+                <div>
+                    <strong>Enable This Extension <span class="tooltip-container">!<span class="tooltip-text">When disabled, registrations and call bindings are rejected.</span></span></strong>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ext">Extension Number <span class="tooltip-container">!<span class="tooltip-text">A unique extension number between 100 and 6299.</span></span> <span style="color: var(--status-offline);">*</span></label>
+                    <input type="number" id="ext" name="ext" class="form-control" placeholder="e.g. 2001" min="100" max="6299" required 
+                           {% if extension %}value="{{ extension.ext }}" readonly style="background-color: #0b0f19; color: var(--text-muted);"{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label for="name">Display Name (Name) <span class="tooltip-container">!<span class="tooltip-text">The name displayed on SIP phones during internal calls.</span></span></label>
+                    <input type="text" id="name" name="name" class="form-control" placeholder="e.g. John Doe"
+                           value="{% if extension %}{{ extension.name or '' }}{% endif %}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="callerid_number">CallerID Number <span class="tooltip-container">!<span class="tooltip-text">The numeric caller ID sent. Defaults to extension number if left blank.</span></span></label>
+                    <input type="text" id="callerid_number" name="callerid_number" class="form-control" placeholder="Use Extension number if blank"
+                           value="{% if extension %}{{ extension.callerid_number or '' }}{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label for="secret">SIP Password <span class="tooltip-container">!<span class="tooltip-text">Password used by the SIP device to authenticate with the PBX.</span></span> <span style="color: var(--status-offline);">*</span></label>
+                    <input type="text" id="secret" name="secret" class="form-control" placeholder="Enter registration secret" required
+                           value="{% if extension %}{{ extension.secret }}{% else %}Abc@1234{% endif %}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="mobile">Mobile Number (Mobile) <span class="tooltip-container">!<span class="tooltip-text">Optional mobile number linked to this extension user.</span></span></label>
+                    <input type="text" id="mobile" name="mobile" class="form-control" placeholder="e.g. +312345678"
+                           value="{% if extension %}{{ extension.mobile or '' }}{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label for="max_contacts">Concurrent Registrations <span class="tooltip-container">!<span class="tooltip-text">Maximum number of devices allowed to register using the same extension.</span></span></label>
+                    <select id="max_contacts" name="max_contacts" class="form-control">
+                        {% for i in range(1, 11) %}
+                            <option value="{{ i }}" {% if extension and extension.max_contacts == i %}selected{% elif not extension and i == 3 %}selected{% endif %}>{{ i }} Device(s)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="max_expiration">Max Expiration (seconds) <span class="tooltip-container">!<span class="tooltip-text">Maximum registration interval in seconds requested by client.</span></span></label>
+                    <input type="number" id="max_expiration" name="max_expiration" class="form-control" min="30" max="86400"
+                           value="{% if extension %}{{ extension.max_expiration }}{% else %}120{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label for="ring_time">Extension Ring Time (seconds) <span class="tooltip-container">!<span class="tooltip-text">Maximum duration in seconds to ring the extension before failing.</span></span></label>
+                    <input type="number" id="ring_time" name="ring_time" class="form-control" min="5" max="300"
+                           value="{% if extension %}{{ extension.ring_time }}{% else %}60{% endif %}">
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 2rem 0;">
+
+            <div class="switch-group">
+                <label class="switch">
+                    <input type="checkbox" name="vm_enabled" id="vm_enabled" {% if extension and extension.vm_enabled %}checked{% endif %} onchange="toggleVoicemail(this)">
+                    <span class="slider"></span>
+                </label>
+                <div>
+                    <strong>Enable Voicemail <span class="tooltip-container">!<span class="tooltip-text">Route calls to voicemailbox when unreachable or no answer.</span></span></strong>
+                </div>
+            </div>
+
+            <div class="form-row" id="vm_password_group" style="display: {% if extension and extension.vm_enabled %}flex{% else %}none{% endif %};">
+                <div class="form-group" style="max-width: 50%;">
+                    <label for="vm_password">Voicemail PIN <span class="tooltip-container">!<span class="tooltip-text">PIN code used to authenticate access to the voicemail box.</span></span></label>
+                    <input type="text" id="vm_password" name="vm_password" class="form-control" placeholder="PIN"
+                           value="{% if extension %}{{ extension.vm_password }}{% else %}1234{% endif %}">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== MEDIA TAB ==================== -->
+        <div id="tab-media" class="tab-content">
+            
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="record_mode" style="display: inline-block; font-weight: bold; margin-bottom: 0.5rem;">Extension Call Recording <span class="tooltip-container">!<span class="tooltip-text">Define automated recording policy for inbound, outbound, or all calls.</span></span></label>
+                <select id="record_mode" name="record_mode" class="form-control" style="max-width: 50%;">
+                    <option value="noo" {% if extension and extension.record_mode == 'noo' %}selected{% endif %}>Disabled (noo)</option>
+                    <option value="in" {% if extension and extension.record_mode == 'in' %}selected{% endif %}>Inbound Calls (in)</option>
+                    <option value="out" {% if extension and extension.record_mode == 'out' %}selected{% endif %}>Outbound Calls (out)</option>
+                    <option value="all" {% if extension and extension.record_mode == 'all' %}selected{% endif %}>All Calls (all)</option>
+                </select>
+            </div>
+
+            <div class="switch-group" style="margin-bottom: 2rem;">
+                <label class="switch">
+                    <input type="checkbox" name="direct_media" {% if extension and extension.direct_media %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+                <div>
+                    <strong>Enable Direct Media <span class="tooltip-container">!<span class="tooltip-text">Allow media (RTP) to flow directly between endpoints without proxying through Asterisk.</span></span></strong>
+                </div>
+            </div>
+
+            <div class="switch-group">
+                <label class="switch">
+                    <input type="checkbox" name="nat" {% if extension and extension.nat %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+                <div>
+                    <strong>NAT Support <span class="tooltip-container">!<span class="tooltip-text">Forces symmetric RTP and rewrites contact bindings for remote endpoints behind NAT.</span></span></strong>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== FOLLOW ME TAB ==================== -->
+        <div id="tab-followme" class="tab-content">
+            <div style="margin-bottom: 1.5rem;">
+                <strong style="font-size: 1.1rem; display: inline-block;">Follow Me Forwarding List <span class="tooltip-container">!<span class="tooltip-text">Set backup extension routes to dial concurrently or sequentially if primary endpoint is offline.</span></span></strong>
+            </div>
+
+            <table class="fm-table">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; width: 60%; color: var(--text-muted);">Destination Number / Ext</th>
+                        <th style="text-align: left; width: 30%; color: var(--text-muted);">Ring Time (sec)</th>
+                        <th style="text-align: center; width: 10%; color: var(--text-muted);">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="followme-tbody">
+                    <!-- Rendered dynamically by JavaScript -->
+                </tbody>
+            </table>
+
+            <button type="button" class="btn btn-secondary" onclick="addFollowMeRow()">
+                <i class="fa-solid fa-plus"></i> Add Number
+            </button>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="form-actions">
+            <a href="{{ url_for('extensions') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Extension</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Tab switching
+    function switchTab(evt, tabId) {
+        const contents = document.getElementsByClassName("tab-content");
+        for (let i = 0; i < contents.length; i++) {
+            contents[i].classList.remove("active");
+        }
+        const buttons = document.getElementsByClassName("tab-btn");
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].classList.remove("active");
+        }
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+
+    // Toggle Voicemail
+    function toggleVoicemail(checkbox) {
+        const passwordGroup = document.getElementById("vm_password_group");
+        passwordGroup.style.display = checkbox.checked ? "flex" : "none";
+    }
+
+    // Follow Me dynamic lists
+    let followmeData = [];
+    {% if extension and extension.followme %}
+        followmeData = {{ extension.followme|tojson }};
+    {% endif %}
+
+    const tbody = document.getElementById("followme-tbody");
+
+    function renderFollowMe() {
+        tbody.innerHTML = "";
+        if (followmeData.length === 0) {
+            addFollowMeRow();
+            return;
+        }
+        followmeData.forEach(row => {
+            appendRowHtml(row.number, row.ring);
+        });
+    }
+
+    function appendRowHtml(num = '', ring = 15) {
+        const tr = document.createElement("tr");
+        tr.style.animation = "fadeIn 0.2s ease-out";
+        tr.innerHTML = `
+            <td>
+                <input type="text" name="fm_number[]" class="form-control" placeholder="e.g. 2121 or external cell" value="${num}">
+            </td>
+            <td>
+                <input type="number" name="fm_ring[]" class="form-control" min="5" max="300" value="${ring}">
+            </td>
+            <td style="text-align: center;">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteFollowMeRow(this)" style="padding: 0.5rem 0.75rem;">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function addFollowMeRow() {
+        appendRowHtml('', 15);
+    }
+
+    function deleteFollowMeRow(button) {
+        const tr = button.parentElement.parentElement;
+        tr.remove();
+        if (tbody.children.length === 0) {
+            addFollowMeRow();
+        }
+    }
+
+    renderFollowMe();
+</script>
+{% endblock %}

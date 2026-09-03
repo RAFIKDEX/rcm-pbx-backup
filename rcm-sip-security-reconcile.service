@@ -1,0 +1,9 @@
+[Unit]
+Description=RCM SIP Security Background Reconciliation
+After=network.target fail2ban.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rcm_sip_reconcile.py
+User=www-data
+Group=www-data

@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block title %}Network Troubleshooting - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Network Troubleshooting</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Diagnose network issues, trace routing paths, and capture VoIP or network traffic logs</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
+    <!-- Panel 1: Ping & Traceroute Diagnostics -->
+    <div class="panel">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-terminal" style="color: var(--primary);"></i> Ping & Traceroute Utility</h2>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+            Test network latency or trace routing hops to a target server or IP address. Enter a destination host or IP to start the diagnostic stream.
+        </p>
+
+        <div class="form-row" style="align-items: flex-end;">
+            <div class="form-group" style="flex: 1; max-width: 600px;">
+                <label for="target_host">Target IP / Host <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="target_host" class="form-control" placeholder="e.g. 8.8.8.8 or google.com" required>
+                <small style="color: var(--text-dark); margin-top: 0.25rem; display: block;">Only alphanumeric characters, dots, and hyphens are allowed.</small>
+            </div>
+            <div style="margin-bottom: 1rem; display: flex; gap: 0.75rem;">
+                <button type="button" id="btn-ping" class="btn btn-info" onclick="runDiagnostics('ping')">
+                    <i class="fa-solid fa-circle-play"></i> Run Ping
+                </button>
+                <button type="button" id="btn-traceroute" class="btn btn-info" onclick="runDiagnostics('traceroute')">
+                    <i class="fa-solid fa-route"></i> Run Traceroute
+                </button>
+            </div>
+        </div>
+
+        <!-- Terminal Viewport -->
+        <div class="console-wrapper" style="background: #050b14; border-radius: 12px; border: 1px solid var(--border-color); padding: 1.25rem; margin-top: 1.5rem;">
+            <div class="console-header" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">
+                <span style="letter-spacing: 1px;"><i class="fa-solid fa-rectangle-list" style="color: var(--primary);"></i> CONSOLE OUTPUT</span>
+                <span id="console-status" style="color: var(--text-muted); font-weight: bold;">IDLE</span>
+            </div>
+            <pre id="console-output" style="max-height: 350px; min-height: 180px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.88rem; color: #10b981; white-space: pre-wrap; margin: 0; line-height: 1.4; scroll-behavior: smooth;"></pre>
+        </div>
+    </div>
+
+    <!-- Panel 2: Packet Capture Facility -->
+    <div class="panel">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-network-wired" style="color: var(--primary);"></i> Packet Capture (Trace)</h2>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+            Capture raw live IP packet transmissions. Once complete, download the resulting <code>.pcap</code> log file, which is fully compatible with Wireshark.
+        </p>
+
+        <div class="form-row" style="align-items: flex-end;">
+            <div class="form-group" style="flex: 1; max-width: 400px;">
+                <label for="capture_interface">Network Interface</label>
+                <select id="capture_interface" class="form-control">
+                    {% for iface in interfaces %}
+                    <option value="{{ iface }}">{{ iface }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: center;">
+                <button type="button" id="btn-start-capture" class="btn btn-info" onclick="toggleCapture('start')" {% if capture_running %}disabled{% endif %}>
+                    <i class="fa-solid fa-play"></i> Start Capture
+                </button>
+                <button type="button" id="btn-stop-capture" class="btn btn-danger" onclick="toggleCapture('stop')" {% if not capture_running %}disabled{% endif %}>
+                    <i class="fa-solid fa-stop"></i> Stop Capture
+                </button>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 2rem; margin-top: 1.5rem; padding: 1.25rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 12px;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Status:</div>
+                <div id="capture-status-badge" class="badge" style="padding: 0.4rem 0.8rem; border-radius: 6px; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem;
+                    {% if capture_running %}
+                        background: var(--status-offline-bg); color: var(--status-offline); border: 1px solid rgba(239, 68, 68, 0.2);
+                    {% else %}
+                        background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border-color);
+                    {% endif %}
+                ">
+                    {% if capture_running %}
+                        <span class="pulsate-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--status-offline); animation: pulse 1.5s infinite;"></span>
+                        CAPTURING NETWORK TRAFFIC
+                    {% else %}
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-dark);"></span>
+                        IDLE
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Download PCAP Action Link -->
+            <div id="download-container" style="{% if capture_running %}display: none;{% endif %}">
+                <a href="/system/maintenance/download-capture" id="btn-download-pcap" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-download"></i> Download Capture (.pcap)
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function runDiagnostics(tool) {
+        const targetHost = document.getElementById("target_host").value.trim();
+        const outputElement = document.getElementById("console-output");
+        const statusElement = document.getElementById("console-status");
+        
+        const btnPing = document.getElementById("btn-ping");
+        const btnTraceroute = document.getElementById("btn-traceroute");
+
+        if (!targetHost) {
+            alert("Please enter a target IP address or hostname.");
+            return;
+        }
+
+        // Basic frontend validation for target format
+        const cleanHostPattern = /^[a-zA-Z0-9.\-]+$/;
+        if (!cleanHostPattern.test(targetHost)) {
+            alert("Invalid target IP/Host. Only letters, numbers, dots, and dashes are allowed.");
+            return;
+        }
+
+        // UI Reset
+        outputElement.textContent = `Initializing connection and executing ${tool.toUpperCase()} diagnostic against: ${targetHost}...\n`;
+        statusElement.textContent = "RUNNING";
+        statusElement.style.color = "var(--status-ringing)";
+        
+        btnPing.disabled = true;
+        btnTraceroute.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append("tool", tool);
+            formData.append("target", targetHost);
+
+            const response = await fetch("/system/maintenance/diagnose", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                outputElement.textContent += `\nError running utility: ${text}`;
+                statusElement.textContent = "FAILED";
+                statusElement.style.color = "var(--status-offline)";
+                btnPing.disabled = false;
+                btnTraceroute.disabled = false;
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
+                }
+                const chunk = decoder.decode(value, { stream: true });
+                outputElement.textContent += chunk;
+                // Auto scroll to bottom
+                outputElement.scrollTop = outputElement.scrollHeight;
+            }
+
+            statusElement.textContent = "FINISHED";
+            statusElement.style.color = "var(--status-registered)";
+        } catch (error) {
+            outputElement.textContent += `\nNetwork or server error encountered: ${error.message}\n`;
+            statusElement.textContent = "ERROR";
+            statusElement.style.color = "var(--status-offline)";
+        } finally {
+            btnPing.disabled = false;
+            btnTraceroute.disabled = false;
+        }
+    }
+
+    async function toggleCapture(action) {
+        const iface = document.getElementById("capture_interface").value;
+        const btnStart = document.getElementById("btn-start-capture");
+        const btnStop = document.getElementById("btn-stop-capture");
+        const badge = document.getElementById("capture-status-badge");
+        const downloadContainer = document.getElementById("download-container");
+
+        if (action === 'start') {
+            btnStart.disabled = true;
+            btnStop.disabled = true; // Temporary
+        } else {
+            btnStop.disabled = true;
+            btnStart.disabled = true; // Temporary
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append("action", action);
+            formData.append("interface", iface);
+
+            const response = await fetch("/system/maintenance/capture", {
+                method: "POST",
+                body: formData
+            });
+
+            const result = await response.json();
+            
+            if (response.ok && result.status === "success") {
+                if (action === "start") {
+                    // Update state to active capturing
+                    badge.innerHTML = `
+                        <span class="pulsate-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--status-offline); animation: pulse 1.5s infinite;"></span>
+                        CAPTURING NETWORK TRAFFIC
+                    `;
+                    badge.style.background = "var(--status-offline-bg)";
+                    badge.style.color = "var(--status-offline)";
+                    badge.style.border = "1px solid rgba(239, 68, 68, 0.2)";
+                    
+                    btnStart.disabled = true;
+                    btnStop.disabled = false;
+                    downloadContainer.style.display = "none";
+                } else {
+                    // Stopped
+                    badge.innerHTML = `
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-dark);"></span>
+                        IDLE
+                    `;
+                    badge.style.background = "rgba(255,255,255,0.05)";
+                    badge.style.color = "var(--text-muted)";
+                    badge.style.border = "1px solid var(--border-color)";
+                    
+                    btnStart.disabled = false;
+                    btnStop.disabled = true;
+                    
+                    // Show download button
+                    downloadContainer.style.display = "block";
+                }
+            } else {
+                alert(result.msg || "An unexpected error occurred during packet capture.");
+                // Reset buttons based on current active state from DOM badge styling
+                const isCurrentlyCapturing = badge.innerHTML.includes("pulsate-dot");
+                btnStart.disabled = isCurrentlyCapturing;
+                btnStop.disabled = !isCurrentlyCapturing;
+            }
+        } catch (error) {
+            alert(`Communication failure: ${error.message}`);
+            const isCurrentlyCapturing = badge.innerHTML.includes("pulsate-dot");
+            btnStart.disabled = isCurrentlyCapturing;
+            btnStop.disabled = !isCurrentlyCapturing;
+        }
+    }
+</script>
+{% endblock %}

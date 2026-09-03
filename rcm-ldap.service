@@ -1,0 +1,14 @@
+[Unit]
+Description=RCM LDAP Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/RCM_7021
+ExecStart=/usr/bin/python3 /root/RCM_7021/ldap_server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

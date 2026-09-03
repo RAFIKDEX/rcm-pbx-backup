@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+
+{% block title %}Mail Server Settings - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Mail Server Settings</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure a centralized SMTP Mail Server used for Password Resets, Missed Call alerts, and Weekly CDR reports.</div>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{{ url_for('mail_settings') }}" method="POST">
+        <!-- Section 1: SMTP Settings -->
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-envelope" style="color: var(--primary);"></i> SMTP Server Configuration</h2>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="provider">Email Provider</label>
+                <select id="provider" name="provider" class="form-control" onchange="onProviderChange(this.value)">
+                    <option value="other" {% if not settings or settings.provider == 'other' %}selected{% endif %}>Other SMTP Server</option>
+                    <option value="google" {% if settings and settings.provider == 'google' %}selected{% endif %}>Google (Gmail)</option>
+                    <option value="office356" {% if settings and settings.provider == 'office356' %}selected{% endif %}>Office 365</option>
+                    <option value="yahoo" {% if settings and settings.provider == 'yahoo' %}selected{% endif %}>Yahoo Mail</option>
+                    <option value="outlook" {% if settings and settings.provider == 'outlook' %}selected{% endif %}>Outlook / Hotmail</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="smtp_server">SMTP Server Hostname</label>
+                <input type="text" id="smtp_server" name="smtp_server" class="form-control" placeholder="e.g. smtp.example.com"
+                       value="{% if settings %}{{ settings.smtp_server or '' }}{% endif %}" required>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="smtp_port">SMTP Port</label>
+                <input type="number" id="smtp_port" name="smtp_port" class="form-control" placeholder="e.g. 587"
+                       value="{% if settings %}{{ settings.smtp_port or 587 }}{% else %}587{% endif %}" required>
+            </div>
+            <div class="form-group">
+                <label for="encryption">Encryption Method</label>
+                <select id="encryption" name="encryption" class="form-control">
+                    <option value="none" {% if settings and settings.encryption == 'none' %}selected{% endif %}>None (Plain)</option>
+                    <option value="tls" {% if not settings or settings.encryption == 'tls' %}selected{% endif %}>STARTTLS (TLS)</option>
+                    <option value="ssl" {% if settings and settings.encryption == 'ssl' %}selected{% endif %}>SSL / Implicit TLS</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="sender_email">Sender Email Address</label>
+                <input type="email" id="sender_email" name="sender_email" class="form-control" placeholder="pbx@example.com"
+                       value="{% if settings %}{{ settings.sender_email or '' }}{% endif %}" required>
+            </div>
+            <div class="form-group">
+                <label for="username">Username / Authenticated Email</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Username or Login Email"
+                       value="{% if settings %}{{ settings.username or '' }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="password">Password / App Password</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="{% if settings and settings.password %}•••••••• (Unchanged){% else %}Enter password{% endif %}">
+            </div>
+        </div>
+
+        <!-- Section 2: Features Settings -->
+        <div class="panel-header" style="margin-top: 2.5rem;">
+            <h2><i class="fa-solid fa-sliders" style="color: var(--primary);"></i> Email Notification & Integration Settings</h2>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <input type="checkbox" name="missed_calls_alert_enabled" value="1" {% if settings and settings.missed_calls_alert_enabled %}checked{% endif %}>
+                    <strong>Enable Missed Call Email Alerts</strong>
+                </label>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">Sends an alert to extension owners when they receive multiple unanswered calls.</p>
+                <label for="missed_calls_threshold">Missed Calls Threshold</label>
+                <input type="number" id="missed_calls_threshold" name="missed_calls_threshold" class="form-control" style="max-width: 120px;" min="1"
+                       value="{% if settings %}{{ settings.missed_calls_threshold or 5 }}{% else %}5{% endif %}">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <input type="checkbox" name="cdr_report_enabled" value="1" {% if settings and settings.cdr_report_enabled %}checked{% endif %}>
+                    <strong>Enable Weekly CDR Reports</strong>
+                </label>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">Sends a weekly compiled CSV spreadsheet with CDR records and call recording playback links.</p>
+                
+                <label for="cdr_report_email">Receiver Email</label>
+                <input type="email" id="cdr_report_email" name="cdr_report_email" class="form-control" placeholder="admin@example.com"
+                       value="{% if settings %}{{ settings.cdr_report_email or '' }}{% endif %}">
+                       
+                <label for="cdr_report_schedule" style="margin-top: 0.75rem;">Schedule</label>
+                <select id="cdr_report_schedule" name="cdr_report_schedule" class="form-control">
+                    <option value="weekly" selected>Every Week (7 days)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2rem;">
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+        </div>
+    </form>
+</div>
+
+<!-- Section 3: Test Email Tool -->
+<div class="panel" style="margin-top: 2rem;">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-paper-plane" style="color: var(--primary);"></i> Send Test Email</h2>
+    </div>
+    <div class="form-row" style="align-items: flex-end;">
+        <div class="form-group" style="max-width: 60%;">
+            <label for="test_email">Recipient Email Address</label>
+            <input type="email" id="test_email" class="form-control" placeholder="test@example.com">
+        </div>
+        <div class="form-group">
+            <button type="button" class="btn btn-secondary" onclick="sendTestEmail()">
+                <i class="fa-solid fa-envelope-open-text"></i> Send Test
+            </button>
+        </div>
+    </div>
+    <div id="test-result" style="margin-top: 1rem; padding: 0.75rem; border-radius: 8px; display: none;"></div>
+</div>
+
+<!-- Section 4: Email Logs -->
+<div class="panel" style="margin-top: 2rem;">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i> SMTP Outbox Logs</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Receiver</th>
+                    <th>Subject</th>
+                    <th>Feature</th>
+                    <th>Status</th>
+                    <th>Error Message</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not logs %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No email transaction logs recorded yet.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp }}</td>
+                    <td>{{ log.receiver_email }}</td>
+                    <td>{{ log.subject }}</td>
+                    <td><span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">{{ log.feature }}</span></td>
+                    <td>
+                        {% if log.status == 'Success' %}
+                        <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;"><i class="fa-solid fa-circle-check"></i> Success</span>
+                        {% else %}
+                        <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;"><i class="fa-solid fa-circle-xmark"></i> Failed</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; color: var(--text-muted);" title="{{ log.error_message or '' }}">
+                        {{ log.error_message or '-' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function onProviderChange(val) {
+    const serverInput = document.getElementById("smtp_server");
+    const portInput = document.getElementById("smtp_port");
+    const encInput = document.getElementById("encryption");
+    
+    if (val === "google") {
+        serverInput.value = "smtp.gmail.com";
+        portInput.value = "587";
+        encInput.value = "tls";
+    } else if (val === "office356") {
+        serverInput.value = "smtp.office365.com";
+        portInput.value = "587";
+        encInput.value = "tls";
+    } else if (val === "yahoo") {
+        serverInput.value = "smtp.mail.yahoo.com";
+        portInput.value = "587";
+        encInput.value = "tls";
+    } else if (val === "outlook") {
+        serverInput.value = "smtp-mail.outlook.com";
+        portInput.value = "587";
+        encInput.value = "tls";
+    }
+}
+
+function sendTestEmail() {
+    const rawVal = document.getElementById("test_email").value;
+    const testEmail = rawVal.trim ? rawVal.trim() : rawVal;
+    if (!testEmail) {
+        alert("Please enter a recipient email address.");
+        return;
+    }
+    
+    const resultDiv = document.getElementById("test-result");
+    resultDiv.style.display = "block";
+    resultDiv.style.background = "rgba(59, 130, 246, 0.1)";
+    resultDiv.style.color = "#93c5fd";
+    resultDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending test email...';
+    
+    const data = new FormData();
+    data.append("test_email", testEmail);
+    data.append("provider", document.getElementById("provider").value);
+    data.append("smtp_server", document.getElementById("smtp_server").value);
+    data.append("smtp_port", document.getElementById("smtp_port").value);
+    data.append("encryption", document.getElementById("encryption").value);
+    data.append("sender_email", document.getElementById("sender_email").value);
+    data.append("username", document.getElementById("username").value);
+    data.append("password", document.getElementById("password").value);
+    
+    fetch("{{ url_for('mail_settings_test') }}", {
+        method: "POST",
+        body: data
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.style.background = "rgba(16, 185, 129, 0.1)";
+            resultDiv.style.color = "#34d399";
+            resultDiv.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + data.message;
+            setTimeout(() => { window.location.reload(); }, 2000);
+        } else {
+            resultDiv.style.background = "rgba(239, 68, 68, 0.1)";
+            resultDiv.style.color = "#fca5a5";
+            resultDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Error: ' + data.message;
+        }
+    })
+    .catch(err => {
+        resultDiv.style.background = "rgba(239, 68, 68, 0.1)";
+        resultDiv.style.color = "#fca5a5";
+        resultDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Network error: ' + err;
+    });
+}
+</script>
+{% endblock %}

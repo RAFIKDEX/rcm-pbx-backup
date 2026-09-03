@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if group %}Edit Pickup Group - RCM 7021{% else %}Create Pickup Group - RCM 7021{% endif %}{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Clean & Minimalist Pickup Group Form Styles */
+    .section-header {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .dual-list-container {
+        display: flex;
+        gap: 1.25rem;
+        align-items: stretch;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .list-box {
+        flex: 1;
+        min-width: 250px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.75rem;
+    }
+
+    .list-box label {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 0.4rem;
+    }
+
+    .list-search {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.3rem 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .list-search input {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        font-size: 0.82rem;
+        width: 100%;
+        outline: none;
+    }
+
+    .list-box select {
+        width: 100%;
+        height: 220px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-main);
+        padding: 0.4rem;
+    }
+
+    .list-box select option {
+        padding: 0.35rem 0.5rem;
+        margin-bottom: 1px;
+    }
+
+    .transfer-actions {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem 0;
+    }
+
+    .transfer-actions button {
+        width: 110px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        {% set gid = group.id or group.num if group else '' %}
+        <h1>{% if group %}Edit Pickup Group: {{ group.name }}{% else %}Create Pickup Group{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Group members can pick up each other's ringing phones instantly using General Call Pickup (*8) or Directed Pickup (**)
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('pickup_groups_list') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Pickup Groups
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    {% set gid = group.id or group.num if group else '' %}
+    <form action="{% if group %}{{ url_for('pickup_groups_edit', num=gid) }}{% else %}{{ url_for('pickup_groups_add') }}{% endif %}" method="POST" id="pgForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="section-header">Basic Information</div>
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="name">Pickup Group Name <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Sales Team / Support Dept" required
+                       value="{% if group %}{{ group.name }}{% endif %}">
+                <span style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+                    A descriptive name to identify this call pickup team.
+                </span>
+            </div>
+        </div>
+
+        <div class="section-header">Pickup Group Members <span style="color: #ff4a4a;">*</span></div>
+        <div class="dual-list-container">
+            <div class="list-box">
+                <label>Available Extensions</label>
+                <div class="list-search">
+                    <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+                    <input type="text" id="filterAvail" placeholder="Search..." onkeyup="filterSelect('avail', 'filterAvail')">
+                </div>
+                <select id="avail" multiple ondblclick="addSelected()">
+                    {% for ext in available_extensions %}
+                    <option value="{{ ext.ext }}">{{ ext.ext }} &mdash; {{ ext.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="transfer-actions">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addSelected()">Add &rarr;</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="removeSelected()">&larr; Remove</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addAll()" style="margin-top: 0.4rem;">Add All</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="removeAll()">Clear All</button>
+            </div>
+
+            <div class="list-box">
+                <label>Assigned Members</label>
+                <div class="list-search">
+                    <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+                    <input type="text" id="filterSel" placeholder="Search..." onkeyup="filterSelect('sel', 'filterSel')">
+                </div>
+                <select id="sel" multiple ondblclick="removeSelected()">
+                    {% for ext in selected_extensions %}
+                    <option value="{{ ext.ext }}">{{ ext.ext }} &mdash; {{ ext.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div id="hiddenMembers"></div>
+
+        <div class="form-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <a href="{{ url_for('pickup_groups_list') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Pickup Group</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function filterSelect(selectId, inputId) {
+        const query = document.getElementById(inputId).value.toLowerCase().trim();
+        const selectElem = document.getElementById(selectId);
+        const options = selectElem.options;
+        for (let i = 0; i < options.length; i++) {
+            const text = options[i].text.toLowerCase();
+            const val = options[i].value.toLowerCase();
+            options[i].style.display = (text.includes(query) || val.includes(query)) ? "" : "none";
+        }
+    }
+
+    function moveOptions(src, dst) {
+        const selOpts = Array.from(src.selectedOptions);
+        selOpts.forEach(o => {
+            o.style.display = "";
+            o.selected = false;
+            dst.add(o);
+        });
+    }
+
+    function addSelected() {
+        moveOptions(document.getElementById("avail"), document.getElementById("sel"));
+    }
+
+    function removeSelected() {
+        moveOptions(document.getElementById("sel"), document.getElementById("avail"));
+    }
+
+    function addAll() {
+        const avail = document.getElementById("avail");
+        const sel = document.getElementById("sel");
+        Array.from(avail.options).forEach(o => {
+            if (o.style.display !== "none") {
+                o.selected = false;
+                sel.add(o);
+            }
+        });
+    }
+
+    function removeAll() {
+        const avail = document.getElementById("avail");
+        const sel = document.getElementById("sel");
+        Array.from(sel.options).forEach(o => {
+            if (o.style.display !== "none") {
+                o.selected = false;
+                avail.add(o);
+            }
+        });
+    }
+
+    document.getElementById("pgForm").addEventListener("submit", function(e) {
+        const holder = document.getElementById("hiddenMembers");
+        holder.innerHTML = "";
+        
+        const sel = document.getElementById("sel");
+        const opts = Array.from(sel.options);
+        
+        if (opts.length === 0) {
+            e.preventDefault();
+            alert("Please select at least one pickup group member extension.");
+            return;
+        }
+
+        opts.forEach(o => {
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = "members[]";
+            inp.value = o.value;
+            holder.appendChild(inp);
+        });
+    });
+</script>
+{% endblock %}

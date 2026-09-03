@@ -1,0 +1,529 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if ivr %}Edit IVR Auto-Attendant - RCM 7021{% else %}Create IVR Auto-Attendant - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --ivr-panel: rgba(30, 41, 59, 0.75);
+        --ivr-border: rgba(255, 255, 255, 0.1);
+        --ivr-primary: #3b82f6;
+        --ivr-primary-glow: rgba(59, 130, 246, 0.35);
+        --ivr-success: #10b981;
+        --ivr-warning: #f59e0b;
+        --ivr-danger: #ef4444;
+        --ivr-cyan: #06b6d4;
+        --ivr-purple: #8b5cf6;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseWarning {
+        0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.8); }
+    }
+
+    .ivr-studio {
+        font-family: 'Inter', sans-serif;
+        color: #f8fafc;
+        max-width: 1150px;
+        margin: 0 auto;
+        padding-bottom: 4rem;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .ivr-header-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--ivr-border);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .ivr-section {
+        background: var(--ivr-panel);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--ivr-border);
+        border-radius: 16px;
+        padding: 1.75rem 2rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    }
+    .ivr-section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .ivr-section-title i {
+        color: var(--ivr-cyan);
+        background: rgba(6, 182, 212, 0.15);
+        padding: 0.6rem;
+        border-radius: 10px;
+        border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .ivr-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .ivr-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 800px) { .ivr-grid-2, .ivr-grid-3 { grid-template-columns: 1fr; } }
+
+    .ivr-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .ivr-label { font-size: 0.85rem; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 0.5rem; }
+    .ivr-sublabel { font-size: 0.75rem; color: #94a3b8; }
+
+    .ivr-input, .ivr-select {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #fff;
+        padding: 0.65rem 1rem;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.2s;
+    }
+    .ivr-input:focus, .ivr-select:focus {
+        border-color: var(--ivr-primary);
+        box-shadow: 0 0 0 3px var(--ivr-primary-glow);
+    }
+    .ivr-input[readonly] { background: rgba(0, 0, 0, 0.4); color: #94a3b8; cursor: not-allowed; }
+
+    /* Visual Telephone Keypad Matrix */
+    .keypad-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .keypad-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.85rem;
+        width: 100%;
+        max-width: 340px;
+    }
+    .keypad-btn {
+        background: rgba(30, 41, 59, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 0.85rem 0.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .keypad-btn:hover {
+        transform: translateY(-2px);
+        border-color: var(--ivr-cyan);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+    .keypad-digit {
+        font-family: 'Orbitron', monospace;
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #fff;
+    }
+    .keypad-sub {
+        font-size: 0.6rem;
+        color: #64748b;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-top: 0.1rem;
+    }
+    .keypad-active {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(16, 185, 129, 0.2));
+        border-color: var(--ivr-cyan);
+        box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+    }
+    .keypad-active .keypad-sub { color: #38bdf8; font-weight: 700; }
+
+    /* Mapping Rules Table */
+    .ivr-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 0.5rem;
+    }
+    .ivr-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .ivr-table td {
+        padding: 0.85rem 1rem;
+        background: rgba(15, 23, 42, 0.6);
+        vertical-align: middle;
+    }
+    .ivr-table tr td:first-child { border-radius: 10px 0 0 10px; }
+    .ivr-table tr td:last-child { border-radius: 0 10px 10px 0; }
+    .ivr-table tr:hover td { background: rgba(30, 41, 59, 0.9); }
+
+    .ivr-btn {
+        background: var(--ivr-primary);
+        color: #fff;
+        border: none;
+        padding: 0.65rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+    .ivr-btn:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 12px var(--ivr-primary-glow); }
+    .ivr-btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; }
+    .ivr-btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
+    .ivr-btn-success { background: var(--ivr-success); }
+    .ivr-btn-success:hover { background: #059669; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+    .ivr-btn-danger { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); padding: 0.45rem 0.75rem; }
+    .ivr-btn-danger:hover { background: var(--ivr-danger); color: #fff; }
+
+    #duplicate-warning {
+        background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(15, 23, 42, 0.9));
+        border: 1px solid rgba(239, 68, 68, 0.6);
+        border-left: 5px solid var(--ivr-danger);
+        padding: 1rem 1.25rem;
+        border-radius: 10px;
+        color: #fca5a5;
+        margin-bottom: 1.5rem;
+        display: none;
+        animation: pulseWarning 2s infinite;
+    }
+</style>
+
+<div class="ivr-studio">
+    <!-- Header Card -->
+    <div class="ivr-header-card">
+        <div>
+            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; background: linear-gradient(to right, #60a5fa, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fa-solid fa-robot" style="margin-right: 0.5rem;"></i>
+                {% if ivr %}Edit IVR Menu ({{ ivr.num }}){% else %}Create IVR Auto-Attendant Studio{% endif %}
+            </h1>
+            <div style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.3rem;">
+                Design interactive voice response menus, visual DTMF telephone keypad routing, and timeout failovers.
+            </div>
+        </div>
+        <a href="{{ url_for('ivr_list') }}" class="ivr-btn ivr-btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to IVRs
+        </a>
+    </div>
+
+    <div id="duplicate-warning"></div>
+
+    <form action="{% if ivr %}{{ url_for('ivr_edit', num=ivr.num) }}{% else %}{{ url_for('ivr_add') }}{% endif %}" method="POST" id="ivrForm">
+        
+        <!-- SECTION 1: CORE IDENTITY & GREETING -->
+        <div class="ivr-section">
+            <div class="ivr-section-title"><i class="fa-solid fa-id-badge"></i> 1. Core IVR Identity & Greeting Announcement</div>
+            <div class="ivr-grid-2">
+                <div class="ivr-group">
+                    <label class="ivr-label" for="num">IVR Extension Number <span style="color:#ef4444;">*</span></label>
+                    <input type="number" id="num" name="num" class="ivr-input" placeholder="e.g. 7000 (Range: 7000 - 7100)" min="7000" max="7100" required
+                           {% if ivr %}value="{{ ivr.num }}" readonly{% endif %}>
+                    <span class="ivr-sublabel">Unique dialable extension for this auto-attendant menu.</span>
+                </div>
+                <div class="ivr-group">
+                    <label class="ivr-label" for="name">IVR Descriptive Name <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="name" name="name" class="ivr-input" placeholder="e.g. Main_Office_Reception" required
+                           value="{% if ivr %}{{ ivr.name }}{% endif %}">
+                    <span class="ivr-sublabel">Alphanumeric title displayed in routing logs and reports.</span>
+                </div>
+            </div>
+
+            <div class="ivr-grid-2" style="margin-top: 1rem;">
+                <div class="ivr-group">
+                    <label class="ivr-label" for="prompt_id">Greeting Announcement Prompt <span style="color:#ef4444;">*</span></label>
+                    <select id="prompt_id" name="prompt_id" class="ivr-select" required>
+                        <option value="">-- Select Audio Greeting --</option>
+                        {% for p in prompts %}
+                        <option value="{{ p.id }}" {% if ivr and ivr.prompt_id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.type|upper }})</option>
+                        {% endfor %}
+                    </select>
+                    <span class="ivr-sublabel">Audio prompt played to callers when entering this menu. Upload in Media Center.</span>
+                </div>
+                <div class="ivr-group">
+                    <label class="ivr-label">Prompt Preview Status</label>
+                    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); padding: 0.65rem 1rem; border-radius: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="color: #38bdf8; font-size: 0.85rem;"><i class="fa-solid fa-volume-high"></i> Ready for Broadcast</span>
+                        <a href="/media-center" class="ivr-btn ivr-btn-secondary" style="padding: 0.3rem 0.7rem; font-size: 0.75rem; text-decoration: none;">Manage Prompts</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: TIMING & FAILOVER ROUTING -->
+        <div class="ivr-section">
+            <div class="ivr-section-title"><i class="fa-solid fa-clock-rotate-left"></i> 2. Timeout Intervals & Invalid Failover Routing</div>
+            <div class="ivr-grid-2">
+                <div class="ivr-group">
+                    <label class="ivr-label" for="timeout">Digit Wait Timeout (seconds)</label>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.4rem;">
+                        <input type="range" id="timeout" name="timeout" style="flex:1; accent-color:var(--ivr-cyan);" min="2" max="60" step="1"
+                               value="{% if ivr %}{{ ivr.timeout }}{% else %}10{% endif %}" oninput="document.getElementById('timeout-badge').innerText = this.value + 's'">
+                        <span id="timeout-badge" style="background:rgba(6,182,212,0.2); color:#22d3ee; border:1px solid rgba(6,182,212,0.4); padding:0.3rem 0.75rem; border-radius:9999px; font-family:'Orbitron',monospace; font-weight:700;">{% if ivr %}{{ ivr.timeout }}{% else %}10{% endif %}s</span>
+                    </div>
+                    <span class="ivr-sublabel">Seconds to wait for caller DTMF keypad input before timing out.</span>
+                </div>
+                <div class="ivr-group">
+                    <label class="ivr-label" for="loops">Repeat Greeting Loops</label>
+                    <input type="number" id="loops" name="loops" class="ivr-input" min="1" max="10"
+                           value="{% if ivr %}{{ ivr.loops }}{% else %}3{% endif %}">
+                    <span class="ivr-sublabel">Number of times to replay the greeting if no digit is pressed.</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.25rem;">
+                <label class="ivr-label" style="margin-bottom: 0.5rem; color: #fca5a5;"><i class="fa-solid fa-triangle-exclamation"></i> Timeout / Invalid Input Failover Action</label>
+                <div id="ivr-failover-selector" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: VISUAL TELEPHONE KEYPAD MATRIX & DTMF RULES -->
+        <div class="ivr-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem;">
+                <div class="ivr-section-title" style="margin-bottom: 0; border: none; padding: 0;"><i class="fa-solid fa-square-phone-flip"></i> 3. Interactive DTMF Keypad Routing Map</div>
+                <button type="button" class="ivr-btn" onclick="addMappingRow('', '', 'extension')" style="background: var(--ivr-cyan); color: #0f172a;">
+                    <i class="fa-solid fa-plus"></i> Add Keypad Rule
+                </button>
+            </div>
+            
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0; margin-bottom: 1.5rem;">Click any button on the visual telephone keypad below to add a routing rule for that digit, or manage mappings directly in the rules table.</p>
+
+            <!-- Visual Keypad Grid -->
+            <div class="keypad-container">
+                <span style="font-size: 0.8rem; font-weight: 700; color: #38bdf8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;"><i class="fa-solid fa-phone"></i> Visual Keypad Matrix Monitor</span>
+                <div class="keypad-grid">
+                    <div class="keypad-btn" id="kp-1" onclick="handleKeypadClick('1')"><span class="keypad-digit">1</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-2" onclick="handleKeypadClick('2')"><span class="keypad-digit">2</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-3" onclick="handleKeypadClick('3')"><span class="keypad-digit">3</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-4" onclick="handleKeypadClick('4')"><span class="keypad-digit">4</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-5" onclick="handleKeypadClick('5')"><span class="keypad-digit">5</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-6" onclick="handleKeypadClick('6')"><span class="keypad-digit">6</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-7" onclick="handleKeypadClick('7')"><span class="keypad-digit">7</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-8" onclick="handleKeypadClick('8')"><span class="keypad-digit">8</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-9" onclick="handleKeypadClick('9')"><span class="keypad-digit">9</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-star" onclick="handleKeypadClick('*')"><span class="keypad-digit">*</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-0" onclick="handleKeypadClick('0')"><span class="keypad-digit">0</span><span class="keypad-sub">Unassigned</span></div>
+                    <div class="keypad-btn" id="kp-hash" onclick="handleKeypadClick('#')"><span class="keypad-digit">#</span><span class="keypad-sub">Unassigned</span></div>
+                </div>
+            </div>
+
+            <!-- DTMF Rules Table -->
+            <div style="overflow-x: auto;">
+                <table class="ivr-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 140px;">Keypad Digit</th>
+                            <th>Target Destination</th>
+                            <th style="text-align: right; width: 100px;">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mappingsBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SAVE / CANCEL ACTIONS -->
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+            <a href="{{ url_for('ivr_list') }}" class="ivr-btn ivr-btn-secondary" style="text-decoration: none;">Cancel</a>
+            <button type="submit" class="ivr-btn ivr-btn-success" style="padding: 0.75rem 2rem; font-size: 1rem;">
+                <i class="fa-solid fa-check-circle"></i> {% if ivr %}Update IVR Auto-Attendant{% else %}Create IVR Auto-Attendant{% endif %}
+            </button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let rowIdCounter = 0;
+    const existingMappings = {% if ivr and ivr.mappings %}{{ ivr.mappings|tojson|safe }}{% else %}[]{% endif %};
+
+    function addMappingRow(key = '1', dest = '', dest_type = 'extension') {
+        rowIdCounter++;
+        const tbody = document.getElementById("mappingsBody");
+        const row = document.createElement("tr");
+        row.id = "mapping-row-" + rowIdCounter;
+        const uniqueContainerId = "dest-container-" + rowIdCounter;
+
+        row.innerHTML = `
+            <td>
+                <select name="mapping_keys[]" class="ivr-select" style="width: 100%; font-weight: bold; font-family: 'Orbitron', monospace; color: #38bdf8;" onchange="syncKeypadVisuals(); validateDTMFKeys();" required>
+                    <option value="1" ${key === '1' ? 'selected' : ''}>Digit 1</option>
+                    <option value="2" ${key === '2' ? 'selected' : ''}>Digit 2</option>
+                    <option value="3" ${key === '3' ? 'selected' : ''}>Digit 3</option>
+                    <option value="4" ${key === '4' ? 'selected' : ''}>Digit 4</option>
+                    <option value="5" ${key === '5' ? 'selected' : ''}>Digit 5</option>
+                    <option value="6" ${key === '6' ? 'selected' : ''}>Digit 6</option>
+                    <option value="7" ${key === '7' ? 'selected' : ''}>Digit 7</option>
+                    <option value="8" ${key === '8' ? 'selected' : ''}>Digit 8</option>
+                    <option value="9" ${key === '9' ? 'selected' : ''}>Digit 9</option>
+                    <option value="0" ${key === '0' ? 'selected' : ''}>Digit 0</option>
+                    <option value="*" ${key === '*' ? 'selected' : ''}>Digit *</option>
+                    <option value="#" ${key === '#' ? 'selected' : ''}>Digit #</option>
+                </select>
+            </td>
+            <td>
+                <div id="${uniqueContainerId}"></div>
+            </td>
+            <td style="text-align: right;">
+                <button type="button" class="ivr-btn ivr-btn-danger" onclick="removeMappingRow(this)" title="Remove Rule"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        `;
+        tbody.appendChild(row);
+
+        renderDestinationSelector(
+            uniqueContainerId,
+            "mapping_dest_types[]",
+            "mapping_dests[]",
+            dest_type,
+            dest
+        );
+
+        setTimeout(() => {
+            syncKeypadVisuals();
+            validateDTMFKeys();
+        }, 100);
+    }
+
+    function removeMappingRow(btn) {
+        const row = btn.closest("tr");
+        if (row) row.remove();
+        syncKeypadVisuals();
+        validateDTMFKeys();
+    }
+
+    function handleKeypadClick(digit) {
+        // Check if digit already exists in table
+        const selects = document.querySelectorAll('select[name="mapping_keys[]"]');
+        let exists = false;
+        selects.forEach(s => {
+            if (s.value === digit) {
+                exists = true;
+                s.focus();
+                s.closest("tr").style.background = "rgba(6, 182, 212, 0.3)";
+                setTimeout(() => { s.closest("tr").style.background = ""; }, 1000);
+            }
+        });
+        if (!exists) {
+            addMappingRow(digit, '', 'extension');
+        }
+    }
+
+    function syncKeypadVisuals() {
+        // Reset all keypad buttons
+        document.querySelectorAll('.keypad-btn').forEach(btn => {
+            btn.classList.remove('keypad-active');
+            btn.querySelector('.keypad-sub').innerText = "Unassigned";
+        });
+
+        // Highlight active digits from table
+        const rows = document.querySelectorAll('#mappingsBody tr');
+        rows.forEach(row => {
+            const keySel = row.querySelector('select[name="mapping_keys[]"]');
+            const destSel = row.querySelector('select[name="mapping_dests[]"]');
+            if (keySel) {
+                const val = keySel.value;
+                let btnId = "kp-" + val;
+                if (val === '*') btnId = "kp-star";
+                if (val === '#') btnId = "kp-hash";
+                const kpBtn = document.getElementById(btnId);
+                if (kpBtn) {
+                    kpBtn.classList.add('keypad-active');
+                    let targetText = destSel && destSel.options[destSel.selectedIndex] ? destSel.options[destSel.selectedIndex].text : "Active Rule";
+                    if (targetText.length > 12) targetText = targetText.substring(0, 12) + "..";
+                    kpBtn.querySelector('.keypad-sub').innerText = targetText;
+                }
+            }
+        });
+    }
+
+    function validateDTMFKeys() {
+        const selects = document.querySelectorAll('select[name="mapping_keys[]"]');
+        const seen = new Set();
+        let dups = false;
+        selects.forEach(s => {
+            s.style.borderColor = "rgba(255, 255, 255, 0.15)";
+            if (seen.has(s.value)) {
+                dups = true;
+                s.style.borderColor = "#ef4444";
+            }
+            seen.add(s.value);
+        });
+
+        const warning = document.getElementById("duplicate-warning");
+        if (dups) {
+            warning.style.display = "block";
+            warning.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> <strong>Duplicate DTMF Key Detected:</strong> Each keypad digit can only be mapped once per IVR menu.`;
+        } else {
+            warning.style.display = "none";
+        }
+        return !dups;
+    }
+
+    // Listen for destination changes to update keypad visual text
+    document.addEventListener("change", function(e) {
+        if (e.target && (e.target.name === "mapping_dests[]" || e.target.name === "mapping_dest_types[]")) {
+            setTimeout(syncKeypadVisuals, 100);
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        renderDestinationSelector(
+            "ivr-failover-selector",
+            "fail_mode",
+            "fail_ext",
+            "{% if ivr and ivr.fail_mode %}{{ ivr.fail_mode }}{% else %}hangup{% endif %}",
+            "{% if ivr %}{{ ivr.fail_ext }}{% endif %}"
+        );
+
+        if (existingMappings.length > 0) {
+            existingMappings.forEach(m => {
+                addMappingRow(m.key, m.dest, m.dest_type || 'extension');
+            });
+        } else {
+            addMappingRow('1', '', 'extension');
+        }
+
+        setTimeout(() => {
+            syncKeypadVisuals();
+            validateDTMFKeys();
+        }, 200);
+
+        document.getElementById("ivrForm").addEventListener("submit", function(e) {
+            if (!validateDTMFKeys()) {
+                e.preventDefault();
+                alert("Please resolve duplicate DTMF keypad rules before saving.");
+            }
+        });
+    });
+</script>
+{% endblock %}

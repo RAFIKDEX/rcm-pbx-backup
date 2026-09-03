@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Firewall Settings - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="firewall-page">
+    <header class="header-panel firewall-header">
+        <div>
+            <div class="firewall-eyebrow"><i class="fa-solid fa-shield-halved"></i> Network protection</div>
+            <h1>Firewall Settings</h1>
+            <p>Define, review, and apply nftables rules without losing track of their live state.</p>
+        </div>
+        <form action="{{ url_for('security_apply') }}" method="POST" class="firewall-apply-form" onsubmit="return confirm('Apply the current firewall rules? This can affect connectivity.');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-rotate"></i> Apply firewall</button>
+        </form>
+    </header>
+
+    <section class="firewall-summary" aria-label="Firewall summary">
+        <div class="firewall-summary-card">
+            <span class="firewall-summary-icon is-blue"><i class="fa-solid fa-list-check"></i></span>
+            <div><span>Total rules</span><strong>{{ stats.total }}</strong></div>
+        </div>
+        <div class="firewall-summary-card">
+            <span class="firewall-summary-icon is-green"><i class="fa-solid fa-circle-check"></i></span>
+            <div><span>Applied</span><strong>{{ stats.applied }}</strong></div>
+        </div>
+        <div class="firewall-summary-card">
+            <span class="firewall-summary-icon is-yellow"><i class="fa-solid fa-clock"></i></span>
+            <div><span>Pending</span><strong>{{ stats.pending }}</strong></div>
+        </div>
+        <div class="firewall-summary-card">
+            <span class="firewall-summary-icon is-red"><i class="fa-solid fa-triangle-exclamation"></i></span>
+            <div><span>Needs attention</span><strong>{{ stats.errors }}</strong></div>
+        </div>
+    </section>
+
+    <section class="card firewall-card" aria-labelledby="firewall-rules-title">
+        <div class="firewall-toolbar">
+            <div class="firewall-toolbar-title">
+                <div>
+                    <span class="firewall-section-kicker">Rule catalogue</span>
+                    <h2 id="firewall-rules-title"><i class="fa-solid fa-shield"></i> Firewall rules</h2>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" id="openAddRule"><i class="fa-solid fa-plus"></i> Add rule</button>
+            </div>
+            <form method="GET" action="{{ url_for('security') }}" class="firewall-search-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label class="sr-only" for="firewall-search">Search firewall rules</label>
+                <input type="search" id="firewall-search" name="search" class="form-control" placeholder="Search rules..." value="{{ search }}">
+                <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+                {% if search %}<a href="{{ url_for('security') }}" class="btn btn-secondary">Clear</a>{% endif %}
+            </form>
+        </div>
+
+        <form id="bulkDeleteForm" action="{{ url_for('security_bulk_delete') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
+        <div class="firewall-table-wrap">
+            <table class="table firewall-table">
+                <thead>
+                    <tr>
+                        <th class="firewall-check-column"><input type="checkbox" id="selectAll" form="bulkDeleteForm" aria-label="Select all rules"></th>
+                        <th>Rule</th>
+                        <th>Action</th>
+                        <th>Direction</th>
+                        <th>Interface</th>
+                        <th>Source</th>
+                        <th>Destination</th>
+                        <th>Protocol</th>
+                        <th>Status</th>
+                        <th class="firewall-action-column">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for rule in rules %}
+                    <tr>
+                        <td class="firewall-check-column"><input type="checkbox" name="rule_ids" value="{{ rule.id }}" class="row-checkbox" form="bulkDeleteForm" aria-label="Select {{ rule.rule_name }}"></td>
+                        <td>
+                            <strong class="firewall-rule-name">{{ rule.rule_name }}</strong>
+                            {% if not rule.enabled %}<span class="firewall-disabled-label">Disabled</span>{% endif %}
+                        </td>
+                        <td><span class="firewall-badge {% if rule.action == 'accept' %}is-success{% else %}is-danger{% endif %}">{{ rule.action|title }}</span></td>
+                        <td>{{ rule.direction_type|title }}</td>
+                        <td><code>{{ rule.interface_name }}</code></td>
+                        <td>{{ rule.source_ip or 'Any' }}{% if rule.source_port %}<small>port {{ rule.source_port }}</small>{% endif %}</td>
+                        <td>{{ rule.destination_ip or 'Any' }}{% if rule.destination_port %}<small>port {{ rule.destination_port }}</small>{% endif %}</td>
+                        <td>{{ rule.protocol|upper }}</td>
+                        <td>
+                            <span class="firewall-badge {% if rule.apply_status == 'applied' %}is-success{% elif rule.apply_status == 'pending' %}is-warning{% elif rule.apply_status in ('error', 'mismatch') %}is-danger{% else %}is-neutral{% endif %}">
+                                <i class="fa-solid {% if rule.apply_status == 'applied' %}fa-check{% elif rule.apply_status == 'pending' %}fa-clock{% elif rule.apply_status in ('error', 'mismatch') %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+                                {{ rule.apply_status|title }}
+                            </span>
+                        </td>
+                        <td class="firewall-action-column">
+                            <div class="firewall-row-actions">
+                                <button type="button" class="firewall-icon-button is-edit edit-rule" title="Edit rule" aria-label="Edit {{ rule.rule_name }}"
+                                    data-rule-id="{{ rule.id }}" data-edit-url="{{ url_for('security_edit', rule_id=rule.id) }}"
+                                    data-rule-name="{{ rule.rule_name }}" data-action="{{ rule.action }}" data-direction="{{ rule.direction_type }}"
+                                    data-interface="{{ rule.interface_name }}" data-source-ip="{{ rule.source_ip or '' }}"
+                                    data-source-mask="{{ rule.source_subnet_mask or '' }}" data-source-port="{{ rule.source_port or '' }}"
+                                    data-destination-ip="{{ rule.destination_ip or '' }}" data-destination-mask="{{ rule.destination_subnet_mask or '' }}"
+                                    data-destination-port="{{ rule.destination_port or '' }}" data-protocol="{{ rule.protocol }}"
+                                    data-enabled="{{ rule.enabled|default(1) }}"><i class="fa-solid fa-pen"></i></button>
+                                <form action="{{ url_for('security_delete', rule_id=rule.id) }}" method="POST" onsubmit="return confirm('Delete this firewall rule?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="firewall-icon-button is-delete" title="Delete rule" aria-label="Delete {{ rule.rule_name }}"><i class="fa-solid fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="10" class="firewall-empty-row"><i class="fa-solid fa-shield-heart"></i><strong>No firewall rules found</strong><span>Add a rule or clear the search to see the catalogue.</span></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if rules %}
+        <div class="firewall-bulk-bar">
+            <button type="submit" form="bulkDeleteForm" class="btn btn-danger btn-sm" id="deleteSelected"><i class="fa-solid fa-trash"></i> Delete selected</button>
+            <span>Select rules to remove them in one action.</span>
+        </div>
+        {% endif %}
+
+        {% if total_pages > 1 %}
+        <nav class="firewall-pagination" aria-label="Firewall rule pages">
+            {% if page > 1 %}<a href="{{ url_for('security', page=page-1, search=search) }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-chevron-left"></i> Previous</a>{% endif %}
+            <span>Page {{ page }} of {{ total_pages }}</span>
+            {% if page < total_pages %}<a href="{{ url_for('security', page=page+1, search=search) }}" class="btn btn-secondary btn-sm">Next <i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+        </nav>
+        {% endif %}
+    </section>
+</div>
+
+<div id="firewallRuleModal" class="firewall-modal" hidden>
+    <div class="firewall-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="firewallModalTitle">
+        <div class="firewall-modal-header">
+            <div><span class="firewall-section-kicker">Rule definition</span><h2 id="firewallModalTitle">New firewall rule</h2></div>
+            <button type="button" class="firewall-modal-close" data-close-firewall-modal aria-label="Close dialog"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="ruleForm" action="{{ url_for('security_add') }}" method="POST" class="firewall-form-grid">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="firewall-form-field firewall-span-two"><label for="rule_name">Rule name</label><input type="text" id="rule_name" name="rule_name" class="form-control" maxlength="100" required placeholder="e.g. Block suspicious SIP source"></div>
+            <div class="firewall-form-field"><label for="action">Action</label><select id="action" name="action" class="form-control" required><option value="accept">Accept</option><option value="drop">Drop</option></select></div>
+            <div class="firewall-form-field"><label for="direction_type">Direction</label><select id="direction_type" name="direction_type" class="form-control" required><option value="in">Inbound</option><option value="out">Outbound</option><option value="all">Both directions</option></select></div>
+            <div class="firewall-form-field"><label for="interface_name">Interface</label><select id="interface_name" name="interface_name" class="form-control" required><option value="">Select interface</option>{% for iface in interfaces %}<option value="{{ iface }}">{{ iface }}</option>{% endfor %}</select></div>
+            <div class="firewall-form-field"><label for="protocol">Protocol</label><select id="protocol" name="protocol" class="form-control" required><option value="tcp">TCP</option><option value="udp">UDP</option><option value="both">TCP + UDP</option></select></div>
+            <div class="firewall-form-field firewall-enabled-field"><label for="rule-enabled">Rule status</label><label class="firewall-check-label"><input type="checkbox" id="rule-enabled" name="enabled" checked><span>Enabled</span></label></div>
+
+            <div class="firewall-form-section firewall-span-two"><h3><i class="fa-solid fa-arrow-right-to-bracket"></i> Source matching <small>Leave blank to match any source.</small></h3></div>
+            <div class="firewall-form-field"><label for="source_ip">Source IP</label><input type="text" id="source_ip" name="source_ip" class="form-control" placeholder="Any"></div>
+            <div class="firewall-form-field"><label for="source_subnet_mask">Source subnet mask</label><input type="text" id="source_subnet_mask" name="source_subnet_mask" class="form-control" placeholder="255.255.255.0"></div>
+            <div class="firewall-form-field"><label for="source_port">Source port</label><input type="text" id="source_port" name="source_port" class="form-control" placeholder="Any"></div>
+
+            <div class="firewall-form-section firewall-span-two"><h3><i class="fa-solid fa-arrow-right-from-bracket"></i> Destination matching <small>Leave blank to match any destination.</small></h3></div>
+            <div class="firewall-form-field"><label for="destination_ip">Destination IP</label><input type="text" id="destination_ip" name="destination_ip" class="form-control" placeholder="Any"></div>
+            <div class="firewall-form-field"><label for="destination_subnet_mask">Destination subnet mask</label><input type="text" id="destination_subnet_mask" name="destination_subnet_mask" class="form-control" placeholder="255.255.255.0"></div>
+            <div class="firewall-form-field"><label for="destination_port">Destination port</label><input type="text" id="destination_port" name="destination_port" class="form-control" placeholder="Any"></div>
+
+            <div class="firewall-modal-actions firewall-span-two"><button type="submit" class="btn btn-info" id="saveBtn"><i class="fa-solid fa-plus"></i> Add rule</button><button type="button" class="btn btn-secondary" data-close-firewall-modal>Cancel</button></div>
+        </form>
+    </div>
+</div>
+
+<script>
+(() => {
+    const modal = document.getElementById('firewallRuleModal');
+    const form = document.getElementById('ruleForm');
+    const addUrl = {{ url_for('security_add')|tojson }};
+    const modalTitle = document.getElementById('firewallModalTitle');
+    const saveButton = document.getElementById('saveBtn');
+    const setValue = (id, value) => { document.getElementById(id).value = value || ''; };
+
+    function closeModal() {
+        modal.hidden = true;
+    }
+
+    function openAddModal() {
+        form.reset();
+        form.action = addUrl;
+        modalTitle.textContent = 'New firewall rule';
+        saveButton.innerHTML = '<i class="fa-solid fa-plus"></i> Add rule';
+        document.getElementById('rule-enabled').checked = true;
+        modal.hidden = false;
+        document.getElementById('rule_name').focus();
+    }
+
+    function openEditModal(button) {
+        const data = button.dataset;
+        form.reset();
+        form.action = data.editUrl;
+        modalTitle.textContent = 'Edit firewall rule';
+        saveButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save changes';
+        setValue('rule_name', data.ruleName);
+        setValue('action', data.action);
+        setValue('direction_type', data.direction);
+        setValue('interface_name', data.interface);
+        setValue('protocol', data.protocol);
+        setValue('source_ip', data.sourceIp);
+        setValue('source_subnet_mask', data.sourceMask);
+        setValue('source_port', data.sourcePort);
+        setValue('destination_ip', data.destinationIp);
+        setValue('destination_subnet_mask', data.destinationMask);
+        setValue('destination_port', data.destinationPort);
+        document.getElementById('rule-enabled').checked = data.enabled !== '0';
+        modal.hidden = false;
+        document.getElementById('rule_name').focus();
+    }
+
+    document.getElementById('openAddRule').addEventListener('click', openAddModal);
+    document.querySelectorAll('.edit-rule').forEach(button => button.addEventListener('click', () => openEditModal(button)));
+    document.querySelectorAll('[data-close-firewall-modal]').forEach(button => button.addEventListener('click', closeModal));
+    modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.hidden) closeModal(); });
+
+    const selectAll = document.getElementById('selectAll');
+    const rows = () => Array.from(document.querySelectorAll('.row-checkbox'));
+    selectAll.addEventListener('change', () => rows().forEach(checkbox => { checkbox.checked = selectAll.checked; }));
+    rows().forEach(checkbox => checkbox.addEventListener('change', () => {
+        selectAll.checked = rows().length > 0 && rows().every(item => item.checked);
+    }));
+    document.getElementById('bulkDeleteForm').addEventListener('submit', event => {
+        const selected = rows().filter(checkbox => checkbox.checked).length;
+        if (!selected) { event.preventDefault(); alert('Select at least one rule first.'); return; }
+        if (!confirm(`Delete ${selected} selected firewall rule${selected === 1 ? '' : 's'}?`)) event.preventDefault();
+    });
+})();
+</script>
+{% endblock %}

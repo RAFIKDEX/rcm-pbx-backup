@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Reports - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>System Reports & Logs</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Historical connection statistics and Call Detail Records (CDR) formatted in GMT+3</div>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="card card-cyan">
+        <div class="card-title"><i class="fa-solid fa-phone"></i> Total Logs</div>
+        <div class="card-value">{{ stats.total }}</div>
+        <div class="card-desc">Total calls processed</div>
+    </div>
+    
+    <div class="card card-green">
+        <div class="card-title"><i class="fa-solid fa-phone-flip"></i> Answered Calls</div>
+        <div class="card-value">{{ stats.answered }}</div>
+        <div class="card-desc">Successful call connections</div>
+    </div>
+    
+    <div class="card card-red">
+        <div class="card-title"><i class="fa-solid fa-phone-slash"></i> Missed Calls</div>
+        <div class="card-value">{{ stats.missed }}</div>
+        <div class="card-desc">No answer / Busy / Rejected</div>
+    </div>
+    
+    <div class="card card-orange">
+        <div class="card-title"><i class="fa-solid fa-hourglass-half"></i> Avg Duration</div>
+        <div class="card-value" style="font-size: 1.8rem; margin-top: 0.25rem;">{{ stats.avg_duration }}</div>
+        <div class="card-desc">Average conversation length</div>
+    </div>
+</div>
+
+<!-- Graph and Charts Panel -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Historical CDR List Panel -->
+    <div class="panel" style="margin-bottom: 0;">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-list-check" style="color: var(--primary);"></i> CDR History (Last 100 Logs)</h2>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Caller</th>
+                        <th>Destination</th>
+                        <th>Start Time (GMT+3)</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not records %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                            <i class="fa-solid fa-history" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                            No Call Detail Records (CDR) found.
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for rec in records %}
+                    <tr style="animation: fadeIn 0.2s ease-out;">
+                        <td><strong style="color: #fff;">{{ rec.src }}</strong><br><span style="font-size: 0.75rem; color: var(--text-dark);">{{ rec.clid }}</span></td>
+                        <td><strong style="color: #fff;">{{ rec.dst }}</strong></td>
+                        <td><code>{{ rec.start }}</code></td>
+                        <td><code>{{ rec.duration }}</code></td>
+                        <td>
+                            {% if rec.status == 'ANSWERED' %}
+                            <span class="badge badge-registered"><i class="fa-solid fa-circle-check"></i> Answered</span>
+                            {% elif rec.status == 'BUSY' %}
+                            <span class="badge badge-busy"><i class="fa-solid fa-phone-flip"></i> Busy</span>
+                            {% else %}
+                            <span class="badge badge-offline"><i class="fa-solid fa-circle-xmark"></i> Missed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Chart Panel -->
+    <div class="panel" style="margin-bottom: 0; display: flex; flex-direction: column;">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-chart-pie" style="color: var(--primary);"></i> Status Ratio</h2>
+        </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative;">
+            <canvas id="dispositionChart" style="max-height: 220px; max-width: 220px;"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('dispositionChart').getContext('2d');
+        const dispositionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Answered', 'Missed'],
+                datasets: [{
+                    data: [{{ stats.answered }}, {{ stats.missed }}],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderColor: '#151d30',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#94a3b8',
+                            font: {
+                                family: 'Inter',
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+    });
+</script>
+{% endblock %}

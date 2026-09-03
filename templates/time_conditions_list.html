@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}Time Conditions - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Time Conditions & Schedules</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage office shifts and holidays to be reused for inbound route mapping</div>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        {% if can_create('time_conditions') %}
+        <a href="{{ url_for('office_time_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Office Profile
+        </a>
+        <a href="{{ url_for('holiday_add') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Holiday
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Office Time Profiles Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-business-time" style="color: var(--primary);"></i> Office Time Profiles</h2>
+    </div>
+    
+    <div class="table-responsive">
+        {% set show_office_actions = can_view('time_conditions') or can_create('time_conditions') or can_edit('time_conditions') or can_delete('time_conditions') %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Profile Name & Description</th>
+                    <th>Weekly Schedule Rules</th>
+                    <th style="width: 100px; text-align: center;">Enabled</th>
+                    {% if show_office_actions %}
+                    <th style="width: 250px; text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if not office_times %}
+                <tr>
+                    <td colspan="{{ 4 if show_office_actions else 3 }}" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+                        <i class="fa-solid fa-calendar-minus" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Office Time profiles configured.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for profile in office_times %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--text-main); font-size: 1.05rem;">{{ profile.name }}</strong>
+                        {% if profile.description %}
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            {{ profile.description }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            {% if profile.rules %}
+                                {% for rule in profile.rules %}
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="badge badge-registered" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); min-width: 90px; text-align: center;">
+                                        {{ rule.day_of_week.capitalize() }}
+                                    </span>
+                                    <span class="badge badge-registered" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-family: monospace;">
+                                        {{ rule.start_time }} - {{ rule.end_time }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <span class="badge badge-gray">No rules configured</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td style="text-align: center;">
+                        <label class="switch">
+                            <input type="checkbox" onchange="toggleOfficeTime('{{ profile.id }}', this.checked)" {% if profile.enabled %}checked{% endif %} {% if not can_edit('time_conditions') %}disabled{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                    </td>
+                    {% if show_office_actions %}
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end; display: flex; gap: 0.5rem;">
+                            {% if can_view('time_conditions') %}
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showNotification('Profile details: {{ profile.name }} (Enabled: {{ profile.enabled }})', 'info')" title="View details">
+                                <i class="fa-solid fa-eye"></i> View
+                            </button>
+                            {% endif %}
+                            {% if can_create('time_conditions') %}
+                            <form action="{{ url_for('office_time_clone', profile_id=profile.id) }}" method="POST" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-secondary btn-sm">
+                                    <i class="fa-solid fa-copy"></i> Clone
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if can_edit('time_conditions') %}
+                            <a href="{{ url_for('office_time_edit', profile_id=profile.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            {% endif %}
+                            {% if can_delete('time_conditions') %}
+                            <form action="{{ url_for('office_time_delete', profile_id=profile.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Office Time Profile {{ profile.name }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Holiday Management Panel -->
+<div class="panel" style="margin-top: 2rem;">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-umbrella-beach" style="color: var(--status-ringing);"></i> Holiday Management</h2>
+    </div>
+    
+    <div class="table-responsive">
+        {% set show_holiday_actions = can_view('time_conditions') or can_edit('time_conditions') or can_delete('time_conditions') %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Holiday Name</th>
+                    <th>Date Period</th>
+                    <th>Recurring Yearly</th>
+                    {% if show_holiday_actions %}
+                    <th style="width: 200px; text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if not holidays %}
+                <tr>
+                    <td colspan="{{ 4 if show_holiday_actions else 3 }}" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+                        <i class="fa-solid fa-sun" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Holidays configured.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for holiday in holidays %}
+                <tr>
+                    <td><strong style="color: var(--text-main); font-size: 1.05rem;">{{ holiday.name }}</strong></td>
+                    <td>
+                        <span class="badge badge-registered" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); font-family: monospace;">
+                            {{ holiday.start_date }} {% if holiday.end_date != holiday.start_date %} to {{ holiday.end_date }}{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if holiday.recurring %}
+                        <span class="badge badge-registered" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            <i class="fa-solid fa-arrows-spin"></i> Yes
+                        </span>
+                        {% else %}
+                        <span class="badge badge-registered" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3);">
+                            No
+                        </span>
+                        {% endif %}
+                    </td>
+                    {% if show_holiday_actions %}
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end; display: flex; gap: 0.5rem;">
+                            {% if can_view('time_conditions') %}
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showNotification('Holiday details: {{ holiday.name }} | {{ holiday.start_date }} to {{ holiday.end_date }} | Recurring: {{ holiday.recurring }}', 'info')" title="View details">
+                                <i class="fa-solid fa-eye"></i> View
+                            </button>
+                            {% endif %}
+                            {% if can_edit('time_conditions') %}
+                            <a href="{{ url_for('holiday_edit', holiday_id=holiday.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            {% endif %}
+                            {% if can_delete('time_conditions') %}
+                            <form action="{{ url_for('holiday_delete', holiday_id=holiday.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Holiday {{ holiday.name }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleOfficeTime(profileId, enabled) {
+        fetch(`/system/time-conditions/office/toggle/${profileId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ enabled: enabled })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Failed to toggle status: ' + data.error);
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            window.location.reload();
+        });
+    }
+</script>
+{% endblock %}

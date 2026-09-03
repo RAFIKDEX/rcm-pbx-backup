@@ -1,0 +1,1302 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact Center Analytics - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.4; }
+        50% { transform: scale(1.15); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.4; }
+    }
+    .pulse-dot {
+        width: 10px;
+        height: 10px;
+        background-color: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 12px #10b981;
+        animation: pulse 2s infinite;
+        display: inline-block;
+    }
+    .realtime-bar {
+        background: linear-gradient(90deg, rgba(21, 29, 48, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    }
+    .realtime-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .realtime-num {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    .sub-nav-bar {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        padding-bottom: 0.75rem;
+    }
+    .timeline-stepper {
+        position: relative;
+        padding-left: 2.2rem;
+        border-left: 2px solid var(--border-color);
+        margin-left: 1.25rem;
+    }
+    .timeline-node {
+        position: absolute;
+        left: -3.15rem;
+        top: 0;
+        width: 28px;
+        height: 28px;
+        background: #0b0f19;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+</style>
+
+<div class="header-panel" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1><i class="fa-solid fa-chart-line" style="color: var(--primary); margin-right: 0.5rem;"></i> Contact Center Analytics</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Enterprise historical reporting, agent performance, and live queue analytics</div>
+    </div>
+    <div>
+        <button onclick="exportReport('calls')" class="btn btn-secondary btn-sm" style="margin-right: 0.5rem;">
+            <i class="fa-solid fa-file-csv"></i> Export Calls CSV
+        </button>
+        <button onclick="exportReport('agents')" class="btn btn-secondary btn-sm">
+            <i class="fa-solid fa-file-csv"></i> Export Agents CSV
+        </button>
+    </div>
+</div>
+
+<!-- REAL-TIME INDICATORS BAR -->
+<div class="realtime-bar">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="pulse-dot"></span>
+            <span style="font-family: 'Orbitron', sans-serif; font-size: 0.85rem; letter-spacing: 1px; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Realtime Queue Live</span>
+        </div>
+        <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: center;">
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-clock-rotate-left" style="color: #f59e0b; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Waiting Calls</div>
+                    <div id="realtime-waiting" class="realtime-num" style="color: #f59e0b;">0</div>
+                </div>
+            </div>
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-phone-volume" style="color: #ef4444; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Talking Calls</div>
+                    <div id="realtime-talking" class="realtime-num" style="color: #ef4444;">0</div>
+                </div>
+            </div>
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-user-check" style="color: #10b981; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Available Agents</div>
+                    <div id="realtime-available" class="realtime-num" style="color: #10b981;">0</div>
+                </div>
+            </div>
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-user-slash" style="color: #38bdf8; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Busy Agents</div>
+                    <div id="realtime-busy" class="realtime-num" style="color: #38bdf8;">0</div>
+                </div>
+            </div>
+            <div class="realtime-indicator">
+                <i class="fa-solid fa-user-clock" style="color: #fbbf24; font-size: 1.25rem;"></i>
+                <div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Paused Agents</div>
+                    <div id="realtime-paused" class="realtime-num" style="color: #fbbf24;">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Filter Bar -->
+<div class="panel" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+    <div style="font-weight: bold; margin-bottom: 0.75rem; color: #fff; font-family: 'Orbitron', sans-serif; font-size: 0.85rem; letter-spacing: 1px;">
+        <i class="fa-solid fa-filter" style="color: var(--primary);"></i> GLOBAL FILTERS
+    </div>
+    <form id="filterForm" onsubmit="loadStats(event)" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; min-width: 130px; margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Date From</label>
+            <input type="date" id="date_from" class="form-control" style="padding: 0.5rem;">
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 130px; margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Date To</label>
+            <input type="date" id="date_to" class="form-control" style="padding: 0.5rem;">
+        </div>
+        <div class="form-group" style="flex: 0.7; min-width: 80px; margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Time From</label>
+            <input type="time" id="time_from" class="form-control" style="padding: 0.5rem;" value="00:00">
+        </div>
+        <div class="form-group" style="flex: 0.7; min-width: 80px; margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Time To</label>
+            <input type="time" id="time_to" class="form-control" style="padding: 0.5rem;" value="23:59">
+        </div>
+        <div class="form-group" style="flex: 1.2; min-width: 140px; margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Queue</label>
+            <select id="queue_selector" class="form-control" style="padding: 0.5rem;">
+                <option value="all">-- All Queues --</option>
+                {% for q in queues %}
+                <option value="{{ q.queue_number }}">{{ q.queue_number }} {{ q.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="flex: 1.2; min-width: 140px; margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Agent</label>
+            <select id="agent_selector" class="form-control" style="padding: 0.5rem;">
+                <option value="all">-- All Agents --</option>
+                {% for ag in agents %}
+                <option value="{{ ag.ext }}">{{ ag.ext }} - {{ ag.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="flex: 1.2; min-width: 130px; margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Caller ID</label>
+            <input type="text" id="caller_selector" class="form-control" placeholder="e.g. 010xxxx" style="padding: 0.5rem;">
+        </div>
+        <div class="form-group" style="flex: 0.8; min-width: 110px; margin: 0;">
+            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Auto Refresh</label>
+            <select id="auto_refresh" class="form-control" style="padding: 0.5rem;" onchange="toggleAutoRefresh()">
+                <option value="0" selected>Off</option>
+                <option value="5">5 seconds</option>
+                <option value="10">10 seconds</option>
+                <option value="30">30 seconds</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-info" style="padding: 0.5rem 1.25rem;">
+                <i class="fa-solid fa-magnifying-glass"></i> Filter
+            </button>
+            <button type="button" onclick="resetFilters()" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+                Reset
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Main Statistics Navigation Tabs -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap;">
+    <button onclick="switchTab('tab-overview')" id="btn-tab-overview" class="btn btn-info tab-btn">Overview Analytics</button>
+    <button onclick="switchTab('tab-queues')" id="btn-tab-queues" class="btn btn-secondary tab-btn">Queue Performance</button>
+    <button onclick="switchTab('tab-agents')" id="btn-tab-agents" class="btn btn-secondary tab-btn">Agent Analytics</button>
+    <button onclick="switchTab('tab-details')" id="btn-tab-details" class="btn btn-secondary tab-btn">Detailed Log</button>
+    <button onclick="switchTab('tab-advanced')" id="btn-tab-advanced" class="btn btn-secondary tab-btn">Advanced Charts</button>
+</div>
+
+<!-- TAB 1: OVERVIEW -->
+<div id="tab-overview" class="tab-content">
+    <!-- KPI Card Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid var(--primary); background: rgba(59, 130, 246, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Total Calls</div>
+            <div id="kpi-total" style="font-size: 2rem; font-weight: bold; color: #fff; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid var(--status-registered); background: rgba(16, 185, 129, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Answered Calls</div>
+            <div id="kpi-answered" style="font-size: 2rem; font-weight: bold; color: var(--status-registered); margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Abandoned Calls</div>
+            <div id="kpi-abandoned" style="font-size: 2rem; font-weight: bold; color: #ef4444; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Canceled Calls</div>
+            <div id="kpi-cancelled" style="font-size: 2rem; font-weight: bold; color: #f59e0b; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #94a3b8; background: rgba(148, 163, 184, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">No Answer Calls</div>
+            <div id="kpi-no-answer" style="font-size: 2rem; font-weight: bold; color: #94a3b8; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid var(--primary); background: rgba(56, 189, 248, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Answer Rate %</div>
+            <div id="kpi-ans-rate" style="font-size: 2rem; font-weight: bold; color: #38bdf8; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0%</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #c084fc; background: rgba(168, 85, 247, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Abandon Rate %</div>
+            <div id="kpi-ab-rate" style="font-size: 2rem; font-weight: bold; color: #c084fc; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0%</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #34d399; background: rgba(52, 211, 153, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">SLA %</div>
+            <div id="kpi-sla" style="font-size: 2rem; font-weight: bold; color: #34d399; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0%</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #2dd4bf; background: rgba(45, 212, 191, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Avg Waiting Time</div>
+            <div id="kpi-avg-wait" style="font-size: 1.7rem; font-weight: bold; color: #2dd4bf; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #f43f5e; background: rgba(244, 63, 94, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Longest Wait Time</div>
+            <div id="kpi-longest-wait" style="font-size: 1.7rem; font-weight: bold; color: #f43f5e; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #facc15; background: rgba(250, 204, 21, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Avg Talk Time</div>
+            <div id="kpi-avg-talk" style="font-size: 1.7rem; font-weight: bold; color: #facc15; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #fb923c; background: rgba(251, 146, 60, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Longest Talk Time</div>
+            <div id="kpi-longest-talk" style="font-size: 1.7rem; font-weight: bold; color: #fb923c; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+        </div>
+        <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #38bdf8; background: rgba(56, 189, 248, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Shortest Talk Time</div>
+            <div id="kpi-shortest-talk" style="font-size: 1.7rem; font-weight: bold; color: #38bdf8; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+        </div>
+    </div>
+
+    <!-- Charts Panel -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Answered vs Abandoned</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="volumeChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Calls by Queue</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="queueCallsChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Calls Timeline</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Agent Performance (Calls Handled)</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="agentPerfChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 2: QUEUE PERFORMANCE -->
+<div id="tab-queues" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Queue Comparison Statistics</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>QUEUE</th>
+                        <th>TOTAL CALLS</th>
+                        <th>ANSWERED</th>
+                        <th>ABANDONED</th>
+                        <th>ANSWER RATE %</th>
+                        <th>AVG WAIT TIME</th>
+                        <th>LONGEST WAIT</th>
+                        <th>AVG TALK TIME</th>
+                        <th>LONGEST TALK</th>
+                        <th>SHORT TALK</th>
+                        <th>SLA</th>
+                    </tr>
+                </thead>
+                <tbody id="queues-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 3: AGENT ANALYTICS -->
+<div id="tab-agents" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Agent Performance Reports</h2>
+        </div>
+        
+        <!-- Sub-tabs navigation -->
+        <div class="sub-nav-bar">
+            <button onclick="switchAgentSubTab('sub-agent-perf')" id="btn-sub-agent-perf" class="btn btn-info btn-xs sub-tab-btn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Performance Ranking</button>
+            <button onclick="switchAgentSubTab('sub-agent-logins')" id="btn-sub-agent-logins" class="btn btn-secondary btn-xs sub-tab-btn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Login Statistics</button>
+            <button onclick="switchAgentSubTab('sub-agent-pauses')" id="btn-sub-agent-pauses" class="btn btn-secondary btn-xs sub-tab-btn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Pause Statistics</button>
+        </div>
+
+        <!-- Sub Tab 1: Ranking -->
+        <div id="sub-agent-perf" class="agent-sub-tab-content">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th>Answered Calls</th>
+                            <th>Missed Calls</th>
+                            <th>Average Talk Time</th>
+                            <th>Total Talk Time</th>
+                            <th>Login Duration</th>
+                            <th>Pause Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-perf-table-body">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sub Tab 2: Logins -->
+        <div id="sub-agent-logins" class="agent-sub-tab-content" style="display: none;">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>QUEUE</th>
+                            <th>EXTENSION</th>
+                            <th>AGENT NAME</th>
+                            <th>TYPE</th>
+                            <th>FIRST LOGIN</th>
+                            <th>LAST LOGOUT</th>
+                            <th>TOTAL SESSION TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-logins-table-body">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sub Tab 3: Pauses -->
+        <div id="sub-agent-pauses" class="agent-sub-tab-content" style="display: none;">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>QUEUE</th>
+                            <th>EXTENSION</th>
+                            <th>AGENT NAME</th>
+                            <th>TOTAL PAUSE TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-pauses-table-body">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 4: DETAILED LOG -->
+<div id="tab-details" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Call Detail Records (Historical Log)</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Caller</th>
+                        <th>Queue</th>
+                        <th>Entry Time</th>
+                        <th>Status</th>
+                        <th>Wait Time</th>
+                        <th>Agent</th>
+                        <th>Talk Duration</th>
+                        <th>Recording</th>
+                        <th style="text-align: center;">Timeline</th>
+                    </tr>
+                </thead>
+                <tbody id="calls-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination controls -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div style="font-size: 0.85rem; color: var(--text-muted);" id="pagination-info">
+                Showing 1-100 of -- calls
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="btn-prev-page" class="btn btn-secondary btn-sm" onclick="changePage(-1)" disabled>
+                    <i class="fa-solid fa-chevron-left"></i> Previous
+                </button>
+                <button id="btn-next-page" class="btn btn-secondary btn-sm" onclick="changePage(1)" disabled>
+                    Next <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 5: ADVANCED CHARTS -->
+<div id="tab-advanced" class="tab-content" style="display: none;">
+    <div class="panel" style="margin-bottom: 1.5rem;">
+        <div class="panel-header">
+            <h2>Queue Heatmap (Call Count by Day of Week & Hour)</h2>
+        </div>
+        <div class="table-responsive" style="margin-top: 1rem;">
+            <table class="table" style="text-align: center; font-family: monospace;">
+                <thead>
+                    <tr id="heatmap-header">
+                        <th>Day / Hour</th>
+                    </tr>
+                </thead>
+                <tbody id="heatmap-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Peak Hours Hourly Volumes</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="advancedPeakChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Abandon Analysis Distribution</h2>
+            </div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="abandonChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mini Audio Player Container -->
+<div id="audio-player-container" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000; background: #151d30; border: 1px solid var(--border-color); padding: 1rem; border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.6); align-items: center; gap: 1rem; animation: slideUp 0.3s ease;">
+    <div>
+        <i class="fa-solid fa-file-audio" style="color: var(--primary); font-size: 1.5rem;"></i>
+    </div>
+    <div style="flex: 1;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold; margin-bottom: 0.25rem;">Playing Call Recording</div>
+        <audio id="global-audio-player" controls style="height: 32px;"></audio>
+    </div>
+    <div>
+        <button class="btn btn-secondary btn-sm" onclick="stopAudio()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let volumeChart = null;
+    let queueCallsChart = null;
+    let timelineChart = null;
+    let agentPerfChart = null;
+    let abandonChart = null;
+    let advancedPeakChart = null;
+    
+    // Filters and Data Stores
+    let globalLoginStats = [];
+    let globalPauseStats = [];
+    
+    let currentPage = 1;
+    let limitPerPage = 100;
+    let totalRecords = 0;
+    let activeRefreshTimer = null;
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.getElementById(tabId).style.display = 'block';
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+        });
+        document.getElementById('btn-' + tabId).classList.add('btn-info');
+        document.getElementById('btn-' + tabId).classList.remove('btn-secondary');
+    }
+
+    function switchAgentSubTab(subTabId) {
+        document.querySelectorAll('.agent-sub-tab-content').forEach(el => el.style.display = 'none');
+        document.getElementById(subTabId).style.display = 'block';
+        
+        document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+        });
+        document.getElementById('btn-' + subTabId).classList.add('btn-info');
+        document.getElementById('btn-' + subTabId).classList.remove('btn-secondary');
+    }
+
+    function resetFilters() {
+        document.getElementById("date_from").value = '';
+        document.getElementById("date_to").value = '';
+        document.getElementById("time_from").value = '00:00';
+        document.getElementById("time_to").value = '23:59';
+        document.getElementById("queue_selector").value = 'all';
+        document.getElementById("agent_selector").value = 'all';
+        document.getElementById("caller_selector").value = '';
+        currentPage = 1;
+        loadStats();
+    }
+
+    function toggleAutoRefresh() {
+        const val = parseInt(document.getElementById("auto_refresh").value);
+        if (activeRefreshTimer) clearInterval(activeRefreshTimer);
+        if (val > 0) {
+            activeRefreshTimer = setInterval(() => {
+                loadStats(null, true); // silent reload (don't reset page)
+            }, val * 1000);
+        }
+    }
+
+    function changePage(direction) {
+        currentPage += direction;
+        loadStats();
+    }
+
+    function loadStats(event, isSilent = false) {
+        if (event) event.preventDefault();
+        
+        const date_from = document.getElementById("date_from").value;
+        const date_to = document.getElementById("date_to").value;
+        const time_from = document.getElementById("time_from").value;
+        const time_to = document.getElementById("time_to").value;
+        const queue = document.getElementById("queue_selector").value;
+        const agent = document.getElementById("agent_selector").value;
+        const caller = document.getElementById("caller_selector").value;
+        
+        let url = `/call-center/stats/api?queue=${queue}&agent=${agent}&caller=${caller}`;
+        if (date_from) url += `&date_from=${date_from}`;
+        if (date_to) url += `&date_to=${date_to}`;
+        if (time_from) url += `&time_from=${time_from}`;
+        if (time_to) url += `&time_to=${time_to}`;
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                populateKPIs(data.kpis);
+                if (!isSilent) {
+                    populateCharts(data);
+                }
+                populateQueueTable(data.queues_table);
+                populateAgentPerformance(data.agent_analytics);
+                
+                // Store global login & pause statistics
+                globalLoginStats = data.login_stats || [];
+                globalPauseStats = data.pause_stats || [];
+                
+                populateAgentLogins(globalLoginStats);
+                populateAgentPauses(globalPauseStats);
+                
+                // Manage Calls Pagination
+                const allCalls = data.calls || [];
+                totalRecords = allCalls.length;
+                const startIndex = (currentPage - 1) * limitPerPage;
+                const endIndex = startIndex + limitPerPage;
+                const slicedCalls = allCalls.slice(startIndex, endIndex);
+                
+                populateCallsTable(slicedCalls);
+                updatePaginationControls();
+                
+                populateHeatmap(data.heatmap);
+            });
+    }
+
+    function updatePaginationControls() {
+        const info = document.getElementById("pagination-info");
+        const prevBtn = document.getElementById("btn-prev-page");
+        const nextBtn = document.getElementById("btn-next-page");
+        
+        if (totalRecords === 0) {
+            info.innerText = "No records found";
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+        
+        const start = (currentPage - 1) * limitPerPage + 1;
+        const end = Math.min(currentPage * limitPerPage, totalRecords);
+        info.innerText = `Showing ${start}-${end} of ${totalRecords} calls`;
+        
+        prevBtn.disabled = (currentPage === 1);
+        nextBtn.disabled = (end >= totalRecords);
+    }
+
+    function populateKPIs(kpis) {
+        document.getElementById("kpi-total").innerText = kpis.total_calls;
+        document.getElementById("kpi-answered").innerText = kpis.answered;
+        document.getElementById("kpi-abandoned").innerText = kpis.abandoned;
+        document.getElementById("kpi-cancelled").innerText = kpis.cancelled;
+        document.getElementById("kpi-no-answer").innerText = kpis.no_answer;
+        document.getElementById("kpi-ans-rate").innerText = kpis.ans_rate + '%';
+        document.getElementById("kpi-ab-rate").innerText = kpis.abandon_rate + '%';
+        document.getElementById("kpi-avg-talk").innerText = formatDuration(kpis.avg_talk);
+        document.getElementById("kpi-avg-wait").innerText = formatDuration(kpis.avg_wait);
+        document.getElementById("kpi-longest-talk").innerText = formatDuration(kpis.longest_talk);
+        document.getElementById("kpi-longest-wait").innerText = formatDuration(kpis.longest_wait);
+        document.getElementById("kpi-shortest-talk").innerText = formatDuration(kpis.shortest_talk);
+        document.getElementById("kpi-sla").innerText = kpis.sla_pct + '%';
+    }
+
+    function formatDuration(sec) {
+        if (!sec || isNaN(sec) || sec < 0) return "00:00";
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        if (h > 0) {
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function populateQueueTable(tbl) {
+        const body = document.getElementById("queues-table-body");
+        body.innerHTML = '';
+        if (!tbl || tbl.length === 0) {
+            body.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>`;
+            return;
+        }
+        tbl.forEach(row => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><a href="/call-center/queues/${row.queue_id}" style="color: var(--primary); font-weight: bold; text-decoration: none;"><i class="fa-solid fa-circle-arrow-right"></i> ${row.queue} - ${row.queue_name}</a></td>
+                <td><strong>${row.total}</strong></td>
+                <td><span style="color: var(--status-registered); font-weight: bold;">${row.answered}</span></td>
+                <td><span style="color: var(--status-offline); font-weight: bold;">${row.abandoned}</span></td>
+                <td><strong>${row.ans_pct}%</strong></td>
+                <td>${formatDuration(row.avg_wait)}</td>
+                <td>${formatDuration(row.longest_wait)}</td>
+                <td>${formatDuration(row.avg_talk)}</td>
+                <td>${formatDuration(row.longest_talk)}</td>
+                <td>${formatDuration(row.shortest_talk)}</td>
+                <td><span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--status-registered); border: 1px solid var(--status-registered);">${row.sla_pct}%</span></td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function populateAgentPerformance(tbl) {
+        const body = document.getElementById("agent-perf-table-body");
+        body.innerHTML = '';
+        if (!tbl || tbl.length === 0) {
+            body.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>`;
+            return;
+        }
+        tbl.forEach(row => {
+            const typeCode = row.type === 'STATIC' ? 'S' : 'D';
+            const badgeColor = row.type === 'STATIC' ? '#38bdf8' : '#c084fc';
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>
+                    <span class="badge" style="background: rgba(255,255,255,0.03); color: ${badgeColor}; border: 1px solid ${badgeColor}; font-family: monospace; font-size: 0.8rem; margin-right: 0.5rem; padding: 0.15rem 0.4rem;">${typeCode}</span>
+                    <strong style="color: #fff;">${row.extension || row.agent}</strong> - ${row.name || row.agent_name || row.agent}
+                </td>
+                <td><span style="color: var(--status-registered); font-weight: bold;">${row.calls || 0}</span></td>
+                <td><span style="color: var(--status-offline);">${row.missed_calls || 0}</span></td>
+                <td>${formatDuration(row.avg_talk || 0)}</td>
+                <td>${formatDuration(row.total_talk_time || 0)}</td>
+                <td>${formatDuration(row.login_duration || 0)}</td>
+                <td><span style="color: #f59e0b;">${formatDuration(row.pause_duration || 0)}</span></td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function populateAgentLogins(list) {
+        const body = document.getElementById("agent-logins-table-body");
+        body.innerHTML = '';
+        if (!list || list.length === 0) {
+            body.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No session records.</td></tr>`;
+            return;
+        }
+        list.forEach((row, idx) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.15rem 0.35rem; font-size: 0.75rem;" onclick="toggleLoginSessions(${idx}, this)">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </td>
+                <td><strong>${row.queue}</strong></td>
+                <td><code>${row.extension}</code></td>
+                <td>${row.agent_name}</td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.02); color: ${row.type === 'STATIC' ? '#38bdf8' : '#c084fc'}; border: 1px solid rgba(255,255,255,0.08);">${row.type}</span></td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${row.first_login}</td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${row.last_logout}</td>
+                <td><strong>${formatDuration(row.total_session_time)}</strong></td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function toggleLoginSessions(idx, btn) {
+        const tr = btn.closest('tr');
+        let nextTr = tr.nextElementSibling;
+        if (nextTr && nextTr.classList.contains('sessions-expand-row')) {
+            nextTr.style.display = nextTr.style.display === 'none' ? 'table-row' : 'none';
+            btn.innerHTML = nextTr.style.display === 'none' ? '<i class="fa-solid fa-plus"></i>' : '<i class="fa-solid fa-minus"></i>';
+            return;
+        }
+        
+        const data = globalLoginStats[idx];
+        if (!data || !data.sessions || data.sessions.length === 0) {
+            alert("No login history available.");
+            return;
+        }
+        
+        const newTr = document.createElement('tr');
+        newTr.className = 'sessions-expand-row';
+        let subRows = '';
+        data.sessions.forEach(s => {
+            subRows += `
+                <tr>
+                    <td style="font-family: monospace;">${s.login}</td>
+                    <td style="font-family: monospace;">${s.logout}</td>
+                    <td><strong>${formatDuration(s.duration)}</strong></td>
+                </tr>
+            `;
+        });
+        
+        newTr.innerHTML = `
+            <td></td>
+            <td colspan="7" style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: 8px;">
+                <div style="font-weight: bold; color: var(--primary); margin-bottom: 0.5rem; font-size: 0.8rem; text-transform: uppercase;">
+                    <i class="fa-solid fa-clock"></i> Agent Login Sessions Detailed Logs
+                </div>
+                <table class="table table-sm" style="margin-bottom: 0;">
+                    <thead>
+                        <tr>
+                            <th>LOGIN</th>
+                            <th>LOGOUT</th>
+                            <th>DURATION</th>
+                        </tr>
+                    </thead>
+                    <tbody>${subRows}</tbody>
+                </table>
+            </td>
+        `;
+        tr.parentNode.insertBefore(newTr, tr.nextSibling);
+        btn.innerHTML = '<i class="fa-solid fa-minus"></i>';
+    }
+
+    function populateAgentPauses(list) {
+        const body = document.getElementById("agent-pauses-table-body");
+        body.innerHTML = '';
+        if (!list || list.length === 0) {
+            body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No pause records.</td></tr>`;
+            return;
+        }
+        list.forEach((row, idx) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.15rem 0.35rem; font-size: 0.75rem;" onclick="togglePauseSessions(${idx}, this)">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </td>
+                <td><strong>${row.queue}</strong></td>
+                <td><code>${row.extension}</code></td>
+                <td>${row.agent_name}</td>
+                <td><span style="color: #f59e0b; font-weight: bold;">${formatDuration(row.total_pause_time)}</span></td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function togglePauseSessions(idx, btn) {
+        const tr = btn.closest('tr');
+        let nextTr = tr.nextElementSibling;
+        if (nextTr && nextTr.classList.contains('pauses-expand-row')) {
+            nextTr.style.display = nextTr.style.display === 'none' ? 'table-row' : 'none';
+            btn.innerHTML = nextTr.style.display === 'none' ? '<i class="fa-solid fa-plus"></i>' : '<i class="fa-solid fa-minus"></i>';
+            return;
+        }
+        
+        const data = globalPauseStats[idx];
+        if (!data || !data.pauses || data.pauses.length === 0) {
+            alert("No pause details available.");
+            return;
+        }
+        
+        const newTr = document.createElement('tr');
+        newTr.className = 'pauses-expand-row';
+        let subRows = '';
+        data.pauses.forEach(p => {
+            subRows += `
+                <tr>
+                    <td style="font-family: monospace;">${p.start}</td>
+                    <td style="font-family: monospace;">${p.end}</td>
+                    <td><strong>${formatDuration(p.duration)}</strong></td>
+                    <td><span class="badge" style="background: rgba(255,255,255,0.03); color:#fff; border: 1px solid rgba(255,255,255,0.1);">${p.reason || 'Pause'}</span></td>
+                </tr>
+            `;
+        });
+        
+        newTr.innerHTML = `
+            <td></td>
+            <td colspan="4" style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: 8px;">
+                <div style="font-weight: bold; color: #fbbf24; margin-bottom: 0.5rem; font-size: 0.8rem; text-transform: uppercase;">
+                    <i class="fa-solid fa-mug-hot"></i> Agent Pauses & Break Periods Detailed Logs
+                </div>
+                <table class="table table-sm" style="margin-bottom: 0;">
+                    <thead>
+                        <tr>
+                            <th>Pause Start</th>
+                            <th>Pause End</th>
+                            <th>Duration</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>${subRows}</tbody>
+                </table>
+            </td>
+        `;
+        tr.parentNode.insertBefore(newTr, tr.nextSibling);
+        btn.innerHTML = '<i class="fa-solid fa-minus"></i>';
+    }
+
+    function populateCallsTable(calls) {
+        const body = document.getElementById("calls-table-body");
+        body.innerHTML = '';
+        if (!calls || calls.length === 0) {
+            body.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">No calls found in selection.</td></tr>`;
+            return;
+        }
+        calls.forEach(c => {
+            const entryTime = c.timestamp ? new Date(c.timestamp * 1000).toLocaleString() : (c.entry_time || '-');
+            const statusUpper = (c.status || 'ENTERED').toUpperCase().replace('_', ' ');
+            
+            let statusBadge = '';
+            if (statusUpper === 'ANSWERED') {
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Answered</span>`;
+            } else if (statusUpper === 'ABANDONED') {
+                statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">Abandoned</span>`;
+            } else if (statusUpper === 'CANCELED' || statusUpper === 'CANCELLED') {
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">Canceled</span>`;
+            } else if (statusUpper === 'NO ANSWER') {
+                statusBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">No Answer</span>`;
+            } else {
+                statusBadge = `<span class="badge badge-gray">${c.status}</span>`;
+            }
+            
+            let recPlay = '-';
+            if (c.recording_file) {
+                recPlay = `<button class="btn btn-info btn-xs" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="playAudio('${c.recording_file}')"><i class="fa-solid fa-play"></i> Play</button>`;
+            }
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${c.caller}</strong></td>
+                <td><a href="/call-center/queues/${c.queue_id || c.queuename}" style="color: var(--primary); text-decoration: none; font-weight: bold;">${c.queue_name || c.queuename}</a></td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${entryTime}</td>
+                <td>${statusBadge}</td>
+                <td>${formatDuration(c.wait_time)}</td>
+                <td>${c.agent || '-'}</td>
+                <td>${statusUpper === 'ANSWERED' ? formatDuration(c.talk_time) : '-'}</td>
+                <td>${recPlay}</td>
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="toggleTimeline('${c.uniqueid}', this)">
+                        <i class="fa-solid fa-timeline"></i> Events
+                    </button>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function toggleTimeline(uid, btn) {
+        const tr = btn.closest('tr');
+        let nextTr = tr.nextElementSibling;
+        if (nextTr && nextTr.classList.contains('timeline-row')) {
+            nextTr.style.display = nextTr.style.display === 'none' ? 'table-row' : 'none';
+            return;
+        }
+        
+        const newTr = document.createElement('tr');
+        newTr.className = 'timeline-row';
+        newTr.innerHTML = `<td colspan="9" style="background: rgba(11, 15, 25, 0.6); padding: 1.5rem;"><div id="timeline-content-${uid}" class="timeline-stepper">Loading timeline...</div></td>`;
+        tr.parentNode.insertBefore(newTr, tr.nextSibling);
+        
+        fetch(`/call-center/call-details/${uid}`)
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById(`timeline-content-${uid}`);
+                if (!data.success || !data.call || !data.call.timeline || data.call.timeline.length === 0) {
+                    container.innerHTML = `<span style="color: var(--text-muted);">No event transition records for this call.</span>`;
+                    return;
+                }
+                
+                let html = `
+                    <div style="font-weight: bold; color: #fff; margin-bottom: 1.25rem; font-family: 'Orbitron', sans-serif; font-size: 0.85rem; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-history" style="color: var(--primary);"></i> CALL FLOW DETAILS TIMELINE [UID: ${uid}]
+                    </div>
+                    <div class="timeline-stepper" style="border-left: 2px solid rgba(255,255,255,0.06); padding-left: 1.5rem; margin-left: 1rem;">
+                `;
+                
+                data.call.timeline.forEach(evt => {
+                    let badgeColor = 'var(--primary)';
+                    let icon = 'fa-circle';
+                    const typeUpper = evt.event.toUpperCase();
+                    if (typeUpper.includes('ENTER') || typeUpper.includes('START')) { badgeColor = '#3b82f6'; icon = 'fa-right-to-bracket'; }
+                    else if (typeUpper.includes('RING')) { badgeColor = '#f59e0b'; icon = 'fa-phone-volume'; }
+                    else if (typeUpper.includes('ANSWER')) { badgeColor = '#10b981'; icon = 'fa-phone-flip'; }
+                    else if (typeUpper.includes('HOLD')) { badgeColor = '#c084fc'; icon = 'fa-pause'; }
+                    else if (typeUpper.includes('UNHOLD')) { badgeColor = '#818cf8'; icon = 'fa-play'; }
+                    else if (typeUpper.includes('HANGUP') || typeUpper.includes('COMPLETE') || typeUpper.includes('ABANDON')) { badgeColor = '#ef4444'; icon = 'fa-circle-xmark'; }
+                    
+                    html += `
+                        <div style="position: relative; margin-bottom: 1.25rem;">
+                            <div class="timeline-node" style="border: 2px solid ${badgeColor}; color: ${badgeColor}; left: -2.4rem;">
+                                <i class="fa-solid ${icon}"></i>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                <span style="font-weight: bold; color: #fff; font-size: 0.9rem;">${evt.event}</span>
+                                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">${evt.time}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">${evt.details || ''}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+                container.innerHTML = html;
+            })
+            .catch(err => {
+                console.error("Error loading call details timeline:", err);
+                document.getElementById(`timeline-content-${uid}`).innerText = "Error loading timeline.";
+            });
+    }
+
+    function playAudio(filename) {
+        if (!filename) return alert("Audio file not specified.");
+        const player = document.getElementById("global-audio-player");
+        player.src = `/recordings/play/${filename}`;
+        document.getElementById("audio-player-container").style.display = "flex";
+        player.play();
+    }
+
+    // Stop audio player
+    function stopAudio() {
+        const player = document.getElementById("global-audio-player");
+        player.pause();
+        player.src = "";
+        document.getElementById("audio-player-container").style.display = "none";
+    }
+
+    function populateHeatmap(heatmap) {
+        const header = document.getElementById("heatmap-header");
+        header.innerHTML = '<th>Day / Hour</th>';
+        for(let i=0; i<24; i++) {
+            const th = document.createElement("th");
+            th.innerText = String(i).padStart(2, '0');
+            th.style.padding = "0.25rem";
+            header.appendChild(th);
+        }
+
+        const grid = {};
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        days.forEach(d => { grid[d] = Array(24).fill(0); });
+
+        if (heatmap) {
+            heatmap.forEach(h => { if (grid[h.day]) grid[h.day][h.hour] = h.count; });
+        }
+
+        const body = document.getElementById("heatmap-body");
+        body.innerHTML = '';
+
+        days.forEach(day => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td style="font-weight: bold; text-align: left; color:#fff;">${day}</td>`;
+            for(let hr=0; hr<24; hr++) {
+                const count = grid[day][hr];
+                const td = document.createElement("td");
+                td.innerText = count;
+                td.style.padding = "0.4rem 0.25rem";
+                
+                let bg = 'rgba(255, 255, 255, 0.02)';
+                let color = 'var(--text-muted)';
+                if (count > 0 && count <= 5) { bg = 'rgba(0, 173, 181, 0.12)'; color = '#00adb5'; }
+                else if (count > 5 && count <= 15) { bg = 'rgba(0, 173, 181, 0.35)'; color = '#fff'; }
+                else if (count > 15 && count <= 30) { bg = 'rgba(0, 173, 181, 0.6)'; color = '#fff'; }
+                else if (count > 30) { bg = 'var(--primary)'; color = '#0b0f19'; fontStyle = 'bold'; }
+                
+                td.style.background = bg;
+                td.style.color = color;
+                td.style.fontSize = "0.85rem";
+                tr.appendChild(td);
+            }
+            body.appendChild(tr);
+        });
+    }
+
+    function populateCharts(data) {
+        if (volumeChart) volumeChart.destroy();
+        if (queueCallsChart) queueCallsChart.destroy();
+        if (timelineChart) timelineChart.destroy();
+        if (agentPerfChart) agentPerfChart.destroy();
+        if (abandonChart) abandonChart.destroy();
+        if (advancedPeakChart) advancedPeakChart.destroy();
+        
+        // 1. Answered vs Abandoned (Doughnut)
+        const answered = data.kpis.answered;
+        const abandoned = data.kpis.abandoned;
+        const cancelled = data.kpis.cancelled;
+        const total = data.kpis.total_calls;
+        const noAnswer = Math.max(0, total - answered - abandoned - cancelled);
+        
+        const ctxVol = document.getElementById('volumeChart').getContext('2d');
+        volumeChart = new Chart(ctxVol, {
+            type: 'doughnut',
+            data: {
+                labels: ['Answered', 'Abandoned', 'Canceled', 'No Answer'],
+                datasets: [{
+                    data: [answered, abandoned, cancelled, noAnswer],
+                    backgroundColor: ['#10b981', '#ef4444', '#f59e0b', '#64748b'],
+                    borderColor: '#151d30',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        // 2. Calls by Queue (Bar Chart)
+        const qLabels = data.queues_table.map(q => q.queue);
+        const qTotals = data.queues_table.map(q => q.total);
+        const ctxQ = document.getElementById('queueCallsChart').getContext('2d');
+        queueCallsChart = new Chart(ctxQ, {
+            type: 'bar',
+            data: {
+                labels: qLabels,
+                datasets: [{
+                    label: 'Total Calls',
+                    data: qTotals,
+                    backgroundColor: 'rgba(0, 173, 181, 0.4)',
+                    borderColor: '#00adb5',
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        // 3. Calls Timeline (Line Chart)
+        const hrLabels = data.peak_hours.map(p => p.hour);
+        const hrTotal = data.peak_hours.map(p => p.total);
+        const ctxPeak = document.getElementById('timelineChart').getContext('2d');
+        timelineChart = new Chart(ctxPeak, {
+            type: 'line',
+            data: {
+                labels: hrLabels,
+                datasets: [{
+                    label: 'Call Volume',
+                    data: hrTotal,
+                    backgroundColor: 'rgba(192, 132, 252, 0.15)',
+                    borderColor: '#c084fc',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        // 4. Agent Performance (Bar Chart)
+        const agLabels = data.agent_analytics.map(a => a.agent);
+        const agCalls = data.agent_analytics.map(a => a.calls || 0);
+        const ctxAg = document.getElementById('agentPerfChart').getContext('2d');
+        agentPerfChart = new Chart(ctxAg, {
+            type: 'bar',
+            data: {
+                labels: agLabels,
+                datasets: [{
+                    label: 'Calls Answered',
+                    data: agCalls,
+                    backgroundColor: 'rgba(245, 158, 11, 0.4)',
+                    borderColor: '#f59e0b',
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+
+        // 5. Abandon Analysis (Bar Chart)
+        if (data.abandon_analysis) {
+            const abLabels = data.abandon_analysis.map(a => a.bracket);
+            const abCounts = data.abandon_analysis.map(a => a.count);
+            const ctxAb = document.getElementById('abandonChart').getContext('2d');
+            abandonChart = new Chart(ctxAb, {
+                type: 'bar',
+                data: {
+                    labels: abLabels,
+                    datasets: [{
+                        label: 'Abandoned Calls',
+                        data: abCounts,
+                        backgroundColor: 'rgba(239, 68, 68, 0.4)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+
+        // 6. Advanced Peak Hours (Stacked Bar Chart)
+        if (data.peak_hours) {
+            const hrLabels = data.peak_hours.map(p => p.hour);
+            const hrAnswered = data.peak_hours.map(p => p.answered);
+            const hrAbandoned = data.peak_hours.map(p => p.abandoned);
+            
+            const ctxAdvPeak = document.getElementById('advancedPeakChart').getContext('2d');
+            advancedPeakChart = new Chart(ctxAdvPeak, {
+                type: 'bar',
+                data: {
+                    labels: hrLabels,
+                    datasets: [
+                        {
+                            label: 'Answered Calls',
+                            data: hrAnswered,
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: '#10b981',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Abandoned Calls',
+                            data: hrAbandoned,
+                            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                            borderColor: '#ef4444',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 }, stacked: true },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' }, stacked: true }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+    }
+
+    function exportReport(type) {
+        const date_from = document.getElementById("date_from").value;
+        const date_to = document.getElementById("date_to").value;
+        const time_from = document.getElementById("time_from").value;
+        const time_to = document.getElementById("time_to").value;
+        const queue = document.getElementById("queue_selector").value;
+        const agent = document.getElementById("agent_selector").value;
+        const caller = document.getElementById("caller_selector").value;
+        
+        let url = `/call-center/stats/export?type=${type}&queue=${queue}&agent=${agent}&caller=${caller}`;
+        if (date_from) url += `&date_from=${date_from}`;
+        if (date_to) url += `&date_to=${date_to}`;
+        if (time_from) url += `&time_from=${time_from}`;
+        if (time_to) url += `&time_to=${time_to}`;
+        
+        window.location.href = url;
+    }
+
+    // Initialize EventSource for Real-time counters
+    function initRealtimeCounters() {
+        const source = new EventSource('/call-center/stats/realtime-stream');
+        
+        source.onmessage = function(event) {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.event === 'COUNTERS') {
+                    document.getElementById('realtime-waiting').innerText = msg.data.waiting_calls;
+                    document.getElementById('realtime-talking').innerText = msg.data.talking_calls;
+                    document.getElementById('realtime-available').innerText = msg.data.available_agents;
+                    document.getElementById('realtime-busy').innerText = msg.data.busy_agents;
+                    document.getElementById('realtime-paused').innerText = msg.data.paused_agents;
+                }
+            } catch(e) {
+                console.error("Error reading realtime event stream:", e);
+            }
+        };
+        
+        source.onerror = function() {
+            console.warn("Realtime stream disconnected. Retrying...");
+        };
+    }
+
+    // Load initial stats
+    document.addEventListener('DOMContentLoaded', () => {
+        const now = new Date();
+        const start = new Date();
+        start.setDate(now.getDate() - 7);
+        
+        document.getElementById("date_from").value = start.toISOString().substring(0,10);
+        document.getElementById("date_to").value = now.toISOString().substring(0,10);
+        
+        loadStats();
+        initRealtimeCounters();
+    });
+</script>
+{% endblock %}

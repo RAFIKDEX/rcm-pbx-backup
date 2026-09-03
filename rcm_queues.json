@@ -1,0 +1,31 @@
+{
+    "queues": [
+        {
+            "queue_number": "6500",
+            "name": "support q",
+            "strategy": "roundrobin",
+            "music_on_hold": "default",
+            "ring_time": 15,
+            "retry_time": 2,
+            "wrapup_time": 5,
+            "max_queue_length": 10,
+            "max_wait_time": 10,
+            "dial_in_empty_queue": "strict",
+            "leave_when_empty": "strict",
+            "enable_welcome_prompt": "off",
+            "custom_prompt": "",
+            "destination_type": "hangup",
+            "destination_value": "hangup",
+            "static_agents": [
+                "5000",
+                "5001",
+                "5002"
+            ],
+            "report_hold_time": "off",
+            "replace_display_name": "on",
+            "display_name_value": "suooport",
+            "skip_busy_agent": "on",
+            "auto_fill": "off"
+        }
+    ]
+}

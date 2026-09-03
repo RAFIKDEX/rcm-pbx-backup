@@ -1,0 +1,559 @@
+{% extends 'base.html' %}
+
+{% block title %}Call Queues - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Call Queues</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage incoming call queues, queue strategies, wrapup times and MOH classes</div>
+    </div>
+    <div class="action-buttons" style="gap: 0.75rem;">
+        {% if can_view('queues') %}
+        <a href="{{ url_for('queue_export') }}" class="btn btn-secondary" style="text-decoration: none;" title="Export queues to Excel">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('queue_import') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+        {% endif %}
+        {% if can_create('queues') %}
+        <a href="{{ url_for('queue_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Create Queue
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .queue-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: nowrap;
+    }
+    .queue-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-width: 92px;
+        height: 34px;
+        justify-content: center;
+        padding: 0.35rem 0.65rem;
+        white-space: nowrap;
+    }
+    .queue-action-btn i {
+        width: 14px;
+        text-align: center;
+    }
+    .queue-agent-btn {
+        background: rgba(0, 173, 181, 0.1);
+        color: var(--primary);
+        border-color: rgba(0, 173, 181, 0.2);
+    }
+    .queue-delete-form {
+        display: inline-flex;
+        margin: 0;
+    }
+    @media (max-width: 900px) {
+        .queue-actions {
+            flex-wrap: wrap;
+        }
+        .queue-action-btn {
+            min-width: 82px;
+        }
+    }
+</style>
+
+<!-- Search & Limit Panel -->
+<div class="panel" style="padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 250px;">
+        <div style="color: var(--primary); font-size: 1.2rem;"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div style="flex: 1;">
+            <input type="text" id="queue-search" class="form-control" 
+                   placeholder="Search queues by number or name..." 
+                   onkeyup="loadQueuesTable(1)" style="border: none; background: transparent; padding-left: 0;">
+        </div>
+        <div id="search-count" style="font-size: 0.85rem; color: var(--text-dark); font-weight: bold;"></div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <label for="per_page" style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold;">Rows per page:</label>
+        <select id="per_page" onchange="loadQueuesTable(1)" class="form-control-inline" style="width: 80px; padding: 0.25rem 0.5rem; border-radius: 4px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+            <option value="10" selected>10</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+            <option value="70">70</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-lines-leaning" style="color: var(--primary);"></i> Call Queues</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table" style="border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>Queue Number</th>
+                    <th>Queue Name</th>
+                    <th>Strategy</th>
+                    <th>MOH Class</th>
+                    <th>Ring Time (sec)</th>
+                    <th>Wrapup Time</th>
+                    <th>Failover Route</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                        Loading queues...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="pagination-footer" class="form-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; display: flex; border-top: 1px solid var(--border-color)"></div>
+</div>
+
+<script>
+    const ALL_EXTENSIONS = {{ all_extensions|tojson|safe if all_extensions else '[]' }};
+    const CAN_VIEW_QUEUES = {{ 'true' if can_view('queues') else 'false' }};
+    const CAN_EDIT_QUEUES = {{ 'true' if can_edit('queues') else 'false' }};
+    const CAN_DELETE_QUEUES = {{ 'true' if can_delete('queues') else 'false' }};
+    const CAN_MANAGE_QUEUE_AGENTS = {{ 'true' if has_permission('queues', 'manage_agents') else 'false' }};
+    let current_page = 1;
+    
+    function escapeHtml(value) {
+        if (!value) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+    
+    function toggleDrawer(qNum) {
+        const drawer = document.getElementById('drawer-' + qNum);
+        if (drawer.style.display === 'none') {
+            drawer.style.display = 'table-row';
+        } else {
+            drawer.style.display = 'none';
+        }
+    }
+
+    function loadQueuesTable(page = 1) {
+        current_page = page;
+        const limit = document.getElementById("per_page").value;
+        const q = document.getElementById("queue-search").value.trim();
+        
+        const tbody = document.querySelector(".table tbody");
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                    Loading queues...
+                </td>
+            </tr>
+        `;
+        
+        fetch(`/api/queues-list?page=${page}&limit=${limit}&q=${encodeURIComponent(q)}`)
+            .then(res => res.json())
+            .then(data => {
+                tbody.innerHTML = "";
+                if (data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                                <i class="fa-solid fa-users-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                                No queues found.
+                            </td>
+                        </tr>
+                    `;
+                    updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadQueuesTable');
+                    return;
+                }
+                
+                data.data.forEach(qData => {
+                    const tr = document.createElement("tr");
+                    tr.style.borderBottom = "1px solid var(--border-color)";
+                    
+                    const qNum = qData.queue_number;
+                    const liveQueue = qData.live_status || {};
+                    
+                    let liveMembers = [];
+                    let staticAgents = [];
+                    let roster = [];
+                    let isFallback = false;
+                    
+                    if (qData.live_status_error || !qData.live_status) {
+                        isFallback = true;
+                        staticAgents = qData.static_agents || [];
+                        liveMembers = [];
+                    } else {
+                        roster = liveQueue.roster || liveQueue.members || [];
+                        liveMembers = liveQueue.members || [];
+                        staticAgents = roster.filter(m => m.type === 'STATIC').map(m => m.extension);
+                    }
+                    const disabledAgents = qData.disabled_agents || [];
+                    
+                    let destHtml = "";
+                    if (qData.destination_type !== 'hangup' && qData.destination_value) {
+                        destHtml = `<span style="text-transform: capitalize; color: var(--text-muted);">${qData.destination_type} </span><code>${qData.destination_value}</code>`;
+                    } else {
+                        destHtml = `<span style="color: var(--status-offline);"><i class="fa-solid fa-ban"></i> Hangup</span>`;
+                    }
+                    
+                    tr.innerHTML = `
+                        <td><a href="/call-center/queues/${qNum}" style="color: var(--primary); text-decoration: none; font-weight: bold; font-size: 1.05rem;"><i class="fa-solid fa-circle-info"></i> ${qNum}</a></td>
+                        <td><a href="/call-center/queues/${qNum}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">${qData.name || '-'}</a></td>
+                        <td><span class="badge badge-gray" style="background-color: rgba(244, 63, 94, 0.1); color: #fb7185; border-color: rgba(244, 63, 94, 0.2); text-transform: uppercase;">${qData.strategy}</span></td>
+                        <td><code>${qData.music_on_hold || 'default'}</code></td>
+                        <td><code>${qData.ring_time || 0}</code>s</td>
+                        <td><code>${qData.wrapup_time || 0}</code>s</td>
+                        <td>${destHtml}</td>
+                        <td style="text-align: right;">
+                            <div class="queue-actions">
+                                ${CAN_VIEW_QUEUES ? `
+                                <button class="btn btn-secondary btn-sm queue-action-btn" onclick="showNotification('Queue ${qNum} details: ${escapeHtml(qData.name || '-')} (${qData.strategy})', 'info')" title="View details">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </button>` : ''}
+                                <button class="btn btn-secondary btn-sm queue-action-btn queue-agent-btn" onclick="toggleDrawer('${qNum}')">
+                                    <i class="fa-solid fa-users"></i> Agents
+                                </button>
+                                ${CAN_EDIT_QUEUES ? `
+                                <a href="/queues/edit/${qNum}" class="btn btn-secondary btn-sm queue-action-btn">
+                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                </a>` : ''}
+                                ${CAN_DELETE_QUEUES ? `
+                                <form action="/queues/delete/${qNum}" method="POST" class="queue-delete-form" onsubmit="return confirm('Are you sure you want to delete Call Queue ${qNum}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-danger btn-sm queue-action-btn">
+                                        <i class="fa-solid fa-trash"></i> Delete
+                                    </button>
+                                </form>` : ''}
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                    
+                    const drawerTr = document.createElement("tr");
+                    drawerTr.id = `drawer-${qNum}`;
+                    drawerTr.className = "agent-drawer-row";
+                    drawerTr.style.display = "none";
+                    drawerTr.style.background = "#0f1524";
+                    
+                    let staticListItemsHtml = "";
+                    if (staticAgents.length === 0) {
+                        staticListItemsHtml = `<div style="text-align: center; color: var(--text-dark); padding: 1rem; font-size: 0.85rem;">No Static agents configured.</div>`;
+                    } else {
+                        staticAgents.forEach(agent => {
+                            const isDisabled = disabledAgents.includes(agent);
+                            let liveMem = liveMembers.find(m => 
+                                m && ((m.location && typeof m.location === 'string' && m.location.endsWith('/' + agent)) || 
+                                (m.name && typeof m.name === 'string' && m.name.endsWith('/' + agent)))
+                            );
+                            let dotColor = 'var(--text-dark)';
+                            let dotTitle = 'Offline';
+                            if (isDisabled || (liveMem && liveMem.paused === 1)) {
+                                dotColor = 'var(--status-busy)';
+                                dotTitle = 'Paused';
+                            } else if (liveMem) {
+                                if (liveMem.state === 1) {
+                                    dotColor = 'var(--status-registered)';
+                                    dotTitle = 'Available';
+                                } else if ([2, 3, 6, 7, 8].includes(liveMem.state)) {
+                                    dotColor = 'var(--status-offline)';
+                                    dotTitle = 'Busy';
+                                } else if (liveMem.state === 5) {
+                                    dotColor = 'var(--status-offline)';
+                                    dotTitle = 'Unavailable';
+                                }
+                            }
+                            
+                            const isPaused = isDisabled || (liveMem && liveMem.paused === 1);
+                            const opacityStyle = isPaused ? 'opacity: 0.85; border-style: dashed;' : '';
+                            const statusBadge = isPaused ? 
+                                `<span class="badge badge-gray" style="font-size: 0.75rem; padding: 0.1rem 0.3rem; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25);">Paused</span>` :
+                                `<span class="badge badge-green" style="font-size: 0.75rem; padding: 0.1rem 0.3rem; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);">Active</span>`;
+                                
+                            const statusAction = (!CAN_MANAGE_QUEUE_AGENTS) ? '' : (isPaused ? 
+                                `<button onclick="toggleAgentStatus('${qNum}', '${agent}', 'enable')" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2);"><i class="fa-solid fa-play"></i> Unpause</button>` :
+                                `<button onclick="toggleAgentStatus('${qNum}', '${agent}', 'disable')" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-pause"></i> Pause</button>`);
+                            const removeAction = (!CAN_MANAGE_QUEUE_AGENTS) ? '' :
+                                `<button onclick="removeAgent('${qNum}', '${agent}')" class="btn btn-danger btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Remove Agent"><i class="fa-solid fa-trash"></i></button>`;
+                                
+                            staticListItemsHtml += `
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 8px; ${opacityStyle}">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span style="color: ${dotColor}; font-size: 1.1rem; line-height: 1;" title="${dotTitle}">●</span>
+                                        <span style="font-weight: 700; color: var(--primary); font-size: 0.85rem; background: rgba(0, 173, 181, 0.1); padding: 0.1rem 0.35rem; border-radius: 4px;">S</span>
+                                        <strong style="color: var(--text-main); font-size: 0.95rem;">${agent}</strong>
+                                        ${statusBadge}
+                                    </div>
+                                    <div style="display: flex; gap: 0.4rem;">
+                                        ${statusAction}
+                                        ${removeAction}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    let addOptions = `<option value="">-- Add extension --</option>`;
+                    ALL_EXTENSIONS.forEach(ext => {
+                        if (!staticAgents.includes(ext.ext)) {
+                            addOptions += `<option value="${ext.ext}">${ext.ext} - ${ext.name}</option>`;
+                        }
+                    });
+                    
+                    let joinOptions = `<option value="">-- Choose extension --</option>`;
+                    ALL_EXTENSIONS.forEach(ext => {
+                        joinOptions += `<option value="${ext.ext}">${ext.ext} - ${ext.name}</option>`;
+                    });
+                    
+                    let dynamicListItemsHtml = "";
+                    let activeDynamicCount = 0;
+                    const rosterAgents = liveQueue.roster || [];
+                    const drawerDynamicAgents = rosterAgents.filter(m => m.type === 'DYNAMIC');
+                    
+                    drawerDynamicAgents.forEach(m => {
+                        const extNum = m.extension;
+                        activeDynamicCount++;
+                        let dotColor = 'var(--text-dark)';
+                        let dotTitle = 'Offline';
+                        
+                        let liveMem = liveMembers.find(lm => 
+                            lm && ((lm.location && typeof lm.location === 'string' && lm.location.endsWith('/' + extNum)) || 
+                            (lm.name && typeof lm.name === 'string' && lm.name.endsWith('/' + extNum)))
+                        );
+                        
+                        if (liveMem) {
+                            if (liveMem.paused === 1) {
+                                dotColor = 'var(--status-busy)';
+                                dotTitle = 'Paused';
+                            } else if (liveMem.state === 1) {
+                                dotColor = 'var(--status-registered)';
+                                dotTitle = 'Available';
+                            } else if ([2, 3, 6, 7, 8].includes(liveMem.state)) {
+                                dotColor = 'var(--status-offline)';
+                                dotTitle = 'Busy';
+                            } else if (liveMem.state === 5) {
+                                dotColor = 'var(--status-offline)';
+                                dotTitle = 'Unavailable';
+                            }
+                        }
+                        
+                        const isOffline = !liveMem;
+                        const isPaused = liveMem && liveMem.paused === 1;
+                        let pauseAction = '';
+                        if (!isOffline && CAN_MANAGE_QUEUE_AGENTS) {
+                            pauseAction = isPaused ?
+                                `<button onclick="toggleAgentStatus('${qNum}', '${extNum}', 'enable')" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2);"><i class="fa-solid fa-play"></i> Unpause</button>` :
+                                `<button onclick="toggleAgentStatus('${qNum}', '${extNum}', 'disable')" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-pause"></i> Pause</button>`;
+                        }
+                        const joinAction = (!CAN_MANAGE_QUEUE_AGENTS) ? '' : (isOffline ? 
+                            `<button onclick="dynamicAgentAction('${qNum}', '${extNum}', 'join')" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2);"><i class="fa-solid fa-right-to-bracket"></i> Login</button>` :
+                            `<button onclick="dynamicAgentAction('${qNum}', '${extNum}', 'leave')" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>`);
+                            
+                        dynamicListItemsHtml += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(244, 63, 94, 0.02); border: 1px solid rgba(244, 63, 94, 0.15); border-radius: 8px;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="color: ${dotColor}; font-size: 1.1rem; line-height: 1;" title="${dotTitle}">●</span>
+                                    <span style="font-weight: 700; color: #fb7185; font-size: 0.85rem; background: rgba(244, 63, 94, 0.1); padding: 0.1rem 0.35rem; border-radius: 4px;">D</span>
+                                    <strong style="color: var(--text-main); font-size: 0.95rem;">${extNum}</strong>
+                                    <span class="badge badge-blue" style="font-size: 0.75rem; padding: 0.1rem 0.3rem;">Dynamic</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.4rem;">Calls: <code>${m.calls_taken || 0}</code></span>
+                                    ${pauseAction}
+                                    ${joinAction}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    if (activeDynamicCount === 0) {
+                        dynamicListItemsHtml = `<div style="text-align: center; color: var(--text-dark); padding: 1.5rem; font-size: 0.85rem;">No Dynamic agents configured.</div>`;
+                    }
+                    
+                    let warningBanner = "";
+                    if (isFallback) {
+                        warningBanner = `
+                            <div style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.25); color: #fb7185; padding: 0.6rem 0.9rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; font-weight: 500;">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>Live data unavailable — showing last known config</span>
+                            </div>
+                        `;
+                    }
+                    
+                    drawerTr.innerHTML = `
+                        <td colspan="8" style="padding: 1.5rem; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+                            ${warningBanner}
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                                <div style="background: var(--border-color); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: 12px;">
+                                    <h3 style="font-size: 1rem; color: var(--text-main); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                                        <span><i class="fa-solid fa-users" style="color: var(--primary);"></i> Queue Members (Static)</span>
+                                        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">Database configuration</span>
+                                    </h3>
+                                    ${CAN_MANAGE_QUEUE_AGENTS ? `
+                                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+                                        <select id="select-add-${qNum}" class="form-control" style="flex: 1; background: var(--panel-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.4rem; border-radius: 6px; outline: none;">
+                                            ${addOptions}
+                                        </select>
+                                        <button onclick="addAgent('${qNum}')" class="btn btn-info btn-sm" style="padding: 0.4rem 1rem;">
+                                            <i class="fa-solid fa-plus"></i> Add Agent
+                                        </button>
+                                    </div>` : ''}
+                                    <div id="static-list-${qNum}" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 250px; overflow-y: auto; padding-right: 0.25rem;">
+                                        ${staticListItemsHtml}
+                                    </div>
+                                </div>
+                                <div style="background: var(--border-color); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: 12px;">
+                                    <h3 style="font-size: 1rem; color: var(--text-main); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                                        <span><i class="fa-solid fa-right-to-bracket" style="color: var(--primary);"></i> Dynamic / Active Agents</span>
+                                        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">Live queue status</span>
+                                    </h3>
+                                    ${CAN_MANAGE_QUEUE_AGENTS ? `
+                                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+                                        <select id="select-join-${qNum}" class="form-control" style="flex: 1; background: var(--panel-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.4rem; border-radius: 6px; outline: none;">
+                                            ${joinOptions}
+                                        </select>
+                                        <button onclick="dynamicAgentAction('${qNum}', null, 'join')" class="btn btn-info btn-sm" style="padding: 0.4rem 1rem; background-color: #fb7185; border-color: #fb7185;">
+                                            <i class="fa-solid fa-right-to-bracket"></i> Login Agent
+                                        </button>
+                                    </div>` : ''}
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 250px; overflow-y: auto; padding-right: 0.25rem;">
+                                        ${dynamicListItemsHtml}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(drawerTr);
+                });
+                
+                updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadQueuesTable');
+                if (q) {
+                    document.getElementById("search-count").innerText = `Found: ${data.total_rows} total`;
+                } else {
+                    document.getElementById("search-count").innerText = "";
+                }
+            })
+            .catch(err => console.error("Error loading queues:", err));
+    }
+
+    function addAgent(qNum) {
+        const select = document.getElementById('select-add-' + qNum);
+        const agent = select.value;
+        if (!agent) {
+            alert('Please select an agent extension to add.');
+            return;
+        }
+        fetch(`/queues/${qNum}/agents/add`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'agent=' + encodeURIComponent(agent)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                loadQueuesTable(current_page);
+            } else {
+                alert(data.msg || 'Error adding agent');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error adding agent');
+        });
+    }
+
+    function removeAgent(qNum, agent) {
+        if (!confirm(`Are you sure you want to remove agent ${agent} from queue ${qNum}?`)) {
+            return;
+        }
+        fetch(`/queues/${qNum}/agents/remove`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'agent=' + encodeURIComponent(agent)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                loadQueuesTable(current_page);
+            } else {
+                alert(data.msg || 'Error removing agent');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error removing agent');
+        });
+    }
+
+    function toggleAgentStatus(qNum, agent, action) {
+        fetch(`/queues/${qNum}/agents/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'agent=' + encodeURIComponent(agent)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                loadQueuesTable(current_page);
+            } else {
+                alert(data.msg || 'Error updating agent status');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error updating agent status');
+        });
+    }
+
+    function dynamicAgentAction(qNum, agent, action) {
+        if (!agent) {
+            const select = document.getElementById('select-join-' + qNum);
+            agent = select.value;
+        }
+        if (!agent) {
+            alert('Please select an agent extension.');
+            return;
+        }
+        fetch(`/queues/${qNum}/agents/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'agent=' + encodeURIComponent(agent)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                loadQueuesTable(current_page);
+            } else {
+                alert(data.msg || 'Error processing dynamic agent action');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error processing dynamic agent action');
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        loadQueuesTable(1);
+    });
+</script>
+{% endblock %}

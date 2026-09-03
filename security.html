@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block title %}Firewall Settings - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Firewall Settings</h1>
+        <p>Manage advanced firewall rules for the system.</p>
+    </div>
+    <form action="{{ url_for('security_apply') }}" method="POST" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary" onclick="return confirm('Are you sure you want to apply these firewall rules? This could disrupt connectivity if misconfigured.');">
+            <i class="fa-solid fa-check"></i> Apply Firewall
+        </button>
+    </form>
+</div>
+
+<section class="card">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap: 10px;">
+            <h2>Firewall Rules</h2>
+            <button class="btn btn-success btn-sm" onclick="document.getElementById('addRuleModal').style.display='block'">Add</button>
+        </div>
+        <form method="GET" action="{{ url_for('security') }}" class="search-form">
+            <input type="text" name="search" class="form-control" placeholder="Search rules..." value="{{ search }}">
+            <button type="submit" class="btn btn-secondary">Search</button>
+        </form>
+    </div>
+    
+    <div class="card-body p-0">
+        <form action="{{ url_for('security_bulk_delete') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAll"></th>
+                        <th>Rule Name</th>
+                        <th>Action</th>
+                        <th>Type</th>
+                        <th>Interface</th>
+                        <th>Source IP Address</th>
+                        <th>Source Port</th>
+                        <th>Source Subnet Mask</th>
+                        <th>Destination IP Address</th>
+                        <th>Destination Port</th>
+                        <th>Destination Subnet Mask</th>
+                        <th>Protocol</th>
+                        <th>Status</th>
+                        <th>Options</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rule in rules %}
+                    <tr>
+                        <td><input type="checkbox" name="rule_ids" value="{{ rule.id }}" class="row-checkbox"></td>
+                        <td>{{ rule.rule_name }}</td>
+                        <td>
+                            <span class="badge {% if rule.action == 'accept' %}badge-success{% else %}badge-danger{% endif %}">{{ rule.action | title }}</span>
+                        </td>
+                        <td>{{ rule.direction_type | title }}</td>
+                        <td>{{ rule.interface_name }}</td>
+                        <td>{{ rule.source_ip or 'Any' }}</td>
+                        <td>{{ rule.source_port or 'Any' }}</td>
+                        <td>{{ rule.source_subnet_mask or 'Any' }}</td>
+                        <td>{{ rule.destination_ip or 'Any' }}</td>
+                        <td>{{ rule.destination_port or 'Any' }}</td>
+                        <td>{{ rule.destination_subnet_mask or 'Any' }}</td>
+                        <td>{{ rule.protocol | upper }}</td>
+                        <td>
+                            {% if rule.apply_status == 'applied' %}
+                            <span class="badge badge-success">Applied</span>
+                            {% elif rule.apply_status == 'pending' %}
+                            <span class="badge badge-warning">Pending</span>
+                            {% elif rule.apply_status == 'error' %}
+                            <span class="badge badge-danger">Error</span>
+                            {% else %}
+                            <span class="badge badge-secondary">{{ rule.apply_status | title }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="editRule({{ rule.id }}, '{{ rule.rule_name }}', '{{ rule.action }}', '{{ rule.direction_type }}', '{{ rule.interface_name }}', '{{ rule.source_ip }}', '{{ rule.source_subnet_mask }}', '{{ rule.source_port }}', '{{ rule.destination_ip }}', '{{ rule.destination_subnet_mask }}', '{{ rule.destination_port }}', '{{ rule.protocol }}')">Edit</button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="if(confirm('Delete rule?')) { document.getElementById('deleteForm_{{ rule.id }}').submit(); }">Delete</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="14" class="text-center">There are no records to display</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% if rules %}
+            <div class="bulk-actions p-3">
+                <button type="submit" class="btn btn-danger" onclick="var c=document.querySelectorAll('.row-checkbox:checked').length; if(c==0){alert('Select rules first.');return false;} return confirm('Are you sure you want to delete ' + c + ' selected rules?');">Delete Selected</button>
+            </div>
+            {% endif %}
+        </form>
+        
+        {% for rule in rules %}
+        <form id="deleteForm_{{ rule.id }}" action="{{ url_for('security_delete', rule_id=rule.id) }}" method="POST" style="display:none;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
+        {% endfor %}
+        
+        {% if total_pages > 1 %}
+        <div class="pagination p-3">
+            {% if page > 1 %}
+            <a href="{{ url_for('security', page=page-1, search=search) }}" class="btn btn-secondary btn-sm">Previous</a>
+            {% endif %}
+            
+            <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+            
+            {% if page < total_pages %}
+            <a href="{{ url_for('security', page=page+1, search=search) }}" class="btn btn-secondary btn-sm">Next</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Add / Edit Modal -->
+<div id="addRuleModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);">
+    <div class="modal-content card" style="margin: 5% auto; width: 60%; padding: 20px;">
+        <h2 id="modalTitle">New Firewall Rule</h2>
+        <form id="ruleForm" action="{{ url_for('security_add') }}" method="POST" class="form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-group">
+                <label>Rule Name *</label>
+                <input type="text" id="rule_name" name="rule_name" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Action *</label>
+                <select id="action" name="action" class="form-control" required>
+                    <option value="accept">Accept</option>
+                    <option value="drop">Drop</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Type *</label>
+                <select id="direction_type" name="direction_type" class="form-control" required>
+                    <option value="in">In</option>
+                    <option value="out">Out</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Interface *</label>
+                <select id="interface_name" name="interface_name" class="form-control" required>
+                    <option value="">Select Interface</option>
+                    {% for iface in interfaces %}
+                    <option value="{{ iface }}">{{ iface }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Source IP Address</label>
+                <input type="text" id="source_ip" name="source_ip" class="form-control" placeholder="Any">
+            </div>
+            <div class="form-group">
+                <label>Source Subnet Mask</label>
+                <input type="text" id="source_subnet_mask" name="source_subnet_mask" class="form-control" placeholder="Any">
+            </div>
+            <div class="form-group">
+                <label>Source Port</label>
+                <input type="text" id="source_port" name="source_port" class="form-control" placeholder="Any">
+            </div>
+            
+            <div class="form-group">
+                <label>Destination IP Address</label>
+                <input type="text" id="destination_ip" name="destination_ip" class="form-control" placeholder="Any">
+            </div>
+            <div class="form-group">
+                <label>Destination Subnet Mask</label>
+                <input type="text" id="destination_subnet_mask" name="destination_subnet_mask" class="form-control" placeholder="Any">
+            </div>
+            <div class="form-group">
+                <label>Destination Port</label>
+                <input type="text" id="destination_port" name="destination_port" class="form-control" placeholder="Any">
+            </div>
+            
+            <div class="form-group">
+                <label>Protocol *</label>
+                <select id="protocol" name="protocol" class="form-control" required>
+                    <option value="tcp">TCP</option>
+                    <option value="udp">UDP</option>
+                    <option value="both">Both</option>
+                </select>
+            </div>
+            
+            <div class="form-actions" style="grid-column: 1 / -1; display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-primary" id="saveBtn">Add</button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('addRuleModal').style.display='none'">Close</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.getElementById('selectAll').addEventListener('change', function() {
+        var checkboxes = document.querySelectorAll('.row-checkbox');
+        for (var checkbox of checkboxes) {
+            checkbox.checked = this.checked;
+        }
+    });
+    
+    function editRule(id, name, action, direction, interface, sip, smask, sport, dip, dmask, dport, proto) {
+        document.getElementById('modalTitle').innerText = 'Edit Firewall Rule';
+        document.getElementById('ruleForm').action = '/security/edit/' + id;
+        document.getElementById('saveBtn').innerText = 'Save';
+        
+        document.getElementById('rule_name').value = name;
+        document.getElementById('action').value = action;
+        document.getElementById('direction_type').value = direction;
+        document.getElementById('interface_name').value = interface;
+        
+        document.getElementById('source_ip').value = sip !== 'None' ? sip : '';
+        document.getElementById('source_subnet_mask').value = smask !== 'None' ? smask : '';
+        document.getElementById('source_port').value = sport !== 'None' ? sport : '';
+        
+        document.getElementById('destination_ip').value = dip !== 'None' ? dip : '';
+        document.getElementById('destination_subnet_mask').value = dmask !== 'None' ? dmask : '';
+        document.getElementById('destination_port').value = dport !== 'None' ? dport : '';
+        
+        document.getElementById('protocol').value = proto;
+        
+        document.getElementById('addRuleModal').style.display = 'block';
+    }
+</script>
+{% endblock %}

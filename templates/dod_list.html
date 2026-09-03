@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ parent_title }} DODs - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{{ parent_title }} DOD Management</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure caller ID numbers and extension assignments for this {{ parent_type }} only</div>
+    </div>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <a href="{{ parent_list_url }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+        {% set mod_name = 'trunks' if parent_type == 'trunk' else 'outbound_routes' %}
+        {% if can_create(mod_name) %}
+        <a href="{{ create_url }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Create DOD
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-id-card" style="color: var(--primary);"></i> DOD Records</h2>
+    </div>
+    <div class="table-responsive">
+        {% set mod_name = 'trunks' if parent_type == 'trunk' else 'outbound_routes' %}
+        {% set show_options = can_view(mod_name) or can_edit(mod_name) or can_delete(mod_name) %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>DOD Number</th>
+                    <th>DOD Name</th>
+                    <th>Extensions</th>
+                    {% if show_options %}
+                    <th>Options</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if not dods %}
+                <tr>
+                    <td colspan="{{ 4 if show_options else 3 }}" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+                        No DOD records found.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for dod in dods %}
+                <tr>
+                    <td><strong style="color: var(--text-main);">{{ dod.dod_number }}</strong></td>
+                    <td>{{ dod.dod_name or '-' }}</td>
+                    <td>{{ dod.extensions_display or '-' }}</td>
+                    {% if show_options %}
+                    <td>
+                        <div class="action-buttons">
+                            {% if can_view(mod_name) %}
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showNotification('DOD details: {{ dod.dod_number }} | Name: {{ dod.dod_name or "-" }} | Exts: {{ dod.extensions_display or "-" }}', 'info')" title="View details">
+                                <i class="fa-solid fa-eye"></i> View
+                            </button>
+                            {% endif %}
+                            {% if can_edit(mod_name) %}
+                            <a href="{% if parent_type == 'trunk' %}{{ url_for('trunk_dod_edit', name=parent_name, dod_id=dod.id) }}{% else %}{{ url_for('outbound_route_dod_edit', name=parent_name, dod_id=dod.id) }}{% endif %}" class="btn btn-secondary btn-sm" style="text-decoration: none;">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            {% endif %}
+                            {% if can_delete(mod_name) %}
+                            <form action="{% if parent_type == 'trunk' %}{{ url_for('trunk_dod_delete', name=parent_name, dod_id=dod.id) }}{% else %}{{ url_for('outbound_route_dod_delete', name=parent_name, dod_id=dod.id) }}{% endif %}" method="POST" style="display:inline;" onsubmit="return confirm('Delete DOD {{ dod.dod_number }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

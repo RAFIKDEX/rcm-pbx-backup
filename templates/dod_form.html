@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if dod %}Edit{% else %}Create{% endif %} DOD - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if dod %}Edit{% else %}Create{% endif %} DOD</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">{{ parent_title }}</div>
+    </div>
+    <div>
+        <a href="{% if parent_type == 'trunk' %}{{ url_for('trunk_dods_list', name=parent_name) }}{% else %}{{ url_for('outbound_route_dods_list', name=parent_name) }}{% endif %}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if dod %}{% if parent_type == 'trunk' %}{{ url_for('trunk_dod_edit', name=parent_name, dod_id=dod.id) }}{% else %}{{ url_for('outbound_route_dod_edit', name=parent_name, dod_id=dod.id) }}{% endif %}{% else %}{% if parent_type == 'trunk' %}{{ url_for('trunk_dod_add', name=parent_name) }}{% else %}{{ url_for('outbound_route_dod_add', name=parent_name) }}{% endif %}{% endif %}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="dod_number">DOD Number <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="dod_number" name="dod_number" class="form-control" required
+                       value="{% if dod %}{{ dod.dod_number }}{% endif %}"
+                       placeholder="e.g. 01000000001">
+            </div>
+            <div class="form-group">
+                <label for="dod_name">DOD Name</label>
+                <input type="text" id="dod_name" name="dod_name" class="form-control"
+                       value="{% if dod %}{{ dod.dod_name or '' }}{% endif %}"
+                       placeholder="Optional label">
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 1rem;">
+            <label for="extensions">Extensions <span style="color: #ff4a4a;">*</span></label>
+            <select id="extensions" name="extensions[]" class="form-control" multiple size="12" required>
+                {% for ext in extensions %}
+                {% set ext_value = ext.ext %}
+                <option value="{{ ext_value }}" {% if dod and ext_value in dod.extensions %}selected{% endif %}>
+                    {{ ext_value }}{% if ext.name %} - {{ ext.name }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Hold Ctrl or Cmd to select multiple extensions.</div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{% if parent_type == 'trunk' %}{{ url_for('trunk_dods_list', name=parent_name) }}{% else %}{{ url_for('outbound_route_dods_list', name=parent_name) }}{% endif %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save DOD</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

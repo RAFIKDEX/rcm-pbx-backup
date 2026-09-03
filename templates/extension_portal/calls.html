@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}My Calls{% endblock %}
+{% block content %}
+
+<div class="portal-page-header">
+    <div class="header-text">
+        <h1>My Calls</h1>
+        <p>Call history for extension {{ session.get('extension_ext') }}</p>
+    </div>
+    <div class="header-meta">
+        {{ total }} records
+    </div>
+</div>
+
+<form method="get" class="controls-bar">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group"><label>Search</label><input class="modern-input" name="q" value="{{ filters.search }}" placeholder="Number or caller"></div>
+    <div class="form-group"><label>From</label><input class="modern-input" type="date" name="date_from" value="{{ filters.date_from }}"></div>
+    <div class="form-group"><label>To</label><input class="modern-input" type="date" name="date_to" value="{{ filters.date_to }}"></div>
+    <div class="form-group"><label>Direction</label><select class="modern-select" name="direction"><option value="">All</option>{% for value, label in [('incoming','Incoming'),('outgoing','Outgoing'),('internal','Internal'),('external','External')] %}<option value="{{ value }}" {% if filters.direction == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Status</label><select class="modern-select" name="status"><option value="">All</option>{% for value in ['ANSWERED','NO ANSWER','FAILED','BUSY'] %}<option value="{{ value }}" {% if filters.status|upper == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Sort By</label><select class="modern-select" name="sort">{% for value, label in [('start_time','Date'),('number','Number'),('duration','Duration'),('status','Status'),('direction','Direction')] %}<option value="{{ value }}" {% if filters.sort_by == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Order</label><select class="modern-select" name="order"><option value="desc" {% if filters.sort_order != 'asc' %}selected{% endif %}>Descending</option><option value="asc" {% if filters.sort_order == 'asc' %}selected{% endif %}>Ascending</option></select></div>
+    <div class="form-group"><label>Rows</label><select class="modern-select" name="per_page">{% for size in [10,20,30,50,70,100] %}<option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }}</option>{% endfor %}</select></div>
+    <div style="display:flex; gap:0.5rem; align-items:flex-end;">
+        <button class="btn-modern" type="submit"><i class="fa-solid fa-filter"></i> Apply</button>
+        <button class="btn-modern btn-secondary" type="submit" name="export" value="1"><i class="fa-solid fa-file-export"></i> Export</button>
+    </div>
+</form>
+
+<div class="saas-table-container">
+    {% if calls %}
+    <table class="saas-table">
+        <thead>
+            <tr>
+                <th>Date & Time</th>
+                <th>Direction</th>
+                <th>Type</th>
+                <th>Number</th>
+                <th>Duration</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for call in calls %}
+            <tr>
+                <td class="cell-date">{{ call.start_time }}</td>
+                <td>
+                    <span class="cell-direction {{ call.direction }}">
+                        {% if call.direction == 'incoming' %}<i class="fa-solid fa-arrow-down"></i>{% else %}<i class="fa-solid fa-arrow-up"></i>{% endif %}
+                        {{ call.direction }}
+                    </span>
+                </td>
+                <td class="cell-type">{{ call.call_type }}</td>
+                <td class="cell-party">{{ call.number }}</td>
+                <td class="cell-duration">{{ call.duration_display }}</td>
+                <td><span class="status-badge {{ call.status_display|lower|replace(' ', '-') }}">{{ call.status_display }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="pagination-modern">
+        <span>Showing up to {{ per_page }} rows &middot; Page {{ page }} of {{ total_pages }}</span>
+        <div class="page-controls">
+            {% if page > 1 %}
+            <a href="{{ url_for('extension_portal_calls', page=page-1, per_page=per_page, q=filters.search, date_from=filters.date_from, date_to=filters.date_to, direction=filters.direction, status=filters.status, sort=filters.sort_by, order=filters.sort_order) }}" title="Previous"><i class="fa-solid fa-chevron-left"></i></a>
+            {% endif %}
+            {% if page < total_pages %}
+            <a href="{{ url_for('extension_portal_calls', page=page+1, per_page=per_page, q=filters.search, date_from=filters.date_from, date_to=filters.date_to, direction=filters.direction, status=filters.status, sort=filters.sort_by, order=filters.sort_order) }}" title="Next"><i class="fa-solid fa-chevron-right"></i></a>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-box">
+        <i class="fa-solid fa-phone-slash"></i>
+        <h3>No calls found</h3>
+        <p>There are no calls matching your search criteria.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

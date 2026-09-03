@@ -1,0 +1,136 @@
+<!-- Stats Cards Row -->
+<div class="overview-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 2rem;">
+    <!-- Total Calls Today -->
+    <div class="overview-card" style="border-left: 4px solid var(--primary);">
+        <div class="overview-title"><i class="fa-solid fa-phone"></i> Total Calls Today</div>
+        <div class="overview-value" style="font-family: 'Orbitron', sans-serif;">{{ stats.total_calls }}</div>
+        <i class="fa-solid fa-phone overview-icon"></i>
+    </div>
+
+    <!-- Total Talk Time Today -->
+    <div class="overview-card" style="border-left: 4px solid #10b981;">
+        <div class="overview-title"><i class="fa-solid fa-clock"></i> Total Talk Time Today</div>
+        <div class="overview-value" style="font-family: 'Orbitron', sans-serif; font-size: 1.15rem;">{{ stats.total_talk_time }}</div>
+        <i class="fa-solid fa-clock overview-icon"></i>
+    </div>
+
+    <!-- Answered Ratio -->
+    <div class="overview-card" style="border-left: 4px solid #3b82f6;">
+        <div class="overview-title"><i class="fa-solid fa-circle-check"></i> Answered Rate</div>
+        <div class="overview-value" style="font-family: 'Orbitron', sans-serif;">{{ stats.answered_ratio }}%</div>
+        <i class="fa-solid fa-circle-check overview-icon"></i>
+    </div>
+
+    <!-- Missed/Failed Ratio -->
+    <div class="overview-card" style="border-left: 4px solid #ef4444;">
+        <div class="overview-title"><i class="fa-solid fa-circle-xmark"></i> Missed/Failed Rate</div>
+        <div class="overview-value" style="font-family: 'Orbitron', sans-serif;">{{ stats.missed_ratio }}%</div>
+        <i class="fa-solid fa-circle-xmark overview-icon"></i>
+    </div>
+</div>
+
+<!-- Hidden Chart Data Holder -->
+<div id="chart-data-holder" data-hourly="{{ calls_by_hour|tojson }}" style="display: none;"></div>
+
+<!-- Table Card -->
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+        <h2 style="margin: 0;"><i class="fa-solid fa-table-list" style="color: var(--primary);"></i> CDR Records ({{ total_filtered }} total)</h2>
+        <div>
+            <button onclick="triggerCsvExport()" class="btn btn-secondary btn-sm">
+                <i class="fa-solid fa-file-csv"></i> Export CSV
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Caller</th>
+                    <th>Destination</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Recording</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not records %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-phone-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No CDR records found matching active filters.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for r in records %}
+                <tr>
+                    <td><strong style="color: #fff; font-family: monospace;">{{ r.start_str }}</strong></td>
+                    <td>{{ r.src }}</td>
+                    <td>{{ r.dst }}</td>
+                    <td><code>{{ r.duration_str }}</code></td>
+                    <td>
+                        {% if r.status == 'ANSWERED' %}
+                            <span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> ANSWERED</span>
+                        {% elif r.status == 'NO ANSWER' %}
+                            <span class="badge" style="background-color: rgba(234, 179, 8, 0.1); color: #eab308; border-color: rgba(234, 179, 8, 0.2);"><i class="fa-solid fa-circle-exclamation"></i> NO ANSWER</span>
+                        {% elif r.status == 'BUSY' %}
+                            <span class="badge" style="background-color: rgba(249, 115, 22, 0.1); color: #f97316; border-color: rgba(249, 115, 22, 0.2);"><i class="fa-solid fa-phone-flip"></i> BUSY</span>
+                        {% else %}
+                            <span class="badge badge-offline"><i class="fa-solid fa-circle-xmark"></i> {{ r.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        {% if r.recording %}
+                            <div style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                                <audio id="audio-{{ r.uniqueid }}" src="/recordings/play/{{ r.recording }}" preload="none"></audio>
+                                <button class="btn btn-info btn-sm" onclick="togglePlayAudio('{{ r.uniqueid }}')" id="btn-play-{{ r.uniqueid }}" style="padding: 0.35rem 0.6rem;" title="Play Recording">
+                                    <i class="fa-solid fa-play" id="icon-play-{{ r.uniqueid }}"></i>
+                                </button>
+                                <a href="/recordings/play/{{ r.recording }}" download class="btn btn-secondary btn-sm" style="padding: 0.35rem 0.6rem;" title="Download Recording">
+                                    <i class="fa-solid fa-cloud-arrow-down"></i>
+                                </a>
+                            </div>
+                        {% else %}
+                            <span style="color: var(--text-dark); font-size: 0.85rem;"><i class="fa-solid fa-microphone-slash"></i> None</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Footer -->
+    {% if total_pages > 1 %}
+    <div class="form-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+            Showing page <strong style="color: #fff;">{{ page }}</strong> of <strong style="color: #fff;">{{ total_pages }}</strong>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <!-- Previous Button -->
+            <button onclick="changeCdrPage({{ page - 1 }})" class="btn btn-secondary btn-sm" {% if page == 1 %}disabled style="opacity: 0.5; cursor: not-allowed;"{% endif %}>
+                <i class="fa-solid fa-angle-left"></i> Previous
+            </button>
+            <!-- Page Numbers -->
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == page %}
+                    <button class="btn btn-info btn-sm" style="font-weight: bold;">{{ p }}</button>
+                {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+                    <button onclick="changeCdrPage({{ p }})" class="btn btn-secondary btn-sm">{{ p }}</button>
+                {% elif p == 4 or p == total_pages - 3 %}
+                    <span style="color: var(--text-dark); padding: 0.25rem 0.5rem;">...</span>
+                {% endif %}
+            {% endfor %}
+            <!-- Next Button -->
+            <button onclick="changeCdrPage({{ page + 1 }})" class="btn btn-secondary btn-sm" {% if page == total_pages %}disabled style="opacity: 0.5; cursor: not-allowed;"{% endif %}>
+                Next <i class="fa-solid fa-angle-right"></i>
+            </button>
+        </div>
+    </div>
+    <input type="hidden" id="current_page" value="{{ page }}">
+    {% else %}
+    <input type="hidden" id="current_page" value="1">
+    {% endif %}
+</div>

@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}Call Records - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cdr_custom.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel cdr-header">
+    <div>
+        <div class="cdr-eyebrow"><i class="fa-solid fa-microphone-lines"></i> Recordings</div>
+        <h1>Audio Call Recordings</h1>
+        <p>Listen to and manage recorded conversations</p>
+    </div>
+</div>
+
+<div class="cdr-filter-bar">
+    <div class="cdr-filter-field" style="flex: 1; min-width: 220px;">
+        <label for="search">Search</label>
+        <input type="text" id="search" class="form-control" placeholder="Search Caller, Destination, etc...">
+    </div>
+    <div class="cdr-filter-field" style="flex: 1; min-width: 220px;">
+        <label for="date_range">Date Range</label>
+        <input type="text" id="date_range" class="form-control" placeholder="Select dates...">
+    </div>
+    <div class="cdr-filter-field" style="width: 120px;">
+        <label for="per_page">Rows per page</label>
+        <select id="per_page" class="form-control">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+</div>
+
+<div class="panel cdr-table-panel">
+    <div class="cdr-table-heading" style="padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color);">
+        <div>
+            <h2 style="margin:0;"><i class="fa-solid fa-file-audio"></i> Files <span id="record-count" class="cdr-count" style="font-size: 0.8rem; margin-left: 10px; color: var(--text-muted);">0 total</span></h2>
+        </div>
+        <span id="pagination-info" style="font-size: 0.85rem; color: var(--text-muted);"></span>
+    </div>
+    
+    <div class="cdr-table-wrap">
+        <table class="table cdr-table">
+            <thead>
+                <tr>
+                    <th>Call Journey</th>
+                    <th>Date & Time</th>
+                    <th>File Size</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="records-body">
+                <tr><td colspan="4" style="text-align: center; padding: 2rem;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="pagination-controls" style="display: flex; justify-content: center; gap: 10px; padding: 15px; border-top: 1px solid var(--border-color);">
+        <button id="prev-btn" class="btn btn-secondary btn-sm" disabled><i class="fa-solid fa-chevron-left"></i> Previous</button>
+        <button id="next-btn" class="btn btn-secondary btn-sm" disabled>Next <i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+</div>
+
+<!-- Floating Audio Player -->
+<div id="floatingPlayer" class="floating-player">
+    <span class="floating-player-info" id="floatingPlayerInfo">Loading...</span>
+    <audio id="floatingAudio" controls></audio>
+    <a id="floatingDownload" href="#" download class="floating-player-close" title="Download" style="font-size: 0.9rem;"><i class="fa-solid fa-download"></i></a>
+    <button id="closeFloatingPlayer" class="floating-player-close"><i class="fa-solid fa-xmark"></i></button>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const allRecordings = {{ recordings|tojson }};
+    const canDownload = {{ 'true' if reporting_scope_has_access('call_records') else 'false' }};
+    
+    let filteredRecords = [...allRecordings];
+    let currentPage = 1;
+    let limit = parseInt(document.getElementById('per_page').value) || 20;
+
+    document.getElementById('per_page').addEventListener('change', (e) => {
+        limit = parseInt(e.target.value) || 20;
+        currentPage = 1;
+        renderTable();
+    });
+    
+    let dateRange = [];
+    let searchQuery = "";
+    let activePlayBtn = null;
+
+    function renderTable() {
+        const tbody = document.getElementById('records-body');
+        tbody.innerHTML = '';
+        
+        const total = filteredRecords.length;
+        document.getElementById('record-count').innerText = `${total} total`;
+        
+        if (total === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3.5rem;"><i class="fa-solid fa-volume-xmark" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>No audio recording files match your criteria.</td></tr>`;
+            document.getElementById('pagination-info').innerText = '';
+            document.getElementById('prev-btn').disabled = true;
+            document.getElementById('next-btn').disabled = true;
+            return;
+        }
+        
+        const totalPages = Math.ceil(total / limit);
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        
+        const start = (currentPage - 1) * limit;
+        const end = Math.min(start + limit, total);
+        const pageData = filteredRecords.slice(start, end);
+        
+        document.getElementById('pagination-info').innerText = `Showing ${start + 1}–${end} of ${total}`;
+        document.getElementById('prev-btn').disabled = currentPage === 1;
+        document.getElementById('next-btn').disabled = currentPage === totalPages;
+        
+        pageData.forEach(rec => {
+            const tr = document.createElement('tr');
+            
+            const journeyTd = document.createElement('td');
+            journeyTd.innerHTML = `<strong style="color: var(--text-main);"><i class="fa-solid fa-phone" style="color: #60a5fa; margin-right: 5px;"></i> ${rec.caller || 'Unknown'} &nbsp;<i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.8em;"></i>&nbsp; ${rec.callee || 'Unknown'}</strong>`;
+            
+            const timeTd = document.createElement('td');
+            timeTd.innerText = rec.time;
+            timeTd.style.color = '#cbd5e1';
+            
+            const sizeTd = document.createElement('td');
+            sizeTd.innerText = rec.size;
+            sizeTd.style.color = '#94a3b8';
+            sizeTd.style.fontSize = '0.9rem';
+            
+            const actionTd = document.createElement('td');
+            actionTd.style.textAlign = 'right';
+            
+            const playBtn = document.createElement('button');
+            playBtn.className = 'btn btn-info btn-sm';
+            playBtn.innerHTML = '<i class="fa-solid fa-play"></i> Play';
+            playBtn.onclick = (e) => playRecording(rec, playBtn);
+            
+            const actionDiv = document.createElement('div');
+            actionDiv.className = 'action-buttons';
+            actionDiv.style.justifyContent = 'flex-end';
+            actionDiv.appendChild(playBtn);
+            
+            if (canDownload) {
+                const downloadLink = document.createElement('a');
+                downloadLink.className = 'btn btn-secondary btn-sm';
+                downloadLink.href = `/recordings/play/${rec.filename}`;
+                downloadLink.download = rec.filename;
+                downloadLink.innerHTML = '<i class="fa-solid fa-download"></i>';
+                downloadLink.title = 'Download';
+                actionDiv.appendChild(downloadLink);
+            }
+            
+            actionTd.appendChild(actionDiv);
+            
+            tr.appendChild(journeyTd);
+            tr.appendChild(timeTd);
+            tr.appendChild(sizeTd);
+            tr.appendChild(actionTd);
+            tbody.appendChild(tr);
+        });
+    }
+
+    function filterData() {
+        filteredRecords = allRecordings.filter(rec => {
+            const searchMatch = !searchQuery || 
+                (rec.caller && rec.caller.toLowerCase().includes(searchQuery)) || 
+                (rec.callee && rec.callee.toLowerCase().includes(searchQuery)) || 
+                (rec.filename && rec.filename.toLowerCase().includes(searchQuery));
+                
+            let dateMatch = true;
+            if (dateRange.length === 2) {
+                dateMatch = rec.time >= dateRange[0] && rec.time <= dateRange[1];
+            }
+            
+            return searchMatch && dateMatch;
+        });
+        currentPage = 1;
+        renderTable();
+    }
+
+    document.getElementById('search').addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase();
+        filterData();
+    });
+
+    flatpickr("#date_range", { 
+        mode: "range",
+        enableTime: true,
+        time_24hr: true,
+        dateFormat: "Y-m-d H:i",
+        onChange: function(selectedDates, dateStr, instance) {
+            if (selectedDates.length === 2) {
+                dateRange = [
+                    instance.formatDate(selectedDates[0], "Y-m-d H:i") + ":00",
+                    instance.formatDate(selectedDates[1], "Y-m-d H:i") + ":59"
+                ];
+                filterData();
+            } else if (selectedDates.length === 0) {
+                dateRange = [];
+                filterData();
+            }
+        }
+    });
+
+    document.getElementById('prev-btn').addEventListener('click', () => {
+        if (currentPage > 1) { currentPage--; renderTable(); }
+    });
+    
+    document.getElementById('next-btn').addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredRecords.length / limit);
+        if (currentPage < totalPages) { currentPage++; renderTable(); }
+    });
+
+    // Floating Audio Player Logic
+    function stopPlaying() {
+        document.getElementById('floatingAudio').pause();
+        document.getElementById('floatingPlayer').classList.remove('show');
+        if (activePlayBtn) {
+            activePlayBtn.innerHTML = '<i class="fa-solid fa-play"></i> Play';
+            activePlayBtn.classList.remove('is-playing');
+            activePlayBtn = null;
+        }
+    }
+
+    function playRecording(rec, btn) {
+        const audioSrc = `/recordings/play/${encodeURIComponent(rec.filename)}`;
+        const audioEl = document.getElementById('floatingAudio');
+        
+        if (activePlayBtn === btn) {
+            if (audioEl.paused) audioEl.play(); else stopPlaying();
+            return;
+        }
+        
+        stopPlaying();
+        audioEl.src = audioSrc;
+        document.getElementById('floatingPlayerInfo').textContent = `${rec.caller || 'Unknown'} → ${rec.callee || 'Unknown'}`;
+        document.getElementById('floatingDownload').href = audioSrc;
+        document.getElementById('floatingDownload').download = rec.filename;
+        if (!canDownload) document.getElementById('floatingDownload').style.display = 'none';
+        
+        document.getElementById('floatingPlayer').classList.add('show');
+        audioEl.play().catch(e => console.error(e));
+        
+        activePlayBtn = btn;
+        btn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
+        btn.classList.add('is-playing');
+    }
+
+    document.getElementById('closeFloatingPlayer').addEventListener('click', stopPlaying);
+    document.getElementById('floatingAudio').addEventListener('ended', stopPlaying);
+
+    // Initial render
+    renderTable();
+</script>
+{% endblock %}

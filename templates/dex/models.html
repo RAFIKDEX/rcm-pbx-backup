@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}DEX Model | RCM 7021{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dex.css') }}">{% endblock %}
+{% block content %}
+<main class="dex-page dex-models-page">
+  <header class="dex-page-head">
+    <div>
+      <div class="dex-eyebrow"><i class="fa-solid fa-layer-group"></i> DEX</div>
+      <h1>Models</h1>
+      <p>Define the verified capabilities required before provisioning.</p>
+    </div>
+    {% if has_permission('dex_models','add') %}<a class="dex-btn dex-btn-primary" href="{{ url_for('dex_model_add') }}"><i class="fa-solid fa-plus"></i><span>Add model</span></a>{% endif %}
+  </header>
+
+  <section class="dex-filterbar dex-model-filterbar">
+    <form method="get" action="{{ url_for('dex_models') }}" class="dex-model-filters">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="dex-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input name="search" value="{{ search }}" placeholder="Search vendor or model" aria-label="Search models">{% if search %}<a class="dex-clear-search" href="{{ url_for('dex_models') }}" title="Clear search">&times;</a>{% endif %}</div>
+      <select name="vendor" class="dex-compact-select" aria-label="Filter vendor"><option value="">All vendors</option>{% for code, label in supported_vendors.items() %}<option value="{{ code }}" {% if vendor == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <select name="enabled" class="dex-compact-select" aria-label="Filter enabled status"><option value="">All states</option><option value="1" {% if enabled == '1' %}selected{% endif %}>Enabled</option><option value="0" {% if enabled == '0' %}selected{% endif %}>Disabled</option></select>
+      <select name="provisionable" class="dex-compact-select" aria-label="Filter provisioning status"><option value="">Provisioning</option><option value="1" {% if provisionable == '1' %}selected{% endif %}>Ready</option><option value="0" {% if provisionable == '0' %}selected{% endif %}>Draft</option></select>
+      <button class="dex-btn dex-btn-dark" type="submit">Filter</button>
+    </form>
+    <div class="dex-model-bulk-tools">
+      <span id="dexModelSelectedCount">0 selected</span>
+      {% if has_permission('dex_models','edit') %}<button class="dex-btn dex-btn-quiet" type="button" onclick="dexModelBulk('enable')">Enable</button><button class="dex-btn dex-btn-quiet" type="button" onclick="dexModelBulk('disable')">Disable</button>{% endif %}
+      {% if has_permission('dex_models','delete') %}<button class="dex-btn dex-btn-danger-quiet" type="button" onclick="dexModelBulk('delete')">Delete</button>{% endif %}
+    </div>
+  </section>
+
+  <form id="dex-model-bulk-form" method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+  <section class="dex-card dex-table-card">
+    {% if models %}
+    <div class="dex-table-scroll"><table class="dex-table dex-model-table">
+      <thead><tr><th class="dex-check-col"><input id="dexModelSelectAll" type="checkbox" aria-label="Select all models on this page"></th><th>Model</th><th>Capacity</th><th>Definition</th><th>State</th><th>Devices</th><th class="dex-actions-col">Actions</th></tr></thead>
+      <tbody>
+      {% for model in models %}<tr>
+        <td class="dex-check-col"><input class="dex-model-check" type="checkbox" value="{{ model.id }}" aria-label="Select {{ model.vendor_name }} {{ model.model_name }}"></td>
+        <td class="dex-model-name"><strong>{{ model.model_name }}</strong><span>{{ model.vendor_name }}{% if model.common_config_filename %} · {{ model.common_config_filename }}{% endif %}</span></td>
+        <td class="dex-capacity"><span>SIP <strong>{{ model.sip_account_count if model.sip_account_count is not none else '?' }}</strong></span><span>BLF <strong>{{ model.blf_count if model.blf_count is not none else '?' }}</strong></span></td>
+        <td><span class="dex-badge {% if model.verification_status in ['Device Tested','Production Verified'] %}ok{% else %}warn{% endif %}">{{ model.verification_status }}</span>{% if model.blf_count is none or model.sip_account_count is none %}<span class="dex-cell-muted">Capabilities incomplete</span>{% endif %}</td>
+        <td class="dex-state-cell"><span class="dex-badge {% if model.enabled %}ok{% else %}neutral{% endif %}">{{ 'Enabled' if model.enabled else 'Disabled' }}</span><span class="dex-badge {% if model.provisionable %}ok{% else %}neutral{% endif %}">{{ 'Ready' if model.provisionable else 'Draft' }}</span></td>
+        <td>{{ model.devices_count }}</td>
+        <td class="dex-actions-col"><div class="dex-row-actions">
+          <a class="dex-icon-btn" href="{{ url_for('dex_model_view', model_id=model.id) }}" title="View model" aria-label="View model"><i class="fa-solid fa-eye"></i></a>
+          {% if has_permission('dex_models','edit') %}<a class="dex-icon-btn is-primary" href="{{ url_for('dex_model_edit', model_id=model.id) }}" title="Edit model capabilities" aria-label="Edit model capabilities"><i class="fa-solid fa-pen"></i></a><form method="post" action="{{ url_for('dex_model_toggle', model_id=model.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="enabled" value="{{ 0 if model.enabled else 1 }}"><button class="dex-icon-btn" type="submit" title="{{ 'Disable' if model.enabled else 'Enable' }} model" aria-label="{{ 'Disable' if model.enabled else 'Enable' }} model"><i class="fa-solid {{ 'fa-toggle-on' if model.enabled else 'fa-toggle-off' }}"></i></button></form>{% endif %}
+          {% if has_permission('dex_models','delete') %}<form method="post" action="{{ url_for('dex_model_delete', model_id=model.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="dex-icon-btn is-danger" type="submit" title="Delete model" aria-label="Delete model" onclick="return confirm('Delete this model? Models assigned to phones are protected.')"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </div></td>
+      </tr>{% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<div class="dex-empty"><div class="dex-empty-icon"><i class="fa-solid fa-layer-group"></i></div><h3>No models found</h3><p>Add a model or clear the filters.</p>{% if has_permission('dex_models','add') %}<a class="dex-btn dex-btn-primary" href="{{ url_for('dex_model_add') }}"><i class="fa-solid fa-plus"></i> Add model</a>{% endif %}</div>{% endif %}
+  </section>
+
+  {% if pages > 1 %}<nav class="dex-pagination" aria-label="Model pages">{% if page > 1 %}<a href="{{ url_for('dex_models', page=page-1, per_page=per_page, search=search, vendor=vendor, enabled=enabled, provisionable=provisionable) }}">‹</a>{% endif %}{% for n in range(1, pages + 1) %}<a class="{% if n == page %}current{% endif %}" href="{{ url_for('dex_models', page=n, per_page=per_page, search=search, vendor=vendor, enabled=enabled, provisionable=provisionable) }}">{{ n }}</a>{% endfor %}{% if page < pages %}<a href="{{ url_for('dex_models', page=page+1, per_page=per_page, search=search, vendor=vendor, enabled=enabled, provisionable=provisionable) }}">›</a>{% endif %}</nav>{% endif %}
+</main>
+<script>
+const dexModelChecks=()=>Array.from(document.querySelectorAll('.dex-model-check'));
+function dexUpdateModelSelected(){const count=dexModelChecks().filter(x=>x.checked).length;const el=document.getElementById('dexModelSelectedCount');if(el)el.textContent=`${count} selected`;}
+document.querySelectorAll('.dex-model-check').forEach(x=>x.addEventListener('change',dexUpdateModelSelected));
+document.getElementById('dexModelSelectAll')?.addEventListener('change',function(){dexModelChecks().forEach(x=>x.checked=this.checked);dexUpdateModelSelected();});
+function dexModelBulk(action){const ids=dexModelChecks().filter(x=>x.checked).map(x=>x.value);if(!ids.length){alert('Select at least one model.');return;}if(action==='delete'&&!confirm('Delete selected models? Models assigned to phones are protected.'))return;const form=document.getElementById('dex-model-bulk-form');form.action=action==='delete'?'{{ url_for('dex_model_bulk_delete') }}':'{{ url_for('dex_model_bulk') }}';if(action!=='delete'){const input=document.createElement('input');input.type='hidden';input.name='bulk_action';input.value=action;form.appendChild(input);}ids.forEach(id=>{const input=document.createElement('input');input.type='hidden';input.name='model_ids';input.value=id;form.appendChild(input);});form.submit();}
+</script>
+{% endblock %}

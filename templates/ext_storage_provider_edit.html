@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Edit Storage Provider
+<script>
+function togglePassword() {
+    var pwdInput = document.getElementById('edit_password');
+    var pwdIcon = document.getElementById('edit_pwd_icon');
+    if (pwdInput.type === "password") {
+        pwdInput.type = "text";
+        pwdIcon.classList.remove('fa-eye');
+        pwdIcon.classList.add('fa-eye-slash');
+    } else {
+        pwdInput.type = "password";
+        pwdIcon.classList.remove('fa-eye-slash');
+        pwdIcon.classList.add('fa-eye');
+    }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="content-header" style="margin-bottom: 2rem;">
+    <h2 style="margin: 0;"><i class="fa-solid fa-pen-to-square" style="color: #3b82f6;"></i> Edit Storage Provider</h2>
+    <p style="color: #94a3b8; margin-top: 0.5rem; font-size: 0.95rem;">Update the configuration for this NAS provider.</p>
+</div>
+
+<div style="background: var(--panel-dark); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color); max-width: 800px;">
+    <form method="POST" action="{{ url_for('ext_storage_bp.edit_provider', id=provider.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
+            <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 5px;">Provider Name (Alias)</label>
+                <input type="text" name="name" required value="{{ provider.name }}" class="form-control" style="width: 100%; padding: 10px; border-radius: 6px;">
+            </div>
+            <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 5px;">Protocol</label>
+                <select name="protocol" class="form-control" style="width: 100%; padding: 10px; border-radius: 6px;">
+                    <option value="smb" {% if config.protocol == 'smb' %}selected{% endif %}>SMB / CIFS (Windows/Linux Share)</option>
+                    <option value="nfs" {% if config.protocol == 'nfs' %}selected{% endif %}>NFS (Linux Share)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
+            <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 5px;">Server IP / Hostname</label>
+                <input type="text" name="server" required value="{{ config.server }}" class="form-control" style="width: 100%; padding: 10px; border-radius: 6px;">
+            </div>
+            <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 5px;">Share Name / Path</label>
+                <input type="text" name="share" required value="{{ config.share }}" class="form-control" style="width: 100%; padding: 10px; border-radius: 6px;">
+            </div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; color: var(--text-muted); margin-bottom: 5px;">Base Folder</label>
+            <input type="text" name="base_folder" value="{{ config.base_folder }}" class="form-control" style="width: 100%; padding: 10px; border-radius: 6px;">
+        </div>
+
+        <h4 style="margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">Authentication (SMB only)</h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+            <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 5px;">Username</label>
+                <input type="text" name="username" value="{{ config.username }}" class="form-control" style="width: 100%; padding: 10px; border-radius: 6px;">
+            </div>
+            <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 5px;">Password (Leave blank to keep unchanged)</label>
+                <div style="position: relative;">
+                    <input type="password" id="edit_password" name="password" placeholder="Enter new password" class="form-control" autocomplete="new-password" style="width: 100%; padding: 10px; border-radius: 6px; padding-right: 40px;">
+                    <button type="button" onclick="togglePassword()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer;"><i id="edit_pwd_icon" class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 15px;">
+            <a href="{{ url_for('ext_storage_bp.dashboard') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="neu-button btn-success" style="padding: 10px 25px;"><i class="fa-solid fa-save"></i> Save Changes</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function togglePassword() {
+    var pwdInput = document.getElementById('edit_password');
+    var pwdIcon = document.getElementById('edit_pwd_icon');
+    if (pwdInput.type === "password") {
+        pwdInput.type = "text";
+        pwdIcon.classList.remove('fa-eye');
+        pwdIcon.classList.add('fa-eye-slash');
+    } else {
+        pwdInput.type = "password";
+        pwdIcon.classList.remove('fa-eye-slash');
+        pwdIcon.classList.add('fa-eye');
+    }
+}
+</script>
+{% endblock %}
+

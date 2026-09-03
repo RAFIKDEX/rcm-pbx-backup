@@ -1,0 +1,21 @@
+[Unit]
+Description=RCM DEX Grandstream Plug-and-Play responder
+After=network-online.target apache2.service asterisk.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/RCM_7021
+Environment=DEX_DB_PATH=/root/RCM_7021/rcm_7021.db
+Environment=DEX_PNP_INTERFACE=ens18
+Environment=DEX_PNP_IP=192.168.99.223
+Environment=DEX_PNP_SOURCE_PORT=6060
+Environment=DEX_ENCRYPTION_KEY_FILE=/var/lib/rcm/dex/.dex_encryption.key
+ExecStart=/usr/bin/python3 /root/RCM_7021/dex_pnp_listener.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target

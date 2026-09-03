@@ -1,0 +1,750 @@
+{% extends 'base.html' %}
+
+{% block title %}Call Detail Records - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="cdr-page">
+    <header class="header-panel cdr-header">
+        <div>
+            <div class="cdr-eyebrow"><i class="fa-solid fa-chart-line"></i> Reports</div>
+            <h1>Call Detail Records</h1>
+            <p>Search call history, inspect lifecycle events, and play available recordings.</p>
+        </div>
+        {% if reporting_scope_has_access('cdr_reports') %}
+        <button type="button" class="btn btn-secondary" id="exportCdr"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+        {% endif %}
+    </header>
+
+    <section class="cdr-filters" aria-labelledby="cdr-filters-title">
+        <div class="cdr-section-heading">
+            <div><span class="cdr-section-kicker">Find a call</span><h2 id="cdr-filters-title"><i class="fa-solid fa-filter"></i> Filters</h2></div>
+            <div>
+                <button type="button" class="btn btn-secondary btn-sm" id="refreshCdrBtn" style="border-radius: 20px; padding: 4px 12px; margin-right: 15px;" title="Refresh Data"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="toggleFiltersBtn" style="border-radius: 20px; padding: 4px 12px; margin-right: 15px;"><i class="fa-solid fa-sliders"></i> Display Filters</button>
+                <span class="cdr-filter-hint"><i class="fa-solid fa-circle-info"></i> Use Apply to refresh the report.</span>
+            </div>
+        </div>
+        <div id="filtersContainer" style="display: none; animation: fadeInDown 0.3s ease;">
+        <div class="cdr-filter-presets" aria-label="Quick date ranges">
+            <span class="cdr-filter-presets-label">Quick range</span>
+            <div class="cdr-filter-preset-buttons">
+                <button type="button" class="cdr-filter-preset" data-range="today">Today</button>
+                <button type="button" class="cdr-filter-preset" data-range="yesterday">Yesterday</button>
+                <button type="button" class="cdr-filter-preset" data-range="7">Last 7 days</button>
+                <button type="button" class="cdr-filter-preset" data-range="30">Last 30 days</button>
+                <button type="button" class="cdr-filter-preset" data-range="this_month">This Month</button>
+                <button type="button" class="cdr-filter-preset" data-range="last_month">Last Month</button>
+                <button type="button" class="cdr-filter-preset" data-range="all">All time</button>
+            </div>
+        <div class="cdr-filter-presets" aria-label="Display Columns" style="margin-top: 15px;">
+            <span class="cdr-filter-presets-label">Display Columns</span>
+            <div class="cdr-filter-preset-buttons" id="columnToggles">
+                <label class="cdr-filter-preset active"><input type="checkbox" value="0" checked style="display:none;"> Status</label>
+                <label class="cdr-filter-preset active"><input type="checkbox" value="1" checked style="display:none;"> Call From</label>
+                <label class="cdr-filter-preset active"><input type="checkbox" value="2" checked style="display:none;"> Call To</label>
+                <label class="cdr-filter-preset active"><input type="checkbox" value="3" checked style="display:none;"> Start Time</label>
+                <label class="cdr-filter-preset active"><input type="checkbox" value="4" checked style="display:none;"> End Time</label>
+                <label class="cdr-filter-preset active"><input type="checkbox" value="5" checked style="display:none;"> Call Time</label>
+                <label class="cdr-filter-preset active"><input type="checkbox" value="6" checked style="display:none;"> Talk Time</label>
+            </div>
+        </div>
+        <form id="cdrFilters" class="cdr-filter-bar" novalidate>
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="cdr-filter-field" style="flex: 1; min-width: 220px;"><label for="date_range">Date Range</label><input type="text" id="date_range" class="form-control" placeholder="Select dates..."></div>
+            <input type="hidden" id="date_from">
+            <input type="hidden" id="date_to">
+            <div class="cdr-filter-field"><label for="extension">Extension</label><input type="text" id="extension" class="form-control" placeholder="3001" inputmode="numeric" autocomplete="off"></div>
+            <div class="cdr-filter-field"><label for="call_type">Call Type</label><select id="call_type" class="form-control"><option value="">All Calls</option><option value="inbound">Inbound</option><option value="outbound">Outbound</option><option value="internal">Internal</option></select></div>
+            <div class="cdr-filter-field"><label for="call_from">Call From</label><input type="text" id="call_from" class="form-control" placeholder="Caller..." autocomplete="off"></div>
+            <div class="cdr-filter-field"><label for="call_to">Call To</label><input type="text" id="call_to" class="form-control" placeholder="Destination..." autocomplete="off"></div>
+            <div class="cdr-filter-field"><label for="min_duration">Min Talk Time</label><input type="number" id="min_duration" class="form-control" placeholder="Secs..." min="0"></div>
+            <div class="cdr-filter-field"><label for="max_duration">Max Talk Time</label><input type="number" id="max_duration" class="form-control" placeholder="Secs..." min="0"></div>
+            <div class="cdr-filter-field"><label for="status">Disposition</label><select id="status" class="form-control"><option value="">All statuses</option><option value="ANSWERED">Answered</option><option value="NO ANSWER">No answer</option><option value="BUSY">Busy</option><option value="FAILED">Failed</option></select></div>
+            <div class="cdr-filter-field cdr-search-field"><label for="q">Search</label><input type="search" id="q" class="form-control" placeholder="Channel, uniqueid..." autocomplete="off"></div>
+            <div class="cdr-filter-field"><label for="per_page">Rows per page</label><select id="per_page" class="form-control"><option value="10">10</option><option value="30">30</option><option value="50">50</option><option value="70">70</option><option value="100">100</option></select></div>
+            <div class="cdr-filter-actions" style="flex-basis: 100%; justify-content: flex-end; margin-top: 10px;"><button type="submit" class="btn btn-info"><i class="fa-solid fa-magnifying-glass"></i> Apply</button><button type="button" class="btn btn-secondary" id="resetCdr"><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+            <div id="cdr-filter-error" class="cdr-filter-error" role="alert" hidden style="flex-basis: 100%;"></div>
+        </form>
+        </div>
+        <div id="cdr-active-filters" class="cdr-active-filters" hidden aria-live="polite"></div>
+    </section>
+
+    <section class="cdr-stats-grid" aria-label="Call statistics">
+        <div class="cdr-stat-card"><span class="cdr-stat-icon is-blue"><i class="fa-solid fa-phone"></i></span><div><span>Total calls</span><strong id="stat-total">{{ stats.total_calls }}</strong></div></div>
+        <div class="cdr-stat-card"><span class="cdr-stat-icon is-green"><i class="fa-solid fa-clock"></i></span><div><span>Total talk time</span><strong id="stat-talk">{{ stats.total_talk_time }}</strong></div></div>
+        <div class="cdr-stat-card"><span class="cdr-stat-icon is-cyan"><i class="fa-solid fa-circle-check"></i></span><div><span>Answered rate</span><strong id="stat-answered">{{ stats.answered_ratio }}%</strong></div></div>
+        <div class="cdr-stat-card"><span class="cdr-stat-icon is-red"><i class="fa-solid fa-circle-xmark"></i></span><div><span>Not answered</span><strong id="stat-missed">{{ stats.missed_ratio }}%</strong></div></div>
+    </section>
+
+    <section class="cdr-chart-panel" aria-labelledby="cdr-chart-title">
+        <div class="cdr-section-heading"><div><span class="cdr-section-kicker">Activity</span><h2 id="cdr-chart-title"><i class="fa-solid fa-chart-column"></i> Calls by hour</h2></div><span id="total-chart-calls" class="cdr-chart-total">0 calls</span></div>
+        <div class="cdr-chart-container"><canvas id="cdrChart" role="img" aria-label="Call volume by hour"></canvas><div id="cdrChartEmpty" class="cdr-chart-empty" hidden>No calls match the selected filters.</div></div>
+    </section>
+
+    <section class="cdr-table-panel" aria-labelledby="cdr-table-title">
+        <div class="cdr-table-heading"><div><span class="cdr-section-kicker">Call history</span><h2 id="cdr-table-title"><i class="fa-solid fa-table-list"></i> Records <span id="total-filtered-count" class="cdr-count" aria-live="polite">0 total</span></h2><span id="cdr-results-range" class="cdr-results-range"></span></div><span class="cdr-live-status" id="cdr-live-status" role="status" aria-live="polite"><i class="fa-solid fa-circle"></i> Ready</span></div>
+        <div class="cdr-table-wrap">
+            <table id="cdr-table" class="table cdr-table" aria-describedby="cdr-table-title" aria-busy="false">
+                <caption class="sr-only">Call detail records matching the selected filters</caption>
+                <thead><tr><th>STATUS</th><th>CALL FROM</th><th>CALL TO</th><th>START TIME</th><th>END TIME</th><th>CALL TIME</th><th>TALK TIME</th><th class="cdr-action-column">OPTIONS</th></tr></thead>
+                <tbody id="cdr-table-body"><tr><td colspan="8" class="cdr-empty-row"><i class="fa-solid fa-spinner fa-spin"></i><strong>Loading records...</strong></td></tr></tbody>
+            </table>
+        </div>
+        <div id="cdr-table-loading" class="cdr-table-loading" hidden aria-hidden="true"><i class="fa-solid fa-spinner fa-spin"></i><span>Refreshing call records…</span></div>
+        <nav id="cdr-pagination" class="cdr-pagination" aria-label="CDR pages"></nav>
+    </section>
+</div>
+
+<div id="cdrDetailsModal" class="cdr-drawer-overlay"></div>
+<div id="cdrDrawer" class="cdr-drawer" role="dialog" aria-modal="true" aria-labelledby="cdr-details-title">
+    <div class="cdr-drawer-header">
+        <div><span class="kicker">Call inspection</span><h2 id="cdr-details-title">Call details</h2></div>
+        <button type="button" class="cdr-drawer-close" id="closeCdrModal" aria-label="Close details"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="cdr-details-body" class="cdr-drawer-body"></div>
+</div>
+
+<!-- Floating Audio Player -->
+<div id="floatingPlayer" class="floating-player">
+    <span class="floating-player-info" id="floatingPlayerInfo">Loading...</span>
+    <audio id="floatingAudio" controls></audio>
+    <a id="floatingDownload" href="#" download class="floating-player-close" title="Download" style="font-size: 0.9rem;"><i class="fa-solid fa-download"></i></a>
+    <button id="closeFloatingPlayer" class="floating-player-close"><i class="fa-solid fa-xmark"></i></button>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cdr_custom.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+    const canViewRecordings = {{ 'true' if reporting_scope_has_access('call_records') else 'false' }};
+    const canDownloadRecordings = canViewRecordings;
+    const state = { page: 1, requestId: 0, controller: null, timer: null, playing: null, lastFocused: null };
+    let cdrChart = null;
+
+    const $ = id => document.getElementById(id);
+    const text = (value, fallback = '-') => String(value ?? fallback);
+    const icon = name => { const element = document.createElement('i'); element.className = `fa-solid ${name}`; return element; };
+    const button = (label, iconName, className = 'btn btn-secondary btn-sm') => { const element = document.createElement('button'); element.type = 'button'; element.className = className; element.append(icon(iconName), document.createTextNode(` ${label}`)); return element; };
+
+    function filterParams() {
+        return new URLSearchParams({
+            date_from: $('date_from').value,
+            date_to: $('date_to').value,
+            extension: $('extension').value.trim(),
+            call_type: $('call_type').value,
+            call_from: $('call_from').value.trim(),
+            call_to: $('call_to').value.trim(),
+            min_duration: $('min_duration').value.trim(),
+            max_duration: $('max_duration').value.trim(),
+            status: $('status').value,
+            q: $('q').value.trim(),
+            limit: $('per_page').value,
+            page: state.page
+        });
+    }
+
+    function activeFilterEntries() {
+        const entries = [];
+        if ($('date_from').value) entries.push(['date_from', `From ${$('date_from').value}`]);
+        if ($('date_to').value) entries.push(['date_to', `To ${$('date_to').value}`]);
+        if ($('extension').value.trim()) entries.push(['extension', `Ext. ${$('extension').value.trim()}`]);
+        if ($('call_type').value) entries.push(['call_type', $('call_type').selectedOptions[0]?.textContent || $('call_type').value]);
+        if ($('call_from').value.trim()) entries.push(['call_from', `From: ${$('call_from').value.trim()}`]);
+        if ($('call_to').value.trim()) entries.push(['call_to', `To: ${$('call_to').value.trim()}`]);
+        if ($('min_duration').value.trim()) entries.push(['min_duration', `Min: ${$('min_duration').value.trim()}s`]);
+        if ($('max_duration').value.trim()) entries.push(['max_duration', `Max: ${$('max_duration').value.trim()}s`]);
+        if ($('status').value) entries.push(['status', $('status').selectedOptions[0]?.textContent || $('status').value]);
+        if ($('q').value.trim()) entries.push(['q', `Search: ${$('q').value.trim()}`]);
+        return entries;
+    }
+
+    function hasActiveFilters() { return activeFilterEntries().length > 0; }
+
+    function renderActiveFilters() {
+        const container = $('cdr-active-filters');
+        const entries = activeFilterEntries();
+        container.replaceChildren();
+        if (!entries.length) { container.hidden = true; return; }
+        const label = document.createElement('span'); label.className = 'cdr-active-filters-label'; label.textContent = 'Active filters'; container.append(label);
+        entries.forEach(([key, value]) => {
+            const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'cdr-filter-chip'; chip.dataset.filterKey = key; chip.title = `Remove ${value}`; chip.append(document.createTextNode(value + ' '), icon('fa-xmark'));
+            chip.addEventListener('click', () => { $(key).value = ''; state.page = 1; refresh(true); });
+            container.append(chip);
+        });
+        const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'cdr-clear-filters'; clear.textContent = 'Clear all'; clear.addEventListener('click', resetFilters); container.append(clear);
+        container.hidden = false;
+    }
+
+    function updatePresetState() {
+        const from = $('date_from').value;
+        const to = $('date_to').value;
+        const today = new Date();
+        const fmt = d => formatDateInput(d);
+        
+        const yest = new Date(today); yest.setDate(yest.getDate() - 1);
+        const start7 = new Date(today); start7.setDate(start7.getDate() - 6);
+        const start30 = new Date(today); start30.setDate(start30.getDate() - 29);
+        const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        let thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        if (thisMonthEnd > today) thisMonthEnd = new Date(today);
+        const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+
+        const fromDateOnly = from ? from.split(' ')[0] : '';
+        const toDateOnly = to ? to.split(' ')[0] : '';
+
+        const ranges = { 
+            today: fromDateOnly === fmt(today) && toDateOnly === fmt(today), 
+            yesterday: fromDateOnly === fmt(yest) && toDateOnly === fmt(yest), 
+            '7': fromDateOnly === fmt(start7) && toDateOnly === fmt(today), 
+            '30': fromDateOnly === fmt(start30) && toDateOnly === fmt(today), 
+            this_month: fromDateOnly === fmt(thisMonthStart) && toDateOnly === fmt(thisMonthEnd), 
+            last_month: fromDateOnly === fmt(lastMonthStart) && toDateOnly === fmt(lastMonthEnd), 
+            all: !from && !to 
+        };
+        document.querySelectorAll('.cdr-filter-preset').forEach(preset => { 
+            const active = Boolean(ranges[preset.dataset.range]); 
+            preset.classList.toggle('is-active', active); 
+            preset.setAttribute('aria-pressed', String(active)); 
+        });
+    }
+
+    function validateFilters() {
+        const dateFrom = $('date_from').value;
+        const dateTo = $('date_to').value;
+        if (dateFrom && dateTo && dateFrom > dateTo) {
+            return 'Date from cannot be later than Date to.';
+        }
+        return '';
+    }
+
+    function showFilterError(message = '') {
+        const target = $('cdr-filter-error');
+        target.textContent = message;
+        target.hidden = !message;
+    }
+
+    function syncUrl() {
+        const params = filterParams();
+        params.delete('page');
+        params.delete('limit');
+        if (state.page > 1) params.set('page', state.page);
+        else params.delete('page');
+        params.set('per_page', $('per_page').value);
+        ['date_from', 'date_to', 'extension', 'call_type', 'call_from', 'call_to', 'min_duration', 'max_duration', 'status', 'q'].forEach(key => {
+            if (!params.get(key)) params.delete(key);
+        });
+        params.delete('limit');
+        const query = params.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${query ? '?' + query : ''}`);
+    }
+
+    let datePicker;
+    function loadFiltersFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        ['date_from', 'date_to', 'extension', 'call_type', 'call_from', 'call_to', 'min_duration', 'max_duration', 'status', 'q', 'per_page'].forEach(id => {
+            if (params.has(id) && $(id)) $(id).value = params.get(id);
+        });
+        if (!params.has('date_from') && !params.has('date_to')) {
+            applyDatePreset('today');
+        } else if ($('date_from').value && $('date_to').value && datePicker) {
+            datePicker.setDate([$('date_from').value, $('date_to').value]);
+        }
+        if (params.has('page')) state.page = Math.max(1, Number(params.get('page')) || 1);
+        updatePresetState();
+        renderActiveFilters();
+    }
+
+    function formatDateInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function applyDatePreset(range) {
+        const today = new Date();
+        let start = new Date();
+        let end = new Date();
+
+        if (range === 'all') {
+            $('date_from').value = '';
+            $('date_to').value = '';
+            if(datePicker) datePicker.clear();
+        } else {
+            if (range === 'today') {
+                start = new Date(today);
+                end = new Date(today);
+            } else if (range === 'yesterday') {
+                start = new Date(today);
+                start.setDate(today.getDate() - 1);
+                end = new Date(start);
+            } else if (range === '7') {
+                start = new Date(today);
+                start.setDate(today.getDate() - 6);
+                end = new Date(today);
+            } else if (range === '30') {
+                start = new Date(today);
+                start.setDate(today.getDate() - 29);
+                end = new Date(today);
+            } else if (range === 'this_month') {
+                start = new Date(today.getFullYear(), today.getMonth(), 1);
+                end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                if (end > today) end = new Date(today);
+            } else if (range === 'last_month') {
+                start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                end = new Date(today.getFullYear(), today.getMonth(), 0);
+            }
+            
+            const startStr = formatDateInput(start) + " 00:00:00";
+            const endStr = formatDateInput(end) + " 23:59:59";
+            
+            $('date_from').value = startStr;
+            $('date_to').value = endStr;
+            
+            if(datePicker) datePicker.setDate([startStr, endStr]);
+        }
+        refresh(true);
+    }
+
+    function setLiveStatus(label, stateClass = '') {
+        const target = $('cdr-live-status');
+        target.className = `cdr-live-status ${stateClass}`;
+        target.replaceChildren(icon(stateClass === 'is-error' ? 'fa-triangle-exclamation' : 'fa-circle'), document.createTextNode(` ${label}`));
+    }
+
+    function initChart() {
+        const canvas = $('cdrChart');
+        if (!window.Chart || !canvas) { $('cdrChartEmpty').hidden = false; $('cdrChartEmpty').textContent = 'Chart library is unavailable.'; return; }
+        cdrChart = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: { labels: Array.from({length: 24}, (_, hour) => `${String(hour).padStart(2, '0')}:00`), datasets: [{ label: 'Calls', data: Array(24).fill(0), backgroundColor: (ctx) => { const canvas = ctx.chart.ctx; const gradient = canvas.createLinearGradient(0, 0, 0, 300); gradient.addColorStop(0, 'rgba(14, 165, 233, 0.8)'); gradient.addColorStop(1, 'rgba(14, 165, 233, 0.1)'); return gradient; }, borderColor: '#0ea5e9', borderWidth: 1, borderRadius: 5 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }, y: { beginAtZero: true, ticks: { color: '#64748b', precision: 0 }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+        });
+    }
+
+    function updateChart(values) {
+        const data = Array.isArray(values) ? values : Array(24).fill(0);
+        const total = data.reduce((sum, value) => sum + Number(value || 0), 0);
+        $('total-chart-calls').textContent = `${total} call${total === 1 ? '' : 's'}`;
+        $('cdrChartEmpty').hidden = total > 0;
+        if (cdrChart) { cdrChart.data.datasets[0].data = data; cdrChart.update('none'); }
+    }
+
+    function statusBadge(status) {
+        const normalized = String(status || '').toUpperCase();
+        const wrapper = document.createElement('span');
+        const meta = {
+            ANSWERED: { label: 'Answered', icon: 'fa-circle-check', tone: 'is-success' },
+            BUSY: { label: 'Busy', icon: 'fa-phone-slash', tone: 'is-warning' },
+            'NO ANSWER': { label: 'No answer', icon: 'fa-phone-slash', tone: 'is-warning' },
+            NO_ANSWER: { label: 'No answer', icon: 'fa-phone-slash', tone: 'is-warning' },
+            ABANDONED: { label: 'Abandoned', icon: 'fa-phone-slash', tone: 'is-warning' },
+            TIMEOUT: { label: 'Timeout', icon: 'fa-hourglass-end', tone: 'is-warning' },
+            CANCELLED: { label: 'Cancelled', icon: 'fa-ban', tone: 'is-warning' },
+            FAILED: { label: 'Failed', icon: 'fa-circle-xmark', tone: 'is-danger' },
+            CONGESTION: { label: 'Failed', icon: 'fa-circle-xmark', tone: 'is-danger' },
+            CHANUNAVAIL: { label: 'Failed', icon: 'fa-circle-xmark', tone: 'is-danger' },
+            RINGING: { label: 'Ringing', icon: 'fa-phone-volume', tone: 'is-info' },
+            ENTERED: { label: 'Waiting', icon: 'fa-hourglass-half', tone: 'is-info' }
+        }[normalized] || { label: normalized || 'Unknown', icon: 'fa-circle-question', tone: 'is-danger' };
+        wrapper.className = `cdr-status-badge ${meta.tone}`;
+        wrapper.setAttribute('aria-label', `Status: ${meta.label}`);
+        wrapper.title = meta.label;
+        wrapper.append(icon(meta.icon));
+        return wrapper;
+    }
+
+    function stopPlaying() {
+        if (!state.playing) return;
+        $('floatingAudio').pause();
+        state.playing.button.replaceChildren(icon('fa-play'));
+        state.playing.button.classList.remove('is-playing');
+        $('floatingPlayer').classList.remove('show');
+        state.playing = null;
+    }
+
+    function attachAudioControls(wrapper, record) {
+        if (!canViewRecordings) return;
+        if (!record.recording) {
+            const unavailable = button('', 'fa-microphone-slash', 'cdr-icon-button cdr-record-button is-disabled');
+            unavailable.title = 'No recording available';
+            unavailable.setAttribute('aria-label', 'No recording available');
+            unavailable.disabled = true;
+            wrapper.append(unavailable);
+            const unavailableDownload = button('', 'fa-download', 'cdr-icon-button cdr-download-button is-disabled');
+            unavailableDownload.title = 'No recording available to download';
+            unavailableDownload.setAttribute('aria-label', 'No recording available to download');
+            unavailableDownload.disabled = true;
+            wrapper.append(unavailableDownload);
+            return;
+        }
+        const playButton = button('', 'fa-play', 'btn btn-info btn-sm');
+        playButton.classList.add('cdr-record-button');
+        playButton.title = 'Play recording';
+        playButton.setAttribute('aria-label', 'Play recording');
+        playButton.addEventListener('click', () => {
+            const audioSrc = `/recordings/play/${encodeURIComponent(record.recording)}`;
+            const audioEl = $('floatingAudio');
+            audioEl.onerror = function() {
+                alert("Cannot play recording. The external storage device (NAS/USB) is currently offline or disconnected.");
+                stopPlaying();
+            };
+            if (state.playing && state.playing.src === audioSrc) {
+                if (audioEl.paused) audioEl.play(); else stopPlaying();
+                return;
+            }
+            if (state.playing) stopPlaying();
+            audioEl.src = audioSrc;
+            $('floatingPlayerInfo').textContent = `${text(record.caller_display || record.src)} → ${text(record.route_display || record.dst)}`;
+            $('floatingDownload').href = audioSrc;
+            $('floatingDownload').download = record.recording;
+            if (!canDownloadRecordings) $('floatingDownload').style.display = 'none';
+            $('floatingPlayer').classList.add('show');
+            audioEl.play().catch(() => setLiveStatus('Recording could not be played', 'is-error'));
+            state.playing = { src: audioSrc, button: playButton };
+            playButton.replaceChildren(icon('fa-pause'));
+            playButton.classList.add('is-playing');
+        });
+        wrapper.append(playButton);
+        if (canDownloadRecordings) {
+            const download = document.createElement('a');
+            download.className = 'cdr-icon-button cdr-download-button';
+            download.href = `/recordings/play/${encodeURIComponent(record.recording)}`;
+            download.download = record.recording;
+            download.title = 'Download recording';
+            download.setAttribute('aria-label', 'Download recording');
+            download.append(icon('fa-download'));
+            wrapper.append(download);
+        }
+    }
+
+    async function loadLifecycle(row, content, callId) {
+        content.replaceChildren();
+        const loading = document.createElement('div'); loading.className = 'cdr-inline-loading'; loading.append(icon('fa-spinner fa-spin'), document.createTextNode(' Loading lifecycle...')); content.append(loading);
+        try {
+            const response = await fetch('/call-center/call-details/' + encodeURIComponent(callId), { headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || data.message || 'Could not load call journey');
+            content.replaceChildren();
+            renderJourney(content, data.call, true);
+            return;
+        } catch (error) { content.replaceChildren(); const failure = document.createElement('div'); failure.className = 'cdr-inline-error'; failure.textContent = error.message || 'Could not load lifecycle.'; content.append(failure); }
+    }
+
+    function renderRows(records) {
+        const tbody = $('cdr-table-body'); tbody.replaceChildren();
+        if (!Array.isArray(records) || !records.length) { renderTableMessage('No CDR records match the selected filters.'); return; }
+        records.forEach(record => {
+            const row = document.createElement('tr');
+            const status = document.createElement('td'); status.dataset.label = 'Status'; status.append(statusBadge(record.status)); row.append(status);
+            const callerCell = document.createElement('td'); callerCell.dataset.label = 'Call from'; callerCell.className = 'cdr-party-cell';
+            const caller = document.createElement('strong'); caller.textContent = (record.caller_display && record.caller_display !== '-') ? record.caller_display : (record.src || 'Unknown caller');
+            callerCell.append(caller); row.append(callerCell);
+            const destination = document.createElement('td'); destination.dataset.label = 'Call to'; destination.className = 'cdr-route-cell';
+            const route = document.createElement('strong'); route.textContent = text(record.call_to_display || record.route_display || record.dst);
+            destination.append(route);
+            row.append(destination);
+            const start = document.createElement('td'); start.dataset.label = 'Start time'; start.className = 'cdr-date-cell'; start.textContent = text(record.start_str); row.append(start);
+            const end = document.createElement('td'); end.dataset.label = 'End time'; end.className = 'cdr-date-cell'; end.textContent = text(record.end_str); row.append(end);
+            const callTime = document.createElement('td'); callTime.dataset.label = 'Call time'; callTime.className = 'cdr-duration-cell'; callTime.textContent = text(record.call_duration_str, '00:00'); row.append(callTime);
+            const talkTime = document.createElement('td'); talkTime.dataset.label = 'Talk time'; talkTime.className = 'cdr-duration-cell'; talkTime.textContent = text(record.talk_duration_str, '00:00'); row.append(talkTime);
+            const actions = document.createElement('td'); actions.dataset.label = 'Options'; actions.className = 'cdr-action-column'; const actionWrap = document.createElement('div'); actionWrap.className = 'cdr-row-actions'; const details = button('Info', 'fa-circle-info', 'btn btn-secondary btn-sm'); details.title = 'View call information'; details.setAttribute('aria-label', 'View call information'); details.addEventListener('click', () => showCallDetails(record.uniqueid)); attachAudioControls(actionWrap, record); const downloadButton = actionWrap.querySelector('.cdr-download-button'); if (downloadButton) actionWrap.insertBefore(details, downloadButton); else actionWrap.append(details); actions.append(actionWrap);
+            row.append(actions);
+            tbody.append(row);
+        });
+        applyColumnVisibility();
+    }
+
+    function renderPagination(total, page, limit) {
+        const footer = $('cdr-pagination'); footer.replaceChildren(); const pages = Math.max(1, Math.ceil(total / limit));
+        const start = total ? ((page - 1) * limit) + 1 : 0;
+        const end = total ? Math.min(page * limit, total) : 0;
+        $('cdr-results-range').textContent = total ? `Showing ${start}–${end} of ${total}` : 'No matching records';
+        if (pages <= 1) { footer.textContent = total ? `${total} record${total === 1 ? '' : 's'}` : ''; return; }
+        const previous = button('Previous', 'fa-chevron-left', 'btn btn-secondary btn-sm'); previous.disabled = page <= 1; previous.addEventListener('click', () => { state.page = Math.max(1, page - 1); refresh(false); });
+        const label = document.createElement('span'); label.textContent = `Page ${page} of ${pages}`;
+        const next = button('Next', 'fa-chevron-right', 'btn btn-secondary btn-sm'); next.disabled = page >= pages; next.addEventListener('click', () => { state.page = Math.min(pages, page + 1); refresh(false); });
+        footer.append(previous, label, next);
+    }
+
+    async function refresh(resetPage = true, silent = false) {
+        if (resetPage) state.page = 1;
+        const validationError = validateFilters();
+        showFilterError(validationError);
+        if (validationError) { setLiveStatus('Check filters', 'is-error'); return; }
+        renderActiveFilters(); updatePresetState();
+        syncUrl();
+        if (state.controller) state.controller.abort();
+        state.controller = new AbortController(); const requestId = ++state.requestId;
+        if (!silent) setLiveStatus('Loading...');
+        $('cdr-table-loading').hidden = false;
+        $('cdr-table-loading').setAttribute('aria-hidden', 'false');
+        $('cdr-table').setAttribute('aria-busy', 'true');
+        try {
+            const response = await fetch(`/api/cdr-list?${filterParams()}`, { signal: state.controller.signal, headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+            if (requestId !== state.requestId) return;
+            if (!response.ok) throw new Error(data.error || 'Could not load CDR records');
+            $('stat-total').textContent = data.stats.total_calls; $('stat-talk').textContent = data.stats.total_talk_time; $('stat-answered').textContent = `${data.stats.answered_ratio}%`; $('stat-missed').textContent = `${data.stats.missed_ratio}%`;
+            $('total-filtered-count').textContent = `${data.total_rows} total`;
+            updateChart(data.calls_by_hour); renderRows(data.data); renderPagination(data.total_rows, data.current_page, data.limit); setLiveStatus('Updated', 'is-success');
+        } catch (error) { if (error.name === 'AbortError') return; renderTableMessage(error.message || 'Could not load records.', 'error'); setLiveStatus(error.message || 'Could not load records', 'is-error'); }
+        finally { $('cdr-table').setAttribute('aria-busy', 'false'); $('cdr-table-loading').hidden = true; $('cdr-table-loading').setAttribute('aria-hidden', 'true'); }
+    }
+
+    function renderTableMessage(message, kind = 'empty') {
+        const tbody = $('cdr-table-body'); tbody.replaceChildren();
+        const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 8; cell.className = `cdr-empty-row ${kind === 'error' ? 'is-error' : ''}`;
+        cell.append(icon(kind === 'error' ? 'fa-triangle-exclamation' : 'fa-phone-slash'));
+        const title = document.createElement('strong'); title.textContent = message; cell.append(title);
+        if (kind === 'error') { const retry = button('Retry', 'fa-rotate-right', 'btn btn-secondary btn-sm'); retry.addEventListener('click', () => refresh(false)); cell.append(document.createElement('br'), retry); }
+        else if (hasActiveFilters()) { const clear = button('Clear filters', 'fa-filter-circle-xmark', 'btn btn-secondary btn-sm'); clear.addEventListener('click', resetFilters); cell.append(document.createElement('br'), clear); }
+        row.append(cell); tbody.append(row);
+    }
+
+    function resetFilters() { $('cdrFilters').reset(); state.page = 1; refresh(true); }
+    function exportCsv() { window.location.href = `/cdr?export=1&${new URLSearchParams({ date_from: $('date_from').value, date_to: $('date_to').value, extension: $('extension').value.trim(), call_type: $('call_type').value, call_from: $('call_from').value.trim(), call_to: $('call_to').value.trim(), min_duration: $('min_duration').value.trim(), max_duration: $('max_duration').value.trim(), status: $('status').value, q: $('q').value.trim() })}`; }
+
+    function appendJourneyDetails(parent, details) {
+        if (!Array.isArray(details) || !details.length) return;
+        const grid = document.createElement('div'); grid.className = 'cdr-journey-details';
+        details.forEach(detail => {
+            const item = document.createElement('div');
+            const label = document.createElement('span'); label.textContent = text(detail.label);
+            const value = document.createElement('strong'); value.textContent = text(detail.value);
+            item.append(label, value); grid.append(item);
+        });
+        parent.append(grid);
+    }
+
+    function attemptBadge(status) {
+        const normalized = String(status || '').toLowerCase().replace(/[\s_]+/g, '-');
+        const badge = document.createElement('span');
+        badge.className = 'cdr-attempt-status is-' + normalized;
+        const meta = {
+            answered: { label: 'Answered', icon: 'fa-circle-check' },
+            'no-answer': { label: 'No Answer', icon: 'fa-phone-slash' },
+            cancelled: { label: 'Cancelled', icon: 'fa-ban' },
+            'caller-hangup': { label: 'Caller Hangup', icon: 'fa-phone-slash' },
+            'queue-timeout': { label: 'Queue Timeout', icon: 'fa-hourglass-end' }
+        }[normalized];
+        if (!meta) return null;
+        badge.title = meta.label;
+        badge.setAttribute('aria-label', `Status: ${meta.label}`);
+        badge.append(icon(meta.icon), document.createTextNode(' ' + meta.label));
+        return badge;
+    }
+
+    function renderAgentAttempts(parent, attempts) {
+        const allowed = new Set(['Answered', 'No Answer', 'Cancelled', 'Caller Hangup', 'Queue Timeout']);
+        const visibleAttempts = Array.isArray(attempts) ? attempts.filter(attempt => allowed.has(attempt && attempt.status)) : [];
+        if (!visibleAttempts.length) return;
+        const section = document.createElement('div'); section.className = 'cdr-agent-attempts';
+        const heading = document.createElement('div'); heading.className = 'cdr-agent-attempts-heading';
+        heading.append(icon('fa-users'), document.createTextNode(' Agent attempts'));
+        section.append(heading);
+        visibleAttempts.forEach(attempt => {
+            const card = document.createElement('div'); card.className = 'cdr-agent-attempt';
+            const identity = document.createElement('div'); identity.className = 'cdr-agent-identity';
+            const iconWrap = document.createElement('span'); iconWrap.className = 'cdr-agent-icon'; iconWrap.append(icon('fa-headset'));
+            const identityText = document.createElement('div');
+            const name = document.createElement('strong'); name.textContent = text(attempt.agent_name || attempt.extension);
+            const extension = document.createElement('span'); extension.textContent = 'Ext. ' + text(attempt.extension);
+            identityText.append(name, extension); identity.append(iconWrap, identityText);
+            const result = document.createElement('div'); result.className = 'cdr-agent-result';
+            const badge = attemptBadge(attempt.status);
+            if (badge) result.append(badge);
+            const ring = document.createElement('span'); ring.textContent = 'Ring ' + text(attempt.ring_time_display, '00:00'); result.append(ring);
+            if (attempt.status_key === 'answered' && attempt.talk_time_display) {
+                const talk = document.createElement('span'); talk.textContent = 'Talk ' + text(attempt.talk_time_display); result.append(talk);
+            }
+            if (attempt.termination_reason === 'Transferred') {
+                const transfer = document.createElement('span');
+                transfer.textContent = 'Transferred' + (attempt.transferred_to ? ' → ' + text(attempt.transferred_to) : '');
+                result.append(transfer);
+            }
+            card.append(identity, result); section.append(card);
+        });
+        parent.append(section);
+    }
+
+    function renderQueueMetrics(parent, step) {
+        if (!step || step.kind !== 'queue' || !step.queue_metrics) return;
+        const metrics = step.queue_metrics;
+        const section = document.createElement('div'); section.className = 'cdr-queue-metrics';
+        const heading = document.createElement('div'); heading.className = 'cdr-queue-metrics-heading';
+        heading.append(icon('fa-chart-simple'), document.createTextNode(' Queue session metrics'));
+        section.append(heading);
+        const values = [
+            ['Wait Time', metrics.wait_time_display || '00:00:00', 'fa-hourglass-half', 'is-blue'],
+            ['Talk Time', metrics.talk_time_display || '00:00:00', 'fa-headset', 'is-green'],
+            ['Hold Time', metrics.hold_time_display || '00:00:00', 'fa-pause', 'is-amber']
+        ];
+        const grid = document.createElement('div'); grid.className = 'cdr-queue-metrics-grid';
+        values.forEach(([label, value, iconName, tone]) => {
+            const card = document.createElement('div'); card.className = `cdr-queue-metric ${tone}`;
+            const iconWrap = document.createElement('span'); iconWrap.className = 'cdr-queue-metric-icon'; iconWrap.append(icon(iconName));
+            const copy = document.createElement('div');
+            const caption = document.createElement('span'); caption.textContent = label;
+            const amount = document.createElement('strong'); amount.textContent = value;
+            copy.append(caption, amount); card.append(iconWrap, copy); grid.append(card);
+        });
+        section.append(grid); parent.append(section);
+    }
+
+    function journeyIcon(kind) {
+        const icons = { start: 'fa-phone', incoming: 'fa-phone-arrow-down-left', ivr: 'fa-sitemap', digit: 'fa-hand-pointer', selection: 'fa-hand-pointer', queue: 'fa-users-line', ring_group: 'fa-users', paging: 'fa-bullhorn', intercom: 'fa-tower-broadcast', speed_dial: 'fa-gauge-high', announcement: 'fa-volume-high', direct: 'fa-phone', agent: 'fa-headset', answered: 'fa-circle-check', transfer: 'fa-share-nodes', forward: 'fa-forward', end: 'fa-flag-checkered' };
+        return icons[kind] || 'fa-circle';
+    }
+
+    function renderJourney(container, call, compact = false) {
+        const journey = Array.isArray(call && call.journey) ? call.journey : [];
+        if (!journey.length) {
+            const empty = document.createElement('div'); empty.className = 'cdr-inline-empty'; empty.textContent = 'No call journey recorded for this call.'; container.append(empty); return;
+        }
+        const title = document.createElement('h3'); title.className = 'cdr-timeline-title'; title.textContent = 'Call journey'; container.append(title);
+            if (call.call_type === 'queue' && !call.journey_recorded) {
+                const notice = document.createElement('div'); notice.className = 'cdr-journey-notice'; notice.append(icon('fa-circle-info'), document.createTextNode(' IVR path is available for calls recorded after journey tracking was enabled.')); container.append(notice);
+            }
+        const timeline = document.createElement('div'); timeline.className = 'cdr-journey' + (compact ? ' is-compact' : '');
+        journey.forEach(step => {
+            const item = document.createElement('article'); item.className = 'cdr-journey-step is-' + text(step.kind, 'default');
+            const marker = document.createElement('span'); marker.className = 'cdr-journey-marker'; marker.append(icon(journeyIcon(step.kind)));
+            const content = document.createElement('div'); content.className = 'cdr-journey-step-content';
+            const top = document.createElement('div'); top.className = 'cdr-journey-step-top';
+            const heading = document.createElement('strong'); heading.textContent = text(step.title);
+            const time = document.createElement('time'); time.textContent = text(step.time, '');
+            top.append(heading); if (step.time) top.append(time);
+            content.append(top);
+            if (step.subtitle) { const subtitle = document.createElement('p'); subtitle.className = 'cdr-journey-subtitle'; subtitle.textContent = text(step.subtitle); content.append(subtitle); }
+            appendJourneyDetails(content, step.details);
+            renderQueueMetrics(content, step);
+            renderAgentAttempts(content, step.agent_attempts);
+            item.append(marker, content); timeline.append(item);
+        });
+        container.append(timeline);
+    }
+
+    async function showCallDetails(callId) {
+        const overlay = $('cdrDetailsModal'); const drawer = $('cdrDrawer'); const body = $('cdr-details-body'); state.lastFocused = document.activeElement; overlay.classList.add('show'); drawer.classList.add('open'); $('closeCdrModal').focus(); body.replaceChildren(); const loading = document.createElement('div'); loading.className = 'cdr-modal-loading'; loading.append(icon('fa-spinner fa-spin'), document.createTextNode(' Loading call details...')); body.append(loading);
+        try {
+            const response = await fetch(`/call-center/call-details/${encodeURIComponent(callId)}`, { headers: { 'Accept': 'application/json' } }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message || 'Could not load call details');
+            body.replaceChildren(); const call = data.call; const summary = document.createElement('div'); summary.className = 'cdr-summary-grid'; const callTypeLabel = call.call_type_label || ({ internal: 'Internal Call', inbound: 'Inbound Call', outbound: 'Outbound Call' }[call.call_type] || 'Call'); const summaryItems = [['Caller', call.caller_display || call.caller], ['Call type', callTypeLabel]]; if (call.call_type === 'inbound') { summaryItems.push(['Trunk', call.trunk || 'Unknown'], ['DID', call.did || 'Unknown']); } else if (call.call_type === 'outbound') { summaryItems.push(['Trunk', call.trunk || 'Unknown']); } const isQueue = Boolean(call.queue_name || call.queue_id); if (isQueue) summaryItems.push(['Queue', call.queue_name || call.queue_id]); summaryItems.push(['Call Time', call.call_time_display || '00:00:00']); if (isQueue) summaryItems.push(['Wait Time', call.wait_time_display || '00:00:00']); summaryItems.push(['Talk Time', call.talk_time_display || '00:00:00']); if (isQueue) summaryItems.push(['Hold Time', call.hold_time_display || '00:00:00']); summaryItems.push(['Callee', call.final_callee_display || call.final_callee || 'Unknown'], ['Status', call.final_result || call.status]); if (call.ended_by) summaryItems.push(['Ended by', call.ended_by]); summaryItems.forEach(([label, value]) => { const item = document.createElement('div'); item.className = 'cdr-summary-item'; const caption = document.createElement('span'); caption.textContent = label; const valueNode = document.createElement('strong'); valueNode.textContent = text(value); item.append(caption, valueNode); summary.append(item); }); body.append(summary);
+            if (call.journey) { renderJourney(body, call, true); return; }
+            const title = document.createElement('h3'); title.className = 'cdr-timeline-title'; title.textContent = 'Call timeline'; body.append(title);
+            if (!call.timeline || !call.timeline.length) { const empty = document.createElement('div'); empty.className = 'cdr-inline-empty'; empty.textContent = 'No timeline events recorded.'; body.append(empty); return; }
+            const timeline = document.createElement('div'); timeline.className = 'cdr-timeline-modern'; call.timeline.forEach(item => { const event = document.createElement('div'); event.className = 'cdr-timeline-item-modern'; const time = document.createElement('span'); time.className = 'time'; time.textContent = text(item.time); const name = document.createElement('strong'); name.textContent = text(item.event); const details = document.createElement('p'); details.textContent = text(item.details, ''); event.append(time, name); if (item.details) event.append(details); timeline.append(event); }); body.append(timeline);
+        } catch (error) { body.replaceChildren(); const failure = document.createElement('div'); failure.className = 'cdr-inline-error'; failure.textContent = error.message || 'Could not load call details.'; body.append(failure); }
+    }
+
+    function closeModal() { const overlay = $('cdrDetailsModal'); const drawer = $('cdrDrawer'); overlay.classList.remove('show'); drawer.classList.remove('open'); if (state.lastFocused) state.lastFocused.focus(); }
+    $('cdrFilters').addEventListener('submit', event => { event.preventDefault(); refresh(true); });
+    $('resetCdr').addEventListener('click', () => { $('cdrFilters').reset(); if(datePicker) datePicker.clear(); state.page = 1; refresh(true); });
+    $('refreshCdrBtn').addEventListener('click', () => refresh(false));
+
+    // Column visibility toggle logic
+    function applyColumnVisibility() {
+        const table = $('cdr-table');
+        if (!table) return;
+        
+        document.querySelectorAll('#columnToggles input[type="checkbox"]').forEach(checkbox => {
+            const colIndex = parseInt(checkbox.value);
+            const isVisible = checkbox.checked;
+            
+            // Toggle header cell
+            const ths = table.querySelectorAll('thead th');
+            if (ths[colIndex]) {
+                ths[colIndex].style.display = isVisible ? '' : 'none';
+            }
+            
+            // Toggle data cells
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                // Skip empty row or loading row
+                if (row.querySelector('.cdr-empty-row')) return;
+                const tds = row.querySelectorAll('td');
+                if (tds[colIndex]) {
+                    tds[colIndex].style.display = isVisible ? '' : 'none';
+                }
+            });
+        });
+    }
+
+    document.querySelectorAll('#columnToggles input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const isVisible = e.target.checked;
+            if (isVisible) {
+                e.target.parentElement.classList.add('active');
+            } else {
+                e.target.parentElement.classList.remove('active');
+            }
+            applyColumnVisibility();
+        });
+    });
+    $('exportCdr')?.addEventListener('click', exportCsv);
+    $('closeCdrModal').addEventListener('click', closeModal);
+    $('cdrDetailsModal').addEventListener('click', event => { if (event.target === $('cdrDetailsModal')) closeModal(); });
+    $('closeFloatingPlayer').addEventListener('click', stopPlaying);
+    $('floatingAudio').addEventListener('ended', stopPlaying);
+    document.querySelectorAll('.cdr-filter-preset').forEach(preset => preset.addEventListener('click', () => applyDatePreset(preset.dataset.range)));
+    ['date_from', 'date_to', 'extension', 'status'].forEach(id => $(id).addEventListener('change', () => { renderActiveFilters(); updatePresetState(); }));
+    $('per_page').addEventListener('change', () => { renderActiveFilters(); updatePresetState(); refresh(true); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') closeModal(); });
+    let searchTimer;
+    $('q').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => refresh(true), 450); });
+    
+    // Toggle Filters Display
+    const toggleFiltersBtn = $('toggleFiltersBtn');
+    const filtersContainer = $('filtersContainer');
+    toggleFiltersBtn.addEventListener('click', () => {
+        if (filtersContainer.style.display === 'none') {
+            filtersContainer.style.display = 'block';
+            toggleFiltersBtn.innerHTML = '<i class="fa-solid fa-sliders"></i> Hide Filters';
+            toggleFiltersBtn.classList.remove('btn-secondary');
+            toggleFiltersBtn.classList.add('btn-primary');
+        } else {
+            filtersContainer.style.display = 'none';
+            toggleFiltersBtn.innerHTML = '<i class="fa-solid fa-sliders"></i> Display Filters';
+            toggleFiltersBtn.classList.remove('btn-primary');
+            toggleFiltersBtn.classList.add('btn-secondary');
+        }
+    });
+    
+    // Automatically show filters if active filters exist
+    if (window.location.search && window.location.search !== '?') {
+        filtersContainer.style.display = 'block';
+        toggleFiltersBtn.innerHTML = '<i class="fa-solid fa-sliders"></i> Hide Filters';
+        toggleFiltersBtn.classList.remove('btn-secondary');
+        toggleFiltersBtn.classList.add('btn-primary');
+    }
+
+    datePicker = flatpickr("#date_range", { 
+        mode: "range",
+        enableTime: true,
+        time_24hr: true,
+        dateFormat: "Y-m-d H:i",
+        onChange: function(selectedDates, dateStr, instance) {
+            if (selectedDates.length === 2) {
+                $('date_from').value = instance.formatDate(selectedDates[0], "Y-m-d H:i") + ":00";
+                $('date_to').value = instance.formatDate(selectedDates[1], "Y-m-d H:i") + ":59";
+            } else if (selectedDates.length === 0) {
+                $('date_from').value = '';
+                $('date_to').value = '';
+            }
+        }
+    });
+    loadFiltersFromUrl();
+    initChart(); updateChart({{ calls_by_hour|tojson }}); refresh(true);
+    state.timer = setInterval(() => { if (document.visibilityState === 'visible' && !state.playing && $('cdrDetailsModal').hidden && !document.querySelector('.cdr-details-row:not([hidden])')) refresh(false, true); }, 15000);
+})();
+</script>
+{% endblock %}

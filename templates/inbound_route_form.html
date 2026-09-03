@@ -1,0 +1,601 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if route %}Edit{% else %}Add{% endif %} Inbound Route - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    .feature-switch-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.85rem 1rem;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+    }
+    .feature-switch-card:hover {
+        border-color: var(--primary);
+        background: rgba(0, 173, 181, 0.05);
+        transform: translateY(-1px);
+    }
+    .switch-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+    .switch-title {
+        color: var(--text-main);
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    .rule-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(0, 173, 181, 0.1);
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(0, 173, 181, 0.2);
+    }
+    .rule-number {
+        font-weight: 700;
+        color: #00cbd3;
+    }
+    .weekday-picker {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .weekday-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        padding: 0.4rem 0.6rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+    .weekday-item:hover {
+        background: rgba(0, 173, 181, 0.1);
+        border-color: var(--primary);
+    }
+</style>
+
+
+{% endblock %}
+
+{% block content %}
+<div class="header-panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fa-solid fa-phone-volume" style="color: var(--primary);"></i>
+            {% if route %}Edit Inbound Route: <span style="color: var(--primary);">{{ route.name }}</span>{% else %}Create Inbound Route{% endif %}
+        </h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Configure DID/Caller ID matching rules, trunks, time schedules, and target destinations
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('inbound_routes_list') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back to Routes
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+<form action="{% if route %}{{ url_for('inbound_route_edit', route_id=route.id) }}{% else %}{{ url_for('inbound_route_add') }}{% endif %}" method="POST" id="inboundForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Section 1: Basic Parameters & Status -->
+    <div class="form-section">
+        <div class="section-header">
+            <div>
+                <div class="form-section-title">
+                    <i class="fa-solid fa-sliders" style="color: var(--primary);"></i>
+                    Route Parameters & Status
+                    <span class="tooltip-container">!<span class="tooltip-text">Set the route identifier and operational state.</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label for="name">Inbound Route Name <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Main Company DID / Sales Line" value="{% if route %}{{ route.name }}{% endif %}" required>
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+                <label>Route Active Status</label>
+                <div class="switch-group" style="margin-top: 0;">
+                    <label class="switch">
+                        <input type="checkbox" name="enabled" {% if not route or route.enabled != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <div><strong>Active</strong> <span class="tooltip-container">!<span class="tooltip-text">When enabled, this route is active in the generated dialplan.</span></span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Trunk Filtering (Optional) -->
+    <div class="form-section">
+        <div class="section-header">
+            <div>
+                <div class="form-section-title">
+                    <i class="fa-solid fa-server" style="color: var(--primary);"></i>
+                    Trunk Filter (Optional)
+                    <span class="tooltip-container">!<span class="tooltip-text">If no specific trunks are selected, this route will match calls arriving on any inbound trunk.</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="dual-listbox">
+            <div class="listbox-col">
+                <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block; font-weight: 600;">
+                    Available Trunks
+                </label>
+                <select id="avail_trunks" class="form-control" multiple>
+                    {% for t in trunks %}
+                        {% if not route or t.name not in route.trunks %}
+                        <option value="{{ t.name }}">{{ t.name }} ({{ t.type }}){% if not t.enabled %} [Disabled]{% endif %}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="listbox-controls">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addTrunk()" style="width: 120px; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                    Add <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="removeTrunk()" style="width: 120px; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                    <i class="fa-solid fa-arrow-left"></i> Remove
+                </button>
+            </div>
+
+            <div class="listbox-col">
+                <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block; font-weight: 600;">
+                    Selected Trunks
+                </label>
+                <select id="sel_trunks" class="form-control" multiple>
+                    {% if route and route.trunks %}
+                        {% for t_name in route.trunks %}
+                        <option value="{{ t_name }}">{{ t_name }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Inbound Matching Patterns -->
+    <div class="form-section">
+        <div class="section-header">
+            <div>
+                <div class="form-section-title">
+                    <i class="fa-solid fa-hashtag" style="color: var(--primary);"></i>
+                    Inbound Matching Patterns (DID & Caller ID)
+                    <span class="tooltip-container">!<span class="tooltip-text">Define matching criteria for the incoming dialed number (DID) and source caller ID.</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 3;">
+                <label for="did_patterns">Inbound DID Matching Patterns <span class="tooltip-container">!<span class="tooltip-text">Use standard Asterisk pattern syntax. Prefix with _ for patterns, for example _X. matches any number.</span></span></label>
+                <textarea id="did_patterns" name="did_patterns" class="form-control" rows="3" placeholder="e.g. 23226054&#10;_09XXXXXX&#10;(One pattern per line, leave empty for any DID)" style="font-family: monospace;">{% if route %}{{ route.did_patterns|join('\n') }}{% endif %}</textarea>
+            </div>
+            <div class="form-group" style="flex: 2;">
+                <label for="cid_pattern">Source Caller ID Pattern (Optional) <span class="tooltip-container">!<span class="tooltip-text">Filter calls by calling party number. Leave empty to accept callers from any number.</span></span></label>
+                <input type="text" id="cid_pattern" name="cid_pattern" class="form-control" placeholder="e.g. _01X. (leave empty for any CID)" value="{% if route %}{{ route.cid_pattern }}{% endif %}">
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Call Recording & Forwarding Features -->
+    <div class="form-section">
+        <div class="section-header">
+            <div>
+                <div class="form-section-title">
+                    <i class="fa-solid fa-sliders" style="color: var(--primary);"></i>
+                    Call Recording & Special Forwarding
+                    <span class="tooltip-container">!<span class="tooltip-text">Enable automatic call recording or allow trunk-to-trunk forwarding for matched inbound calls.</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label><i class="fa-solid fa-microphone" style="color: var(--primary);"></i> Auto Record Incoming Calls</label>
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" name="auto_record" {% if route and route.auto_record %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <div><strong>Enable Recording</strong> <span class="tooltip-container">!<span class="tooltip-text">Enable MixMonitor audio recording for all bridged calls landing on this route.</span></span></div>
+                </div>
+            </div>
+
+            <div class="form-group" id="dialThroughGroup" style="flex: 1; display: none;">
+                <label><i class="fa-solid fa-right-left" style="color: var(--primary);"></i> Enable Dial Through Trunk</label>
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="enable_dial_trunk" name="enable_dial_trunk" {% if route and route.enable_dial_trunk and route.dial_trunk_permission_ext %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <div><strong>Allow Forwarding</strong> <span class="tooltip-container">!<span class="tooltip-text">When this route matches a received DID, PBX will first try local extensions, then outbound routes allowed for the selected extension.</span></span></div>
+                </div>
+                <div id="dialThroughPermission" class="form-group" style="display: none; margin-top: 0.75rem;">
+                    <label for="dial_trunk_permission_ext">Use Outbound Permission Of <span class="tooltip-container">!<span class="tooltip-text">The received DID will be dialed through this extension context, so outbound route permissions are exactly the same as this extension.</span></span></label>
+                    <select id="dial_trunk_permission_ext" name="dial_trunk_permission_ext" class="form-control">
+                        <option value="">-- Select Extension --</option>
+                        {% for ext, label in extensions_list %}
+                            <option value="{{ ext }}" {% if route and route.dial_trunk_permission_ext|string == ext|string %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Time-Based Destination Rules -->
+    <div class="form-section">
+        <div class="section-header">
+            <div>
+                <div class="form-section-title">
+                    <i class="fa-solid fa-calendar-check" style="color: var(--primary);"></i>
+                    Time-Based Destination Rules
+                    <span class="tooltip-container">!<span class="tooltip-text">Route incoming calls dynamically depending on business hours, holidays, or custom schedules.</span></span>
+                </div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-info btn-sm" onclick="addRuleRow()">
+                    <i class="fa-solid fa-plus"></i> Add Time Condition Rule
+                </button>
+            </div>
+        </div>
+
+        <div id="rules_container">
+            <!-- Dynamic Rule Cards injected here -->
+        </div>
+
+        <div id="no_rules_hint" style="text-align: center; color: var(--text-muted); padding: 1.5rem; background: rgba(255,255,255,0.015); border: 1px dashed var(--border-color); border-radius: 8px;">
+            <i class="fa-solid fa-clock" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.5;"></i>
+            No time condition rules added. All calls will proceed directly to the <strong>Default Fallback Destination</strong> below.
+        </div>
+    </div>
+
+    <!-- Section 6: Default Fallback Destination -->
+    <div class="form-section">
+        <div class="section-header">
+            <div>
+                <div class="form-section-title">
+                    <i class="fa-solid fa-reply-all" style="color: var(--primary);"></i>
+                    Default Fallback Destination
+                    <span class="tooltip-container">!<span class="tooltip-text">Executed when no time-based rules match, or if no time condition rules are configured.</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label style="font-weight: 600; color: var(--text-main);">Target Fallback Destination</label>
+                <div id="default-dest-selector"></div>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="default_strip">Strip Leading Digits <span class="tooltip-container">!<span class="tooltip-text">Number of digits to strip from DID before dialing.</span></span></label>
+                <input type="number" id="default_strip" name="default_strip" class="form-control" min="0" value="{% if route %}{{ route.default_strip or 0 }}{% else %}0{% endif %}">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="default_prepend">Prepend Digits <span class="tooltip-container">!<span class="tooltip-text">Digits to prefix to the DID before dialing.</span></span></label>
+                <input type="text" id="default_prepend" name="default_prepend" class="form-control" placeholder="e.g. 0" value="{% if route %}{{ route.default_prepend or '' }}{% endif %}">
+            </div>
+        </div>
+    </div>
+
+    <div id="hiddenTrunks"></div>
+
+    <div class="form-actions" style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+        <a href="{{ url_for('inbound_routes_list') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-info" style="min-width: 180px;">
+            <i class="fa-solid fa-floppy-disk"></i> Save Inbound Route
+        </button>
+    </div>
+</form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Dual selection helpers
+    function moveOptions(src, dst) {
+        const selOpts = Array.from(src.selectedOptions);
+        selOpts.forEach(o => {
+            dst.add(o);
+        });
+    }
+    function addTrunk() {
+        moveOptions(document.getElementById("avail_trunks"), document.getElementById("sel_trunks"));
+    }
+    function removeTrunk() {
+        moveOptions(document.getElementById("sel_trunks"), document.getElementById("avail_trunks"));
+    }
+
+    // Rules logic
+    let ruleCounter = 0;
+    const officeProfiles = {{ office_times|tojson|safe }};
+    const holidayProfiles = {{ holidays|tojson|safe }};
+
+    function updateNoRulesHint() {
+        const container = document.getElementById("rules_container");
+        const hint = document.getElementById("no_rules_hint");
+        if (container.children.length === 0) {
+            hint.style.display = 'block';
+        } else {
+            hint.style.display = 'none';
+        }
+    }
+
+    function addRuleRow(ruleData = null) {
+        ruleCounter++;
+        const idx = ruleCounter;
+        
+        const container = document.getElementById("rules_container");
+        const card = document.createElement("div");
+        card.className = "rule-card";
+        card.id = "rule-card-" + idx;
+
+        let html = `
+            <div class="rule-header">
+                <span class="rule-number"><i class="fa-solid fa-clock"></i> Rule #${idx}</span>
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeRuleRow(${idx})">
+                    <i class="fa-solid fa-trash"></i> Remove Rule
+                </button>
+            </div>
+            <input type="hidden" name="rule_index[]" value="${idx}">
+
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label style="font-weight: 600;">Time Condition Type</label>
+                    <select name="time_condition_${idx}" id="time_condition_${idx}" class="form-control" onchange="toggleConditionFields(${idx})">
+                        <option value="office">Office Time (Working Hours)</option>
+                        <option value="out_office">Out of Office Time</option>
+                        <option value="holiday">Holiday Schedule</option>
+                        <option value="out_holiday">Out of Holiday</option>
+                        <option value="out_office_holiday">Out of Office Time or Holiday</option>
+                        <option value="office_out_holiday">Office Time and Out of Holiday</option>
+                        <option value="custom">Custom Schedule (Days & Time)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="office_group_${idx}" style="flex: 2;">
+                    <label style="font-weight: 600;">Office Time Profile</label>
+                    <select name="office_profile_${idx}" class="form-control">
+                        <option value="">-- Select Office Profile --</option>
+                        ${officeProfiles.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                    </select>
+                </div>
+
+                <div class="form-group" id="holiday_group_${idx}" style="flex: 2;">
+                    <label style="font-weight: 600;">Holiday Profile</label>
+                    <select name="holiday_profile_${idx}" class="form-control">
+                        <option value="">-- Select Holiday Profile --</option>
+                        ${holidayProfiles.map(h => `<option value="${h.id}">${h.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Custom Schedule Block -->
+            <div id="custom_time_block_${idx}" style="display: none; padding: 1.25rem; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 1.25rem;">
+                <div style="font-weight: 700; margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--primary);">
+                    <i class="fa-solid fa-calendar-days"></i> Custom Days & Time Parameters
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label style="font-size: 0.82rem; color: var(--text-muted);">Active Days of Week</label>
+                        <div class="weekday-picker">
+                            ${['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].map(day => `
+                                <label class="weekday-item">
+                                    <input type="checkbox" name="custom_days_${idx}[]" value="${day}" style="accent-color: var(--primary);">
+                                    <span>${day.substring(0,3).toUpperCase()}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label style="font-size: 0.82rem; color: var(--text-muted);">Start Time</label>
+                        <input type="time" name="custom_start_${idx}" class="form-control" value="09:00">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label style="font-size: 0.82rem; color: var(--text-muted);">End Time</label>
+                        <input type="time" name="custom_end_${idx}" class="form-control" value="17:00">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Destination & Digit Manipulation -->
+            <div class="form-row" style="margin-top: 0.5rem;">
+                <div class="form-group" style="flex: 2;">
+                    <label style="font-weight: 600;">Destination When Matched</label>
+                    <div id="dest-selector-${idx}"></div>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Strip Digits</label>
+                    <input type="number" name="strip_${idx}" class="form-control" min="0" value="0">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Prepend Digits</label>
+                    <input type="text" name="prepend_${idx}" class="form-control" placeholder="e.g. 9">
+                </div>
+            </div>
+        `;
+        
+        card.innerHTML = html;
+        container.appendChild(card);
+        updateNoRulesHint();
+
+        toggleConditionFields(idx);
+
+        if (ruleData) {
+            document.getElementById("time_condition_" + idx).value = ruleData.time_condition;
+            toggleConditionFields(idx);
+            
+            const officeSel = card.querySelector(`select[name="office_profile_${idx}"]`);
+            if (officeSel && ruleData.office_profile) officeSel.value = ruleData.office_profile;
+
+            const holidaySel = card.querySelector(`select[name="holiday_profile_${idx}"]`);
+            if (holidaySel && ruleData.holiday_profile) holidaySel.value = ruleData.holiday_profile;
+
+            if (ruleData.custom_days) {
+                ruleData.custom_days.forEach(day => {
+                    const chk = card.querySelector(`input[name="custom_days_${idx}[]"][value="${day}"]`);
+                    if (chk) chk.checked = true;
+                });
+            }
+            if (ruleData.custom_start) {
+                card.querySelector(`input[name="custom_start_${idx}"]`).value = ruleData.custom_start;
+            }
+            if (ruleData.custom_end) {
+                card.querySelector(`input[name="custom_end_${idx}"]`).value = ruleData.custom_end;
+            }
+
+            card.querySelector(`input[name="strip_${idx}"]`).value = ruleData.strip || 0;
+            card.querySelector(`input[name="prepend_${idx}"]`).value = ruleData.prepend || "";
+
+            renderDestinationSelector(
+                "dest-selector-" + idx,
+                "dest_type_" + idx,
+                "dest_value_" + idx,
+                ruleData.dest_type || "hangup",
+                ruleData.dest_val || ""
+            );
+        } else {
+            renderDestinationSelector(
+                "dest-selector-" + idx,
+                "dest_type_" + idx,
+                "dest_value_" + idx,
+                "hangup",
+                ""
+            );
+        }
+    }
+
+    function removeRuleRow(idx) {
+        const card = document.getElementById("rule-card-" + idx);
+        if (card) card.remove();
+        updateNoRulesHint();
+    }
+
+    function toggleConditionFields(idx) {
+        const tc = document.getElementById("time_condition_" + idx).value;
+        const officeGrp = document.getElementById("office_group_" + idx);
+        const holidayGrp = document.getElementById("holiday_group_" + idx);
+        const customBlock = document.getElementById("custom_time_block_" + idx);
+
+        officeGrp.style.display = "none";
+        holidayGrp.style.display = "none";
+        customBlock.style.display = "none";
+
+        if (tc === "office" || tc === "out_office") {
+            officeGrp.style.display = "block";
+        } else if (tc === "holiday" || tc === "out_holiday") {
+            holidayGrp.style.display = "block";
+        } else if (tc === "out_office_holiday" || tc === "office_out_holiday") {
+            officeGrp.style.display = "block";
+            holidayGrp.style.display = "block";
+        } else if (tc === "custom") {
+            customBlock.style.display = "block";
+        }
+    }
+
+    function isByDidDestination() {
+        const defaultDestType = document.querySelector('select[name="default_dest_type"]');
+        return defaultDestType && defaultDestType.value === "internal";
+    }
+
+    function toggleDialThroughFields() {
+        const group = document.getElementById("dialThroughGroup");
+        const checkbox = document.getElementById("enable_dial_trunk");
+        const permission = document.getElementById("dialThroughPermission");
+        const permissionSelect = document.getElementById("dial_trunk_permission_ext");
+        if (!group || !checkbox || !permission || !permissionSelect) return;
+
+        if (isByDidDestination()) {
+            group.style.display = "block";
+        } else {
+            group.style.display = "none";
+            checkbox.checked = false;
+            permissionSelect.value = "";
+        }
+
+        permission.style.display = checkbox.checked && isByDidDestination() ? "block" : "none";
+        permissionSelect.required = checkbox.checked && isByDidDestination();
+    }
+
+    document.getElementById("inboundForm").addEventListener("submit", function(e) {
+        const holder = document.getElementById("hiddenTrunks");
+        holder.innerHTML = "";
+        
+        const sel = document.getElementById("sel_trunks");
+        const opts = Array.from(sel.options);
+        opts.forEach(o => {
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = "trunks[]";
+            inp.value = o.value;
+            holder.appendChild(inp);
+        });
+
+        const indexes = document.querySelectorAll('input[name="rule_index[]"]');
+        for (let i = 0; i < indexes.length; i++) {
+            const idx = indexes[i].value;
+            const tc = document.getElementById("time_condition_" + idx).value;
+            if (tc === "custom") {
+                const daysChecked = document.querySelectorAll(`input[name="custom_days_${idx}[]"]:checked`);
+                if (daysChecked.length === 0) {
+                    e.preventDefault();
+                    alert(`Please select at least one weekday for the Custom Schedule in Rule #${idx}.`);
+                    return;
+                }
+            }
+        }
+
+        toggleDialThroughFields();
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        renderDestinationSelector(
+            "default-dest-selector",
+            "default_dest_type",
+            "default_dest_value",
+            "{% if route and route.default_dest_type %}{{ route.default_dest_type }}{% else %}hangup{% endif %}",
+            "{% if route %}{{ route.default_dest_val }}{% endif %}"
+        );
+
+        {% if route and route.rules %}
+            const existingRules = {{ route.rules|tojson|safe }};
+            existingRules.forEach(r => {
+                addRuleRow(r);
+            });
+        {% endif %}
+        updateNoRulesHint();
+        toggleDialThroughFields();
+
+        const dialThroughToggle = document.getElementById("enable_dial_trunk");
+        document.addEventListener("change", function(e) {
+            if (e.target && e.target.name === "default_dest_type") {
+                toggleDialThroughFields();
+            }
+        });
+        if (dialThroughToggle) {
+            dialThroughToggle.addEventListener("change", toggleDialThroughFields);
+        }
+    });
+</script>
+{% endblock %}

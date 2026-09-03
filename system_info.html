@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}System Information - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>System Information</h1>
+        <div style="font-size: 0.9rem; color: #888; margin-top: 0.2rem;">Detailed server diagnostic and software version status</div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2>Hardware & Operating Parameters</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <tbody>
+                <tr>
+                    <td style="width: 30%;"><strong>System Model / Name</strong></td>
+                    <td style="font-size: 1.1rem; font-weight: bold; color: #00adb5;">RCM 7021</td>
+                </tr>
+                <tr>
+                    <td><strong>Asterisk Software Build</strong></td>
+                    <td><code id="info-version">{{ hw.version }}</code></td>
+                </tr>
+                <tr>
+                    <td><strong>System Time</strong></td>
+                    <td id="info-time">{{ hw.server_time }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Network MAC Address</strong></td>
+                    <td><code id="info-mac">{{ hw.mac }}</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Network IP Address</strong></td>
+                    <td><code id="info-ip">{{ hw.ip }}</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Server Uptime</strong></td>
+                    <td id="info-uptime">{{ hw.uptime }}</td>
+                </tr>
+                
+                <!-- Configuration Partition Space -->
+                <tr>
+                    <td><strong>Configuration Partition</strong></td>
+                    <td>
+                        <div class="progress-container" style="max-width: 500px; margin-top: 0.5rem;">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="config-bar" style="width: {{ hw.config_disk.percent }}%;"></div>
+                            </div>
+                            <div class="progress-labels">
+                                <span id="config-details">Used: {{ hw.config_disk.used }} / {{ hw.config_disk.total }} ({{ hw.config_disk.percent }}%)</span>
+                                <span>Free: <strong id="config-free-val">{{ hw.config_disk.free }}</strong></span>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Data Partition Space -->
+                <tr>
+                    <td><strong>Data Partition</strong></td>
+                    <td>
+                        <div class="progress-container" style="max-width: 500px; margin-top: 0.5rem;">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="data-bar" style="width: {{ hw.data_disk.percent }}%;"></div>
+                            </div>
+                            <div class="progress-labels">
+                                <span id="data-details">Used: {{ hw.data_disk.used }} / {{ hw.data_disk.total }} ({{ hw.data_disk.percent }}%)</span>
+                                <span>Free: <strong id="data-free-val">{{ hw.data_disk.free }}</strong></span>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function updateSystemInfo() {
+        fetch('/api/system-info-status')
+            .then(res => res.json())
+            .then(data => {
+                const hw = data.hw;
+                document.getElementById('info-version').innerText = hw.version;
+                document.getElementById('info-time').innerText = hw.server_time;
+                document.getElementById('info-mac').innerText = hw.mac;
+                document.getElementById('info-ip').innerText = hw.ip;
+                document.getElementById('info-uptime').innerText = hw.uptime;
+                
+                // Config partition
+                document.getElementById('config-bar').style.width = hw.config_disk.percent + '%';
+                document.getElementById('config-details').innerText = `Used: ${hw.config_disk.used} / ${hw.config_disk.total} (${hw.config_disk.percent}%)`;
+                document.getElementById('config-free-val').innerText = hw.config_disk.free;
+                
+                // Data partition
+                document.getElementById('data-bar').style.width = hw.data_disk.percent + '%';
+                document.getElementById('data-details').innerText = `Used: ${hw.data_disk.used} / ${hw.data_disk.total} (${hw.data_disk.percent}%)`;
+                document.getElementById('data-free-val').innerText = hw.data_disk.free;
+            })
+            .catch(err => console.error("Error updating system info:", err));
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        setInterval(updateSystemInfo, 5000);
+    });
+</script>
+{% endblock %}

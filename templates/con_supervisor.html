@@ -1,0 +1,456 @@
+{% extends base_template %}
+{% block title %}Supervisor - Live Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+    :root {
+        --bg-dark: #0b0f19;
+        --card-bg: rgba(22, 28, 45, 0.7);
+        --card-border: rgba(255, 255, 255, 0.08);
+        --primary: #3b82f6;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+    }
+
+    body {
+        background: linear-gradient(135deg, #0b0f19 0%, #111827 100%);
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-main);
+        min-height: 100vh;
+        margin: 0;
+    }
+
+    .sup-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    /* Header */
+    .sup-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--card-border);
+    }
+
+    .sup-title h1 {
+        margin: 0;
+        font-size: 2.2rem;
+        font-weight: 700;
+        background: linear-gradient(to right, #60a5fa, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .sup-title p {
+        margin: 5px 0 0 0;
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        font-weight: 300;
+    }
+
+    /* Dashboard Stats (Optional/Placeholder for future) */
+    .sup-stats {
+        display: flex;
+        gap: 1.5rem;
+    }
+
+    .stat-badge {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        padding: 0.8rem 1.5rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 100px;
+    }
+
+    .stat-badge span { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 5px; }
+    .stat-badge strong { font-size: 1.8rem; color: var(--text-main); font-weight: 700; }
+
+    /* Grid Layout for Agents */
+    .agent-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 2rem;
+    }
+
+    /* Agent Card (Glassmorphism) */
+    .agent-card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 1.5rem;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .agent-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+        border-color: var(--border-color);
+    }
+
+    /* Status Glow Effect Background */
+    .card-glow {
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        filter: blur(60px);
+        opacity: 0.15;
+        z-index: 0;
+        transition: background 0.3s ease;
+    }
+
+    /* Card Content */
+    .card-content {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+    }
+
+    .agent-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+    }
+
+    .agent-identity {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        background: var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .agent-info h3 { margin: 0; font-size: 1.2rem; font-weight: 600; color: var(--text-main); }
+    .agent-info span { font-size: 0.9rem; color: var(--text-muted); }
+
+    /* Status Badge */
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid transparent;
+    }
+    .status-badge::before { content: ''; width: 8px; height: 8px; border-radius: 50%; display: block; }
+    
+    .status-idle { background: rgba(16, 185, 129, 0.1); color: var(--success); border-color: rgba(16, 185, 129, 0.2); }
+    .status-idle::before { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    
+    .status-talking { background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239, 68, 68, 0.2); }
+    .status-talking::before { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: pulse 1.5s infinite; }
+    
+    .status-break { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .status-over-limit { background: rgba(239, 68, 68, 0.15) !important; color: #ef4444 !important; border: 1px solid rgba(239, 68, 68, 0.4) !important; animation: pulseRed 2s infinite; }
+    
+    @keyframes pulseRed {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    
+    .card-over-limit {
+        animation: pulseCardRed 1s infinite alternate;
+        border: 2px solid rgba(239, 68, 68, 0.8) !important;
+    }
+    
+    @keyframes pulseCardRed {
+        0% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); }
+        100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.8); background: rgba(239, 68, 68, 0.15); }
+    }
+
+    .status-break::before { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+
+    .status-offline { background: rgba(148, 163, 184, 0.1); color: var(--text-muted); border-color: rgba(148, 163, 184, 0.2); }
+    .status-offline::before { background: var(--text-muted); }
+
+    /* Details Grid */
+    .agent-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-item { display: flex; flex-direction: column; gap: 4px; }
+    .detail-item span { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+    .detail-item strong { font-size: 1rem; color: var(--text-main); font-family: monospace; font-weight: 600; }
+
+    /* Action Footer */
+    .card-actions {
+        display: flex;
+        gap: 10px;
+        opacity: 0.5;
+        transition: opacity 0.3s ease;
+    }
+    
+    .agent-card:hover .card-actions { opacity: 1; }
+
+    .action-btn {
+        flex: 1;
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 0.8rem;
+        border-radius: 10px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .action-btn:hover:not(:disabled) { background: var(--border-color); border-color: var(--border-color); }
+    .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    
+    .btn-listen:hover:not(:disabled) { color: #38bdf8; border-color: #38bdf8; }
+    .btn-whisper:hover:not(:disabled) { color: #a78bfa; border-color: #a78bfa; }
+    .btn-barge:hover:not(:disabled) { color: #fb7185; border-color: #fb7185; }
+
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    /* Loading / Empty State */
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 5rem 0;
+        color: var(--text-muted);
+    }
+    .empty-state i { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
+    .empty-state h3 { font-size: 1.5rem; margin: 0 0 10px 0; color: var(--text-main); }
+    
+    #toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 1000; display: flex; flex-direction: column; gap: 15px; }
+    .toast { padding: 1.2rem 2rem; background: var(--card-bg); border: 1px solid var(--card-border); backdrop-filter: blur(10px); border-radius: 12px; display: flex; align-items: center; gap: 15px; font-weight: 600; font-size: 1rem; color: var(--text-main); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+    .toast-success i { color: var(--success); }
+    .toast-error i { color: var(--danger); }
+</style>
+
+<div class="sup-container">
+    <div class="sup-header">
+        <div class="sup-title">
+            <h1><i class="fa-solid fa-layer-group"></i> Supervisor</h1>
+            <p>Real-time telemetry and command center</p>
+        </div>
+        <div class="sup-stats">
+            <div class="stat-badge">
+                <span>Active Agents</span>
+                <strong id="stat-active">0</strong>
+            </div>
+            <div class="stat-badge">
+                <span>In Calls</span>
+                <strong id="stat-talking">0</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="agent-grid" id="agent-grid">
+        <div class="empty-state">
+            <i class="fa-solid fa-satellite-dish fa-spin"></i>
+            <h3>Establishing Telemetry...</h3>
+            <p>Syncing live data with queues</p>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+function formatTime(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    let icon = type === 'success' ? 'fa-check-circle' : 'fa-triangle-exclamation';
+    toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function updateSupervisor() {
+    fetch("{{ url_for('con_bp.api_con_supervisor_status') }}")
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+            const grid = document.getElementById("agent-grid");
+            
+            if (data.agents.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-mug-hot"></i>
+                        <h3>All Quiet</h3>
+                        <p>No agents currently active in your assigned queues.</p>
+                    </div>`;
+                document.getElementById('stat-active').textContent = "0";
+                document.getElementById('stat-talking').textContent = "0";
+                return;
+            }
+            
+            let activeCount = data.agents.length;
+            let talkingCount = 0;
+            
+            grid.innerHTML = "";
+            
+            data.agents.forEach(a => {
+                let statusClass = "status-offline";
+                let glowColor = "rgba(148, 163, 184, 0.15)";
+                let isTalking = false;
+                
+                if (a.status_text === "Idle") {
+                    statusClass = "status-idle";
+                    glowColor = "rgba(16, 185, 129, 0.15)";
+                } else if (a.status_text === "Talking" || a.status_text === "Busy") {
+                    statusClass = "status-talking";
+                    glowColor = "rgba(239, 68, 68, 0.15)";
+                    isTalking = true;
+                    talkingCount++;
+                } else if (a.status_text === "Pause") {
+                    statusClass = "status-break";
+                    glowColor = "rgba(245, 158, 11, 0.15)";
+                }
+                
+                let statusText = a.status_text;
+                let isBreakOverLimit = false;
+                
+                if (a.status_text === "Pause") {
+                    statusText = a.paused_reason ? `Break (${a.paused_reason})` : "Break";
+                    if ((a.total_break_duration_today || a.status_duration) > (a.break_limit_sec || 3600)) {
+                        isBreakOverLimit = true;
+                        statusClass = "status-break status-over-limit";
+                        statusText += ` <i class="fa-solid fa-circle-exclamation" style="color: #ef4444;" title="Break limit exceeded!"></i>`;
+                        glowColor = "rgba(239, 68, 68, 0.3)";
+                    }
+                }
+
+                const card = document.createElement("div");
+                card.className = "agent-card" + (isBreakOverLimit ? " card-over-limit" : "");
+                card.innerHTML = `
+                    <div class="card-glow" style="background: ${glowColor};"></div>
+                    <div class="card-content">
+                        <div class="agent-header">
+                            <div class="agent-identity">
+                                <div class="avatar"><i class="fa-solid fa-user-astronaut"></i></div>
+                                <div class="agent-info">
+                                    <h3>${a.name}</h3>
+                                    <span>Ext: ${a.extension}</span>
+                                </div>
+                            </div>
+                            <div class="status-badge ${statusClass}">${statusText}</div>
+                        </div>
+                        
+                        <div class="agent-details">
+                            <div class="detail-item">
+                                <span>Duration</span>
+                                <strong>${(a.status_text === "Talking" || a.status_text === "Busy" || a.status_text === "Pause") ? formatTime(a.status_duration || 0) : "00:00"}</strong>
+                            </div>
+                            <div class="detail-item">
+                                <span>Caller ID</span>
+                                <strong title="${a.caller_id || 'N/A'}">${a.caller_id ? (a.caller_id.length > 15 ? a.caller_id.substring(0, 15) + '...' : a.caller_id) : 'N/A'}</strong>
+                            </div>
+                            <div class="detail-item">
+                                <span>Total Break Today</span>
+                                <strong style="${isBreakOverLimit ? 'color: #ef4444; animation: pulseRed 2s infinite;' : ''}">${formatTime(a.total_break_duration_today || 0)} / ${formatTime(a.break_limit_sec || 3600)}</strong>
+                            </div>
+                            <div class="detail-item">
+                                <span>Calls Taken</span>
+                                <strong>${a.calls_taken || 0}</strong>
+                            </div>
+                        </div>
+                        
+                        <div class="card-actions">
+                            <button class="action-btn btn-listen" ${!isTalking ? 'disabled' : ''} onclick="monitor('${a.extension}', 'listen')" title="Listen in secretly">
+                                <i class="fa-solid fa-ear-listen"></i> Listen
+                            </button>
+                            <button class="action-btn btn-whisper" ${!isTalking ? 'disabled' : ''} onclick="monitor('${a.extension}', 'whisper')" title="Whisper to agent">
+                                <i class="fa-solid fa-comment-dots"></i> Whisper
+                            </button>
+                            <button class="action-btn btn-barge" ${!isTalking ? 'disabled' : ''} onclick="monitor('${a.extension}', 'barge')" title="Barge into call">
+                                <i class="fa-solid fa-users-viewfinder"></i> Barge
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            
+            document.getElementById('stat-active').textContent = activeCount;
+            document.getElementById('stat-talking').textContent = talkingCount;
+        });
+}
+
+function monitor(ext, action) {
+    fetch("{{ url_for('con_bp.api_con_supervisor_monitor') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token() }}" },
+        body: JSON.stringify({agent_ext: ext, action: action})
+    }).then(r => r.json()).then(d => {
+        if(d.success) showToast("Monitoring initiated. Please pick up your extension.", "success");
+        else showToast("Failed: " + d.error, "error");
+    }).catch(e => showToast("Network error", "error"));
+}
+
+setInterval(updateSupervisor, 2000);
+updateSupervisor();
+</script>
+{% endblock %}

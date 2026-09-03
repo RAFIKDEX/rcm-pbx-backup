@@ -1,0 +1,723 @@
+{% extends 'base.html' %}
+{% block title %}Queue Details - {{ queue.queue_number }}{% endblock %}
+{% block content %}
+
+<!-- Header and Controls -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="margin: 0; font-size: 1.75rem; color: #fff;">
+            <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Queue Details: [{{ queue.queue_number }}] {{ queue.name }}
+        </h1>
+        <div style="margin-top: 0.25rem; font-size: 0.85rem; color: var(--text-muted);">
+            <a href="/" style="color: var(--primary); text-decoration: none;">Dashboard</a> / 
+            <a href="/call-center/stats" style="color: var(--primary); text-decoration: none;">Call Center</a> / 
+            <span style="color: #fff;">Queue Details</span>
+        </div>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="/call-center/stats" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Stats Dashboard</a>
+        <a href="/queues" class="btn btn-secondary"><i class="fa-solid fa-list"></i> Manage Queues</a>
+    </div>
+</div>
+
+<!-- Date/Time Filters (Specific to this queue) -->
+<div class="panel" style="padding: 1rem; margin-bottom: 1.5rem;">
+    <form id="filterForm" onsubmit="loadQueueData(event)" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Date From</label>
+            <input type="date" id="date_from" class="form-control" style="padding: 0.5rem; width: 160px;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Date To</label>
+            <input type="date" id="date_to" class="form-control" style="padding: 0.5rem; width: 160px;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Time From</label>
+            <input type="time" id="time_from" class="form-control" style="padding: 0.5rem; width: 110px;" value="00:00">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Time To</label>
+            <input type="time" id="time_to" class="form-control" style="padding: 0.5rem; width: 110px;" value="23:59">
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-info" style="padding: 0.5rem 1.25rem;"><i class="fa-solid fa-filter"></i> Apply Filters</button>
+            <button type="button" onclick="resetFilters()" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Reset</button>
+        </div>
+    </form>
+</div>
+
+<!-- Queue KPI Cards (10 Cards Grid) -->
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid var(--primary); background: rgba(59, 130, 246, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Total Calls</div>
+        <div id="kpi-total" style="font-size: 2rem; font-weight: bold; color: #fff; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid var(--status-ringing); background: rgba(16, 185, 129, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Answered Calls</div>
+        <div id="kpi-answered" style="font-size: 2rem; font-weight: bold; color: var(--status-ringing); margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Abandoned Calls</div>
+        <div id="kpi-abandoned" style="font-size: 2rem; font-weight: bold; color: #ef4444; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid var(--primary); background: rgba(56, 189, 248, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Answer Rate %</div>
+        <div id="kpi-ans-rate" style="font-size: 2rem; font-weight: bold; color: #38bdf8; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0%</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #c084fc; background: rgba(168, 85, 247, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Abandon Rate %</div>
+        <div id="kpi-ab-rate" style="font-size: 2rem; font-weight: bold; color: #c084fc; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0%</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #facc15; background: rgba(250, 204, 21, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Avg Talk Time</div>
+        <div id="kpi-avg-talk" style="font-size: 1.7rem; font-weight: bold; color: #facc15; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #2dd4bf; background: rgba(45, 212, 191, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Avg Waiting Time</div>
+        <div id="kpi-avg-wait" style="font-size: 1.7rem; font-weight: bold; color: #2dd4bf; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #fb923c; background: rgba(251, 146, 60, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Max Talk Time</div>
+        <div id="kpi-max-talk" style="font-size: 1.7rem; font-weight: bold; color: #fb923c; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #f43f5e; background: rgba(244, 63, 94, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Max Wait Time</div>
+        <div id="kpi-max-wait" style="font-size: 1.7rem; font-weight: bold; color: #f43f5e; margin-top: 0.7rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+    </div>
+    <div class="panel" style="padding: 1.25rem; text-align: center; border-left: 4px solid #34d399; background: rgba(52, 211, 153, 0.03);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">SLA % (20s)</div>
+        <div id="kpi-sla" style="font-size: 2rem; font-weight: bold; color: #34d399; margin-top: 0.5rem; font-family: 'Orbitron', sans-serif;">0%</div>
+    </div>
+</div>
+
+<!-- Live Real-time Columns: Members & Active Calls -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+    <!-- Live Queue Members -->
+    <div class="panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2><i class="fa-solid fa-users" style="color: var(--primary);"></i> Queue Members (Live)</h2>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399;" id="live-mem-count">0 Agents</span>
+        </div>
+        <div style="padding: 1rem; max-height: 350px; overflow-y: auto;">
+            <div id="live-members-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem;">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Live Queue Calls -->
+    <div class="panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2><i class="fa-solid fa-phone-volume" style="color: var(--primary);"></i> Active Calls (Live)</h2>
+            <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;" id="live-call-count">0 Calls</span>
+        </div>
+        <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+            <table class="table" style="margin-bottom: 0;">
+                <thead>
+                    <tr>
+                        <th>Caller</th>
+                        <th>Position</th>
+                        <th>Agent</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="live-calls-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs selector -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap;">
+    <button onclick="switchTab('tab-details')" id="btn-tab-details" class="btn btn-info tab-btn">Queue Settings</button>
+    <button onclick="switchTab('tab-calls')" id="btn-tab-calls" class="btn btn-secondary tab-btn">Call Details</button>
+    <button onclick="switchTab('tab-logins')" id="btn-tab-logins" class="btn btn-secondary tab-btn">Login Details</button>
+    <button onclick="switchTab('tab-pauses')" id="btn-tab-pauses" class="btn btn-secondary tab-btn">Pause Details</button>
+    <button onclick="switchTab('tab-charts')" id="btn-tab-charts" class="btn btn-secondary tab-btn">Performance Charts</button>
+</div>
+
+<!-- TAB 1: QUEUE DETAILS (SETTINGS) -->
+<div id="tab-details" class="tab-content">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Queue Configuration Settings</h2>
+        </div>
+        <div style="padding: 1.25rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+            <div>
+                <table class="table table-striped" style="width: 100%;">
+                    <tbody>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold; width: 45%;">Queue Number:</td>
+                            <td><strong style="color: #fff;">{{ queue.queue_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Queue Name:</td>
+                            <td>{{ queue.name }}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Ring Strategy:</td>
+                            <td><span class="badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; text-transform: uppercase;">{{ queue.strategy }}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Music On Hold:</td>
+                            <td><code>{{ queue.music_on_hold }}</code></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Ring Time Duration:</td>
+                            <td><code>{{ queue.ring_time }}</code> seconds</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                <table class="table table-striped" style="width: 100%;">
+                    <tbody>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold; width: 45%;">Wrapup Time:</td>
+                            <td><code>{{ queue.wrapup_time }}</code> seconds</td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Join Empty Queue:</td>
+                            <td><span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185;">{{ queue.join_empty or 'yes' }}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Leave When Empty:</td>
+                            <td><span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185;">{{ queue.leave_when_empty or 'no' }}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Failover Route:</td>
+                            <td>
+                                {% if queue.destination_type != 'hangup' and queue.destination_value %}
+                                <span style="text-transform: capitalize;">{{ queue.destination_type }}:</span> <code>{{ queue.destination_value }}</code>
+                                {% else %}
+                                <span style="color: var(--status-offline);"><i class="fa-solid fa-ban"></i> Hangup Call</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 2: CALL DETAILS -->
+<div id="tab-calls" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Call Logs (Specific to Queue {{ queue.queue_number }})</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Caller</th>
+                        <th>Queue</th>
+                        <th>Entry Time</th>
+                        <th>Position</th>
+                        <th>Wait Time</th>
+                        <th>Agent</th>
+                        <th>Answer Time</th>
+                        <th>Talk Duration</th>
+                        <th>Hangup Reason</th>
+                        <th>Recording</th>
+                    </tr>
+                </thead>
+                <tbody id="calls-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 3: LOGIN DETAILS -->
+<div id="tab-logins" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Agent Login Sessions History</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Agent Ext</th>
+                        <th>Login Time</th>
+                        <th>Logout Time</th>
+                        <th>Session Duration</th>
+                        <th>Paused Duration</th>
+                        <th>Available Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="logins-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 4: PAUSE DETAILS -->
+<div id="tab-pauses" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Agent Pauses/Break History</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Agent Ext</th>
+                        <th>Pause Time</th>
+                        <th>Unpause Time</th>
+                        <th>Pause Duration</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="pauses-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 5: PERFORMANCE CHARTS -->
+<div id="tab-charts" class="tab-content" style="display: none;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Call Casing Overview</h2>
+            </div>
+            <div style="position: relative; height: 280px;">
+                <canvas id="queueVolumeChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Hourly Call Volume Peak</h2>
+            </div>
+            <div style="position: relative; height: 280px;">
+                <canvas id="queuePeakChart"></canvas>
+            </div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1;">
+            <div class="panel-header">
+                <h2>Agent Performance (Handled Queue Calls)</h2>
+            </div>
+            <div style="position: relative; height: 280px;">
+                <canvas id="queueAgentChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const queueNum = "{{ queue.queue_number }}";
+    let pollInterval = null;
+    let timerInterval = null;
+    
+    let liveCalls = [];
+    let liveMembers = [];
+    
+    // Charts variables
+    let volumeChart = null;
+    let peakChart = null;
+    let agentChart = null;
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+        });
+        
+        document.getElementById(tabId).style.display = 'block';
+        document.getElementById('btn-' + tabId).classList.remove('btn-secondary');
+        document.getElementById('btn-' + tabId).classList.add('btn-info');
+    }
+
+    function resetFilters() {
+        document.getElementById("date_from").value = '';
+        document.getElementById("date_to").value = '';
+        document.getElementById("time_from").value = '00:00';
+        document.getElementById("time_to").value = '23:59';
+        loadQueueData();
+    }
+
+    function formatDuration(sec) {
+        if (!sec || isNaN(sec) || sec < 0) return "00:00";
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        if (h > 0) {
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function loadQueueData(event) {
+        if (event) event.preventDefault();
+        
+        const date_from = document.getElementById("date_from").value;
+        const date_to = document.getElementById("date_to").value;
+        const time_from = document.getElementById("time_from").value;
+        const time_to = document.getElementById("time_to").value;
+        
+        let url = `/call-center/queues/${queueNum}/api?`;
+        if (date_from) url += `&date_from=${date_from}`;
+        if (date_to) url += `&date_to=${date_to}`;
+        if (time_from) url += `&time_from=${time_from}`;
+        if (time_to) url += `&time_to=${time_to}`;
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                // Populate KPIs
+                populateKPIs(data.kpis);
+                
+                // Populate Live grids
+                liveMembers = data.live_members;
+                liveCalls = data.live_calls;
+                renderLiveMembers();
+                renderLiveCalls();
+                
+                // Populate history tabs
+                renderCallHistory(data.calls_history);
+                renderLoginHistory(data.login_history);
+                renderPauseHistory(data.pause_history);
+                
+                // Draw charts
+                renderCharts(data);
+            })
+            .catch(err => console.error("Error loading queue details:", err));
+    }
+
+    function populateKPIs(kpis) {
+        document.getElementById("kpi-total").innerText = kpis.total_calls;
+        document.getElementById("kpi-answered").innerText = kpis.answered;
+        document.getElementById("kpi-abandoned").innerText = kpis.abandoned;
+        document.getElementById("kpi-ans-rate").innerText = kpis.ans_rate + '%';
+        document.getElementById("kpi-ab-rate").innerText = kpis.abandon_rate + '%';
+        document.getElementById("kpi-avg-talk").innerText = formatDuration(kpis.avg_talk);
+        document.getElementById("kpi-avg-wait").innerText = formatDuration(kpis.avg_wait);
+        document.getElementById("kpi-max-talk").innerText = formatDuration(kpis.longest_talk);
+        document.getElementById("kpi-max-wait").innerText = formatDuration(kpis.longest_wait);
+        document.getElementById("kpi-sla").innerText = kpis.sla_pct + '%';
+    }
+
+    function renderLiveMembers() {
+        const container = document.getElementById("live-members-container");
+        container.innerHTML = '';
+        document.getElementById("live-mem-count").innerText = `${liveMembers.length} Agents`;
+        
+        if (liveMembers.length === 0) {
+            container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color: var(--text-muted); padding: 1rem;">No logged in agents.</div>`;
+            return;
+        }
+        
+        liveMembers.forEach((m, idx) => {
+            let stateColor = '#94a3b8';
+            let stateText = 'Offline';
+            let stateIcon = 'fa-circle-dot';
+            let activeTimer = false;
+            
+            if (m.paused) {
+                stateColor = '#f59e0b';
+                stateText = `Paused (${m.paused_reason || 'Break'})`;
+                stateIcon = 'fa-mug-hot';
+                activeTimer = true;
+            } else if (m.state === 1) {
+                stateColor = '#10b981';
+                stateText = 'Available';
+                stateIcon = 'fa-circle-check';
+            } else if (m.state === 5) {
+                stateColor = '#ef4444';
+                stateText = 'Talking';
+                stateIcon = 'fa-phone-flip';
+                activeTimer = true;
+            } else if (m.state === 6) {
+                stateColor = '#3b82f6';
+                stateText = 'Ringing';
+                stateIcon = 'fa-bell';
+                activeTimer = true;
+            }
+            
+            const card = document.createElement("div");
+            card.style.background = 'rgba(255, 255, 255, 0.01)';
+            card.style.border = '1px solid var(--border-color)';
+            card.style.borderRadius = '4px';
+            card.style.padding = '0.75rem';
+            card.style.borderTop = `3px solid ${stateColor}`;
+            
+            const ext = m.location.split('/')[1] || '';
+            
+            card.innerHTML = `
+                <div style="font-weight: bold; color: #fff; font-size: 0.9rem;">${m.name}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.35rem;">Ext: ${ext}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:${stateColor}; font-weight:bold;">
+                    <span><i class="fa-solid ${stateIcon}"></i> ${stateText}</span>
+                    ${activeTimer ? `<span id="member-timer-${idx}" style="font-family: monospace; font-size: 0.75rem;">${formatDuration(m.status_duration)}</span>` : ''}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function renderLiveCalls() {
+        const body = document.getElementById("live-calls-body");
+        body.innerHTML = '';
+        document.getElementById("live-call-count").innerText = `${liveCalls.length} Calls`;
+        
+        if (liveCalls.length === 0) {
+            body.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 1.5rem;">No active queue calls.</td></tr>`;
+            return;
+        }
+        
+        liveCalls.forEach((c, idx) => {
+            let statBadge = '';
+            if (c.status === 'Talking') statBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">Talking</span>`;
+            else if (c.status === 'Waiting') statBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">Waiting</span>`;
+            else statBadge = `<span class="badge badge-gray">${c.status}</span>`;
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${c.caller}</strong></td>
+                <td>${c.position > 0 ? c.position : '-'}</td>
+                <td>${c.agent || '-'}</td>
+                <td>${statBadge}</td>
+                <td style="font-family: monospace;" id="call-timer-${idx}">${formatDuration(c.duration)}</td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function renderCallHistory(calls) {
+        const body = document.getElementById("calls-table-body");
+        body.innerHTML = '';
+        if (calls.length === 0) {
+            body.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>`;
+            return;
+        }
+        calls.forEach(c => {
+            const entryTime = new Date(c.timestamp * 1000).toLocaleString();
+            const statusUpper = c.status ? c.status.toUpperCase() : 'ENTERED QUEUE';
+            
+            let statusBadge = '';
+            if (statusUpper === 'ANSWERED') {
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Answered</span>`;
+            } else if (statusUpper === 'ABANDONED') {
+                statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">Abandoned</span>`;
+            } else if (statusUpper === 'CANCELED' || statusUpper === 'CANCELLED') {
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">Canceled</span>`;
+            } else if (statusUpper === 'NO ANSWER') {
+                statusBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">No Answer</span>`;
+            } else {
+                statusBadge = `<span class="badge badge-gray">${c.status}</span>`;
+            }
+            
+            let ansTimeStr = '-';
+            if (statusUpper === 'ANSWERED' && c.wait_time) {
+                ansTimeStr = new Date((c.timestamp + c.wait_time) * 1000).toLocaleTimeString();
+            }
+            
+            let recPlay = '-';
+            if (c.recording_file) {
+                recPlay = `<audio src="/recordings/play/${c.recording_file}" controls style="max-width: 180px; height: 28px; display: block;"></audio>`;
+            }
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${c.caller}</strong><br>${statusBadge}</td>
+                <td><strong>${c.queuename}</strong></td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${entryTime}</td>
+                <td>${statusUpper === 'ABANDONED' ? 'Last Position: ' + (c.position || '-') : (c.position || '-')}</td>
+                <td>${formatDuration(c.wait_time)}</td>
+                <td>${c.agent || '-'}</td>
+                <td>${ansTimeStr}</td>
+                <td>${statusUpper === 'ANSWERED' ? formatDuration(c.talk_time) : '-'}</td>
+                <td><span class="badge badge-gray" style="text-transform: capitalize;">${c.hangup_by || '-'}</span></td>
+                <td>${recPlay}</td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function renderLoginHistory(sessions) {
+        const body = document.getElementById("logins-table-body");
+        body.innerHTML = '';
+        if (sessions.length === 0) {
+            body.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No login sessions recorded.</td></tr>`;
+            return;
+        }
+        sessions.forEach(s => {
+            const login = new Date(s.login_time * 1000).toLocaleString();
+            const logout = s.logout_time ? new Date(s.logout_time * 1000).toLocaleString() : 'Active';
+            body.innerHTML += `
+                <tr>
+                    <td><strong>${s.agent}</strong></td>
+                    <td style="font-size: 0.85rem;">${login}</td>
+                    <td style="font-size: 0.85rem;">${logout}</td>
+                    <td>${formatDuration(s.total_online_time)}</td>
+                    <td><span style="color: #f59e0b;">${formatDuration(s.pause_time)}</span></td>
+                    <td><span style="color: #34d399;">${formatDuration(s.available_time)}</span></td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderPauseHistory(pauses) {
+        const body = document.getElementById("pauses-table-body");
+        body.innerHTML = '';
+        if (pauses.length === 0) {
+            body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No pauses recorded.</td></tr>`;
+            return;
+        }
+        pauses.forEach(p => {
+            const start = new Date(p.pause_time * 1000).toLocaleString();
+            const dur = p.unpause_time ? formatDuration(p.unpause_time - p.pause_time) : 'Active';
+            body.innerHTML += `
+                <tr>
+                    <td><strong>${p.agent}</strong></td>
+                    <td style="font-size: 0.85rem;">${start}</td>
+                    <td>${p.unpause_time ? new Date(p.unpause_time * 1000).toLocaleTimeString() : 'Active'}</td>
+                    <td>${dur}</td>
+                    <td><span class="badge badge-gray">${p.reason || 'Pause'}</span></td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderCharts(data) {
+        if (volumeChart) volumeChart.destroy();
+        if (peakChart) peakChart.destroy();
+        if (agentChart) agentChart.destroy();
+        
+        // 1. Answered vs Abandoned (Doughnut)
+        const answered = data.kpis.answered;
+        const abandoned = data.kpis.abandoned;
+        const cancelled = data.kpis.cancelled;
+        const total = data.kpis.total_calls;
+        const noAnswer = Math.max(0, total - answered - abandoned - cancelled);
+        
+        const ctxVol = document.getElementById('queueVolumeChart').getContext('2d');
+        volumeChart = new Chart(ctxVol, {
+            type: 'doughnut',
+            data: {
+                labels: ['Answered', 'Abandoned', 'Canceled', 'No Answer'],
+                datasets: [{
+                    data: [answered, abandoned, cancelled, noAnswer],
+                    backgroundColor: ['#10b981', '#ef4444', '#f59e0b', '#64748b'],
+                    borderColor: '#0f172a',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        // 2. Peak Hours (Line)
+        const hrLabels = data.peak_hours.map(p => p.hour);
+        const hrTotal = data.peak_hours.map(p => p.total);
+        const ctxPeak = document.getElementById('queuePeakChart').getContext('2d');
+        peakChart = new Chart(ctxPeak, {
+            type: 'line',
+            data: {
+                labels: hrLabels,
+                datasets: [{
+                    label: 'Call Volume',
+                    data: hrTotal,
+                    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                    borderColor: '#c084fc',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        // 3. Agent Performance (Bar)
+        const agLabels = data.agent_performance.map(a => a.agent);
+        const agCalls = data.agent_performance.map(a => a.calls);
+        const ctxAg = document.getElementById('queueAgentChart').getContext('2d');
+        agentChart = new Chart(ctxAg, {
+            type: 'bar',
+            data: {
+                labels: agLabels,
+                datasets: [{
+                    label: 'Calls Answered',
+                    data: agCalls,
+                    backgroundColor: 'rgba(234, 179, 8, 0.4)',
+                    borderColor: '#eab308',
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+    }
+
+    function startLocalTimers() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            // Tick live call wait/talk times
+            liveCalls.forEach((c, idx) => {
+                const el = document.getElementById(`call-timer-${idx}`);
+                if (el) {
+                    c.duration = (c.duration || 0) + 1;
+                    el.innerText = formatDuration(c.duration);
+                }
+            });
+            // Tick live member status timers
+            liveMembers.forEach((m, idx) => {
+                const el = document.getElementById(`member-timer-${idx}`);
+                if (el) {
+                    m.status_duration = (m.status_duration || 0) + 1;
+                    el.innerText = formatDuration(m.status_duration);
+                }
+            });
+        }, 1000);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // Default range: past 7 days
+        const now = new Date();
+        const start = new Date();
+        start.setDate(now.getDate() - 7);
+        
+        document.getElementById("date_from").value = start.toISOString().substring(0,10);
+        document.getElementById("date_to").value = now.toISOString().substring(0,10);
+        
+        loadQueueData();
+        pollInterval = setInterval(loadQueueData, 3000); // Poll every 3 seconds for realtime changes
+        startLocalTimers();
+    });
+</script>
+{% endblock %}

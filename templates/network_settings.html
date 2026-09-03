@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}Network Settings - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Network Settings</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Configure network interface mode, static addresses, DNS servers, and view hardware link status</div>
+    </div>
+</div>
+
+{% if request.args.get('network_saved') %}
+<div class="panel" style="border: 1px solid rgba(234, 179, 8, 0.45); background: rgba(234, 179, 8, 0.08);">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: flex-start; gap: 1rem; max-width: 760px;">
+            <div style="width: 46px; height: 46px; border-radius: 8px; background: rgba(234, 179, 8, 0.16); color: #eab308; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; flex: 0 0 auto;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h2 style="margin: 0 0 0.45rem; color: var(--text-main); font-size: 1.15rem;">Reboot required</h2>
+                {% if request.args.get('new_ip') %}
+                    <div style="color: var(--text-muted); line-height: 1.55; font-size: 0.95rem;">
+                        Network settings were saved. Reboot the PBX server, then open the portal at
+                        <strong style="color: var(--text-main);">http://{{ request.args.get('new_ip') }}/</strong>
+                    </div>
+                {% else %}
+                    <div style="color: var(--text-muted); line-height: 1.55; font-size: 0.95rem;">
+                        Network settings were saved. Reboot the PBX server, then open the portal using the new DHCP-assigned IP address.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% if has_permission('system_reboot', 'execute') %}
+        <button type="button" class="btn btn-danger" onclick="openMachineRebootModal()" style="background: #dc2626; border-color: #dc2626; color: var(--text-main); font-weight: 700;">
+            <i class="fa-solid fa-power-off"></i> Reboot Server
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Current Network Status</h2>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div class="card" style="padding: 1.25rem;">
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Interface</div>
+            <div style="font-size: 1.4rem; font-weight: bold; font-family: 'Orbitron', sans-serif; color: var(--text-main); margin-top: 0.25rem;">
+                {{ status.interface }}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--status-registered); margin-top: 0.5rem;">
+                <i class="fa-solid fa-circle-check"></i> Connected & Link Up
+            </div>
+        </div>
+        
+        <div class="card" style="padding: 1.25rem;">
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">IP Address</div>
+            <div style="font-size: 1.4rem; font-weight: bold; font-family: 'Orbitron', sans-serif; color: var(--primary); margin-top: 0.25rem;">
+                {{ status.ip_address or 'N/A' }}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+                MAC: {{ status.mac_address }}
+            </div>
+        </div>
+
+        <div class="card" style="padding: 1.25rem;">
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Traffic Stats</div>
+            <div style="font-size: 1rem; color: var(--text-main); margin-top: 0.25rem; line-height: 1.4;">
+                <div><i class="fa-solid fa-arrow-down" style="color: var(--status-registered); font-size: 0.8rem;"></i> RX: {{ status.rx_bytes }}</div>
+                <div><i class="fa-solid fa-arrow-up" style="color: var(--status-ringing); font-size: 0.8rem;"></i> TX: {{ status.tx_bytes }}</div>
+            </div>
+        </div>
+    </div>
+
+    <form action="{{ url_for('network_settings') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-network-wired" style="color: var(--primary);"></i> IP Configuration</h2>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="mode">IP Assignment Mode</label>
+                <select id="mode" name="mode" class="form-control" onchange="toggleMode()">
+                    <option value="dhcp" {% if settings.mode == 'dhcp' %}selected{% endif %}>Dynamic (DHCP)</option>
+                    <option value="static" {% if settings.mode == 'static' %}selected{% endif %}>Static IP Address</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="static_fields" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ip_address">IP Address <span style="color: #ff4a4a;">*</span></label>
+                    <input type="text" id="ip_address" name="ip_address" class="form-control" 
+                           placeholder="e.g. 192.168.1.100" value="{{ settings.ip_address }}"
+                           pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$" title="Enter a valid IPv4 address">
+                </div>
+                <div class="form-group">
+                    <label for="subnet_mask">Subnet Mask <span style="color: #ff4a4a;">*</span></label>
+                    <input type="text" id="subnet_mask" name="subnet_mask" class="form-control" 
+                           placeholder="e.g. 255.255.255.0" value="{{ settings.subnet_mask }}"
+                           pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$" title="Enter a valid IPv4 subnet mask">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="gateway">Gateway IP <span style="color: #ff4a4a;">*</span></label>
+                    <input type="text" id="gateway" name="gateway" class="form-control" 
+                           placeholder="e.g. 192.168.1.1" value="{{ settings.gateway }}"
+                           pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$" title="Enter a valid IPv4 address">
+                </div>
+            </div>
+
+            <div class="panel-header" style="margin-top: 2rem;">
+                <h2><i class="fa-solid fa-dns" style="color: var(--primary);"></i> DNS Configuration</h2>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="dns1">Primary DNS</label>
+                    <input type="text" id="dns1" name="dns1" class="form-control" 
+                           placeholder="e.g. 8.8.8.8" value="{{ settings.dns1 }}"
+                           pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$" title="Enter a valid IPv4 address">
+                </div>
+                <div class="form-group">
+                    <label for="dns2">Secondary DNS</label>
+                    <input type="text" id="dns2" name="dns2" class="form-control" 
+                           placeholder="e.g. 1.1.1.1" value="{{ settings.dns2 }}"
+                           pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$" title="Enter a valid IPv4 address">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2rem;">
+            {% if has_permission('network_settings', 'update') %}
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Network Settings</button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleMode() {
+        const mode = document.getElementById("mode").value;
+        const staticFields = document.getElementById("static_fields");
+        const ipInput = document.getElementById("ip_address");
+        const subnetInput = document.getElementById("subnet_mask");
+        const gatewayInput = document.getElementById("gateway");
+
+        if (mode === "static") {
+            staticFields.style.display = "block";
+            ipInput.required = true;
+            subnetInput.required = true;
+            gatewayInput.required = true;
+        } else {
+            staticFields.style.display = "none";
+            ipInput.required = false;
+            subnetInput.required = false;
+            gatewayInput.required = false;
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleMode();
+    });
+</script>
+{% endblock %}

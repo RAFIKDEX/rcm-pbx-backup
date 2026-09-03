@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block title %}System Cleanup - RCM 7021{% endblock %}
+{% block content %}
+
+<style>
+    .cleanup-hero {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.95) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .stat-card {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--border-color);
+    }
+    .progress-bar-bg {
+        width: 100%;
+        background: var(--border-color);
+        height: 12px;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 15px;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        {% if storage.usage_percent > 90 %}
+            background: linear-gradient(90deg, #ef4444, #f43f5e);
+        {% elif storage.usage_percent > 70 %}
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        {% else %}
+            background: linear-gradient(90deg, #10b981, #34d399);
+        {% endif %}
+    }
+    .action-card {
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2.5rem 1.5rem;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .action-card:hover {
+        transform: translateY(-8px);
+        background: var(--panel-dark);
+        border-color: var(--border-color);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+    }
+    .action-icon-wrapper {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        font-size: 2.2rem;
+    }
+    .action-title {
+        color: #f8fafc;
+        font-size: 1.4rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+    .action-desc {
+        color: #94a3b8;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin-bottom: 2rem;
+        flex-grow: 1;
+    }
+    .action-btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .btn-manual { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f6; }
+    .btn-manual:hover { background: #3b82f6; color: white; }
+    
+    .btn-auto { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid #10b981; }
+    .btn-auto:hover { background: #10b981; color: white; }
+    
+    .btn-history { background: rgba(139, 92, 246, 0.1); color: #a78bfa; border: 1px solid #8b5cf6; }
+    .btn-history:hover { background: #8b5cf6; color: white; }
+
+    /* --- Light Mode Fixes --- */
+    [data-theme="light"] .cleanup-hero {
+        background: linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(255, 255, 255, 0.95) 100%);
+    }
+    [data-theme="light"] .cleanup-hero h1,
+    [data-theme="light"] .stat-card div:nth-child(2),
+    [data-theme="light"] .action-title {
+        color: #0f172a !important;
+    }
+    [data-theme="light"] .cleanup-hero p,
+    [data-theme="light"] .stat-card div:nth-child(1),
+    [data-theme="light"] .action-desc {
+        color: #475569 !important;
+    }
+    [data-theme="light"] .action-card,
+    [data-theme="light"] .stat-card {
+        background: #ffffff;
+    }
+</style>
+
+
+<div class="cleanup-hero">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1 style="margin: 0; color: #f8fafc; font-size: 2rem; font-weight: 700;">System Cleanup & Storage</h1>
+            <p style="color: #94a3b8; margin-top: 0.5rem; font-size: 1rem;">Manage and optimize your PBX storage efficiently.</p>
+        </div>
+        <div>
+            <span style="background: var(--border-color); padding: 8px 16px; border-radius: 20px; color: #cbd5e1; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-hard-drive"></i> Server Storage
+            </span>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <div class="stat-card" style="flex: 1; min-width: 200px;">
+            <div style="color: #94a3b8; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-server" style="margin-right: 8px;"></i>Total Space</div>
+            <div style="font-size: 2.2rem; font-weight: 700; color: #f8fafc; margin-top: 0.5rem;">{{ (storage.total / 1073741824)|round(2) }} <span style="font-size: 1.2rem; color: #64748b;">GB</span></div>
+        </div>
+        
+        <div class="stat-card" style="flex: 1; min-width: 200px; border-left: 3px solid #ef4444;">
+            <div style="color: #94a3b8; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-chart-pie" style="margin-right: 8px;"></i>Used Space</div>
+            <div style="font-size: 2.2rem; font-weight: 700; color: #f8fafc; margin-top: 0.5rem;">{{ (storage.used / 1073741824)|round(2) }} <span style="font-size: 1.2rem; color: #64748b;">GB</span></div>
+            <div class="progress-bar-bg">
+                <div class="progress-fill" style="width: {{ storage.usage_percent }}%;"></div>
+            </div>
+            <div style="text-align: right; margin-top: 5px; font-size: 0.85rem; font-weight: 600; color: {% if storage.usage_percent > 90 %}#ef4444{% elif storage.usage_percent > 70 %}#f59e0b{% else %}#10b981{% endif %};">{{ storage.usage_percent }}% Used</div>
+        </div>
+
+        <div class="stat-card" style="flex: 1; min-width: 200px; border-left: 3px solid #10b981;">
+            <div style="color: #94a3b8; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-regular fa-circle-check" style="margin-right: 8px;"></i>Free Space</div>
+            <div style="font-size: 2.2rem; font-weight: 700; color: #f8fafc; margin-top: 0.5rem;">{{ (storage.free / 1073741824)|round(2) }} <span style="font-size: 1.2rem; color: #64748b;">GB</span></div>
+        </div>
+    </div>
+</div>
+
+<div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+    <div class="action-card" style="flex: 1; min-width: 250px;">
+        <div class="action-icon-wrapper" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+            <i class="fa-solid fa-broom"></i>
+        </div>
+        <h2 class="action-title">Manual Cleanup</h2>
+        <p class="action-desc">Safely analyze and delete old recordings, CDRs, and queue stats with a full preview of what will be deleted.</p>
+        <a href="/cleanup/manual" class="action-btn btn-manual">Start Wizard <i class="fa-solid fa-arrow-right" style="margin-left: 5px;"></i></a>
+    </div>
+
+    <div class="action-card" style="flex: 1; min-width: 250px;">
+        <div class="action-icon-wrapper" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+            <i class="fa-solid fa-robot"></i>
+        </div>
+        <h2 class="action-title">Automatic Cleanup</h2>
+        <p class="action-desc">Configure scheduled tasks and emergency triggers to automatically manage storage without manual intervention.</p>
+        <a href="/cleanup/auto" class="action-btn btn-auto">Configure Auto <i class="fa-solid fa-gear" style="margin-left: 5px;"></i></a>
+    </div>
+
+    <div class="action-card" style="flex: 1; min-width: 250px;">
+        <div class="action-icon-wrapper" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+        <h2 class="action-title">Cleanup History</h2>
+        <p class="action-desc">View comprehensive logs, audit trails, and storage freed from all previous cleanup operations.</p>
+        <a href="/cleanup/history" class="action-btn btn-history">View History <i class="fa-solid fa-list" style="margin-left: 5px;"></i></a>
+    </div>
+</div>
+{% endblock %}

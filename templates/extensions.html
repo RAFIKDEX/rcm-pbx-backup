@@ -1,0 +1,1308 @@
+{% extends 'base.html' %}
+
+{% block title %}Extensions - RCM 7021 Management Panel{% endblock %}
+
+{% block content %}
+<style>
+    .extensions-panel {
+        padding: 1rem;
+    }
+    .extensions-panel .panel-header {
+        margin-bottom: 0.65rem;
+    }
+    #extensions-table {
+        table-layout: fixed;
+        min-width: 980px;
+    }
+    #extensions-table th,
+    #extensions-table td {
+        padding: 0.58rem 0.65rem;
+        font-size: 0.84rem;
+        line-height: 1.25;
+    }
+    #extensions-table th {
+        font-size: 0.68rem;
+        letter-spacing: 0;
+        white-space: nowrap;
+    }
+    #extensions-table .select-col { width: 34px; }
+    #extensions-table .col-ext { width: 92px; }
+    #extensions-table .col-name { width: 145px; }
+    #extensions-table .col-status { width: 230px; }
+    #extensions-table .col-cc { width: 72px; }
+    #extensions-table .col-cid { width: 112px; }
+    #extensions-table .col-email { width: 170px; }
+    #extensions-table .col-mobile { width: 120px; }
+    #extensions-table .col-actions { width: 112px; }
+    .ext-number {
+        color: var(--text-main);
+        font-size: 0.95rem;
+        font-weight: 850;
+        letter-spacing: 0;
+    }
+    .ext-muted-cell {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+        max-width: 100%;
+    }
+    .ext-name-cell {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+        max-width: 100%;
+    }
+    #extensions-table .badge {
+        padding: 0.22rem 0.48rem;
+        font-size: 0.68rem;
+        border-radius: 6px;
+        white-space: nowrap;
+        margin-top: 0.12rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .ext-reg-cell code {
+        font-size: 0.78rem;
+        padding: 0.12rem 0.28rem;
+        border-radius: 5px;
+        background: var(--bg-dark);
+    }
+    .ext-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.34rem;
+        white-space: nowrap;
+    }
+    .ext-action-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.035);
+        color: var(--text-muted);
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+        padding: 0;
+        font-size: 0.78rem;
+        line-height: 1;
+    }
+    .ext-action-btn:hover {
+        transform: translateY(-1px);
+        color: var(--text-main);
+    }
+    .ext-action-info {
+        color: #67e8f9;
+        background: rgba(6, 182, 212, 0.1);
+        border-color: rgba(6, 182, 212, 0.24);
+    }
+    .ext-action-info:hover { background: rgba(6, 182, 212, 0.22); }
+    .ext-action-edit {
+        color: #cbd5e1;
+        background: rgba(148, 163, 184, 0.1);
+        border-color: rgba(148, 163, 184, 0.22);
+    }
+    .ext-action-edit:hover { background: rgba(59, 130, 246, 0.2); border-color: rgba(96, 165, 250, 0.38); }
+    .ext-action-delete {
+        color: #fca5a5;
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.24);
+    }
+    .ext-action-delete:hover { background: rgba(239, 68, 68, 0.22); border-color: rgba(248, 113, 113, 0.42); }
+    @media (max-width: 1100px) {
+        #extensions-table { min-width: 920px; }
+        #extensions-table .col-status { width: 200px; }
+        #extensions-table .col-email { width: 145px; }
+    }
+</style>
+
+<div class="header-panel">
+    <div>
+        <h1>Extensions Management</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage SIP endpoints, registrations, and extension status</div>
+    </div>
+    
+    <!-- Top Action Buttons -->
+    <div class="action-buttons" style="gap: 0.75rem;">
+        {% if can_edit('extensions') or can_delete('extensions') %}
+        <button class="btn btn-secondary" onclick="toggleSelectAll()" id="btn-select-toggle"><i class="fa-solid fa-list-check"></i> Select</button>
+        {% endif %}
+        {% if can_edit('extensions') %}
+        <button class="btn btn-secondary" id="btn-bulk-edit" style="display: none;" onclick="openBulkEditModal()"><i class="fa-solid fa-user-pen"></i> Bulk Edit</button>
+        {% endif %}
+        {% if can_delete('extensions') %}
+        <button class="btn btn-danger" id="btn-bulk-delete" style="display: none;" onclick="submitBulkDelete()"><i class="fa-solid fa-trash"></i> Bulk Delete</button>
+        {% endif %}
+        {% if has_permission('extensions', 'export') %}
+        <a href="{{ url_for('extensions_export_all_csv') }}" class="btn btn-secondary" title="Export All Extensions to CSV"><i class="fa-solid fa-file-export"></i> Export CSV</a>
+        <button type="button" class="btn btn-secondary" title="Import Extensions from CSV or XLSX" onclick="openUniversalImportModal('{{ url_for('extensions_import') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+        {% endif %}
+        {% if can_create('extensions') %}
+        <a href="{{ url_for('extensions_bulk_add') }}" class="btn btn-secondary"><i class="fa-solid fa-file-import"></i> Bulk Add</a>
+        <a href="{{ url_for('extensions_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-circle-plus"></i> Add Extension
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search Panel -->
+<div class="panel" style="padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 250px;">
+        <div style="color: var(--primary); font-size: 1.2rem;"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div style="flex: 1;">
+            <input type="text" id="extension-search" class="form-control" dir="auto" 
+                   placeholder="Search by Extension number, Name, or Caller ID number..." 
+                   onkeyup="loadExtensionsTable(1)" style="border: none; background: transparent; padding-left: 0;">
+        </div>
+        <div id="search-count" style="font-size: 0.85rem; color: var(--text-dark); font-weight: bold;"></div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <label for="per_page" style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold;">Rows per page:</label>
+        <select id="per_page" onchange="loadExtensionsTable(1)" class="form-control-inline" style="width: 80px; padding: 0.25rem 0.5rem; border-radius: 4px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+            <option value="10" selected>10</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+            <option value="70">70</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+</div>
+
+<!-- Extensions Table Panel -->
+<div class="panel extensions-panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-users-gear" style="color: var(--primary);"></i> Extensions List</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table" id="extensions-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px; display: none;" class="select-col">
+                        <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAllRows(this)">
+                    </th>
+                    <th class="col-ext">Ext</th>
+                    <th class="col-name">Name</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-cc">CC</th>
+                    <th class="col-cid">Caller ID</th>
+                    <th class="col-email">Email</th>
+                    <th class="col-mobile">Mobile</th>
+                    {% if can_view('extensions') or can_edit('extensions') or can_delete('extensions') %}
+                    <th class="col-actions" style="text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="{{ 9 if (can_view('extensions') or can_edit('extensions') or can_delete('extensions')) else 8 }}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                        Loading extensions...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="pagination-footer" class="form-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; display: flex; border-top: 1px solid var(--border-color)"></div>
+</div>
+
+<!-- Info Modal -->
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 style="color: var(--primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;" id="modalTitle">
+            <i class="fa-solid fa-circle-info"></i> Extension Info
+        </h2>
+        
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <div>
+                <span style="color: var(--text-dark); font-size: 0.8rem; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 0.25rem;">SIP Password (Secret)</span>
+                <div style="display: flex; align-items: center; gap: 0.75rem; background-color: var(--bg-dark); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <code id="modalSecret" style="font-family: monospace; font-size: 1.05rem; color: var(--text-main); flex: 1;">Loading...</code>
+                    <button type="button" id="copySecretBtn" class="btn btn-secondary btn-sm" onclick="copySecret()" title="Copy SIP password" aria-label="Copy SIP password" style="padding: 0.35rem 0.6rem;"><i class="fa-solid fa-copy"></i></button>
+                </div>
+            </div>
+            
+            <div id="modalMobileGroup">
+                <span style="color: var(--text-dark); font-size: 0.8rem; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 0.25rem;">Mobile Number</span>
+                <strong id="modalMobile" style="color: var(--text-main); font-size: 1rem;">-</strong>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border-color);">
+            
+            <div>
+                <span style="color: var(--text-dark); font-size: 0.8rem; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 0.75rem;">Registered Contact IPs</span>
+                <div id="modalContacts" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if can_edit('extensions') %}
+<!-- Bulk Edit Modal -->
+<style>
+    /* Modal Animation */
+    @keyframes modalScaleIn {
+        0% { opacity: 0; transform: scale(0.95) translateY(-20px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    #bulkEditModal .modal-content {
+        animation: modalScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+    }
+
+    /* Tab Animation */
+    @keyframes tabFadeIn {
+        0% { opacity: 0; transform: translateY(10px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    #bulkEditModal .tab-content.active {
+        display: block;
+        animation: tabFadeIn 0.3s ease-out forwards;
+    }
+
+    /* UI UX Improvements */
+    #bulkEditModal .tabs-header {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0;
+    }
+    #bulkEditModal .tab-btn {
+        padding: 0.75rem 1.5rem;
+        background: transparent;
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 0.95rem;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-bottom: -2px; /* overlap border */
+    }
+    #bulkEditModal .tab-btn:hover {
+        color: var(--text-main);
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 8px 8px 0 0;
+    }
+    #bulkEditModal .tab-btn.active {
+        color: #00d4ff;
+        border-bottom-color: #00d4ff;
+    }
+
+    /* Form Layout */
+    .bulk-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+    
+    .bulk-setting-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: background-color 0.2s ease;
+    }
+    .bulk-setting-row:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .bulk-setting-label {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 600;
+        width: 200px; /* fixed width */
+        flex-shrink: 0;
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .bulk-setting-label input[type="checkbox"] {
+        width: 1.2rem;
+        height: 1.2rem;
+        cursor: pointer;
+        border-radius: 4px; /* square but slightly rounded corners for modern look */
+        accent-color: #00d4ff;
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .bulk-setting-label input[type="checkbox"]:checked {
+        transform: scale(1.1);
+    }
+    
+    .bulk-control {
+        flex: 1;
+        transition: all 0.3s ease;
+    }
+    .bulk-control:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        filter: grayscale(100%);
+    }
+    
+    .bulk-section-title {
+        font-size: 1.1rem;
+        color: var(--text-main);
+        margin: 2rem 0 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>
+
+<div id="bulkEditModal" class="modal" style="display: none; z-index: 10000;">
+    <div class="modal-content" style="max-width: 1100px; padding: 2.5rem;">
+        <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fa-solid fa-user-pen" style="color: #00d4ff;"></i> Bulk Edit <span id="bulk-edit-count" style="background: rgba(0, 212, 255, 0.15); padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 1.2rem;">0</span> Extensions
+        </h2>
+        
+        <form id="bulkEditForm" onsubmit="submitBulkEdit(event)">
+            
+            <div class="tabs-header">
+                <button type="button" class="tab-btn active" onclick="switchBulkTab(event, 'bulk-tab-basic')"><i class="fa-solid fa-sliders"></i> Basic Settings</button>
+                <button type="button" class="tab-btn" onclick="switchBulkTab(event, 'bulk-tab-media')"><i class="fa-solid fa-photo-film"></i> Media & NAT</button>
+                <button type="button" class="tab-btn" onclick="switchBulkTab(event, 'bulk-tab-features')"><i class="fa-solid fa-share"></i> Features</button>
+            </div>
+            
+            <div class="content-panel" style="padding: 2rem; background: rgba(0, 0, 0, 0.2); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.03);">
+                <!-- Basic Settings Tab -->
+                <div id="bulk-tab-basic" class="tab-content active">
+                    <div class="bulk-form-grid">
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_enabled">
+                                <input type="checkbox" id="bulk_change_enabled" onchange="toggleBulkField(this, 'bulk_enabled')"> Enable / Disable Status
+                            </label>
+                            <select id="bulk_enabled" class="form-control bulk-control" disabled>
+                                <option value="on">Enable (on)</option>
+                                <option value="off">Disable (off)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_contacts">
+                                <input type="checkbox" id="bulk_change_contacts" onchange="toggleBulkField(this, 'bulk_max_contacts')"> Concurrent Registrations
+                            </label>
+                            <input type="number" id="bulk_max_contacts" class="form-control bulk-control" min="1" max="100" value="3" disabled>
+                        </div>
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_expiration">
+                                <input type="checkbox" id="bulk_change_expiration" onchange="toggleBulkField(this, 'bulk_max_expiration')"> Max Expiration (sec)
+                            </label>
+                            <input type="number" id="bulk_max_expiration" class="form-control bulk-control" min="30" max="86400" value="120" disabled>
+                        </div>
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_ring_time">
+                                <input type="checkbox" id="bulk_change_ring_time" onchange="toggleBulkField(this, 'bulk_ring_time')"> Ring Time (sec)
+                            </label>
+                            <input type="number" id="bulk_ring_time" class="form-control bulk-control" min="5" max="300" value="60" disabled>
+                        </div>
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_sync_ldap">
+                                <input type="checkbox" id="bulk_change_sync_ldap" onchange="toggleBulkField(this, 'bulk_sync_ldap')"> Sync to LDAP Directory
+                            </label>
+                            <select id="bulk_sync_ldap" class="form-control bulk-control" disabled>
+                                <option value="on">Sync Contacts (Yes)</option>
+                                <option value="off">Do Not Sync (No)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <h3 class="bulk-section-title"><i class="fa-solid fa-voicemail text-muted"></i> Voicemail Settings</h3>
+                    
+                    <div class="bulk-form-grid">
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_vm">
+                                <input type="checkbox" id="bulk_change_vm" onchange="toggleBulkField(this, 'bulk_vm_enabled')"> Voicemail Status
+                            </label>
+                            <select id="bulk_vm_enabled" class="form-control bulk-control" disabled>
+                                <option value="on">Enable Voicemail</option>
+                                <option value="off">Disable Voicemail</option>
+                            </select>
+                        </div>
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_vm_pin">
+                                <input type="checkbox" id="bulk_change_vm_pin" onchange="toggleBulkField(this, 'bulk_vm_password')"> Voicemail PIN
+                            </label>
+                            <input type="text" id="bulk_vm_password" class="form-control bulk-control" placeholder="1234" disabled>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Media & NAT Tab -->
+                <div id="bulk-tab-media" class="tab-content">
+                    <div class="bulk-form-grid">
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_record">
+                                <input type="checkbox" id="bulk_change_record" onchange="toggleBulkField(this, 'bulk_record_mode')"> Call Recording Mode
+                            </label>
+                            <select id="bulk_record_mode" class="form-control bulk-control" disabled>
+                                <option value="noo">Disabled (noo)</option>
+                                <option value="in">Inbound Calls (in)</option>
+                                <option value="out">Outbound Calls (out)</option>
+                                <option value="all">All Calls (all)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_nat">
+                                <input type="checkbox" id="bulk_change_nat" onchange="toggleBulkField(this, 'bulk_nat')"> NAT Support
+                            </label>
+                            <select id="bulk_nat" class="form-control bulk-control" disabled>
+                                <option value="on">Force NAT (on)</option>
+                                <option value="off">No NAT (off)</option>
+                            </select>
+                        </div>
+
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_direct">
+                                <input type="checkbox" id="bulk_change_direct" onchange="toggleBulkField(this, 'bulk_direct_media')"> Direct Media
+                            </label>
+                            <select id="bulk_direct_media" class="form-control bulk-control" disabled>
+                                <option value="on">Enable Direct Media (on)</option>
+                                <option value="off">Disable Direct Media (off)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_dtmf">
+                                <input type="checkbox" id="bulk_change_dtmf" onchange="toggleBulkField(this, 'bulk_dtmf_mode')"> DTMF Mode
+                            </label>
+                            <select id="bulk_dtmf_mode" class="form-control bulk-control" disabled>
+                                <option value="rfc4733">RFC4733</option>
+                                <option value="inband">Inband</option>
+                                <option value="info">SIP INFO</option>
+                                <option value="auto">Auto</option>
+                            </select>
+                        </div>
+
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_moh">
+                                <input type="checkbox" id="bulk_change_moh" onchange="toggleBulkField(this, 'bulk_moh_class')"> Music on Hold Class
+                            </label>
+                            <select id="bulk_moh_class" class="form-control bulk-control" disabled>
+                                <option value="default">default</option>
+                            </select>
+                        </div>
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_video">
+                                <input type="checkbox" id="bulk_change_video" onchange="toggleBulkField(this, 'bulk_video_support')"> Video Support
+                            </label>
+                            <select id="bulk_video_support" class="form-control bulk-control" disabled>
+                                <option value="on">Enable Video (on)</option>
+                                <option value="off">Disable Video (off)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    
+                    <h3 class="bulk-section-title"><i class="fa-solid fa-microphone-lines text-muted"></i> Audio & Video Codecs Prioritization</h3>
+                    <div style="margin-top: 1rem;">
+                        <label class="bulk-setting-label" style="width: auto; margin-bottom: 1.5rem;" for="bulk_change_codecs">
+                            <input type="checkbox" id="bulk_change_codecs" onchange="toggleBulkCodecFields(this)"> Override Codecs Prioritization
+                        </label>
+                        
+                        <div id="bulk_codecs_group" class="bulk-control" style="opacity: 0.3; pointer-events: none; filter: grayscale(100%); transition: all 0.3s ease; display: flex; flex-direction: column; gap: 2rem;">
+                            
+                            <div>
+                                <label style="display: block; font-size: 1.05rem; margin-bottom: 0.8rem; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <i class="fa-solid fa-volume-high" style="margin-right: 8px;"></i> Audio Codecs
+                                </label>
+                                <div class="dual-listbox">
+                                    <div class="listbox-col">
+                                        <label>Available Codecs</label>
+                                        <select id="bulk_audio_codecs_available" multiple ondblclick="moveOptionsCodecs('bulk_audio_codecs_available', 'bulk_audio_codecs_selected')">
+                                            <option value="g722">G.722 HD</option>
+                                            <option value="g729">G.729</option>
+                                            <option value="gsm">GSM</option>
+                                            <option value="opus">Opus</option>
+                                        </select>
+                                    </div>
+                                    <div class="listbox-controls">
+                                        <button type="button" onclick="moveOptionsCodecs('bulk_audio_codecs_available', 'bulk_audio_codecs_selected')" title="Add Codec"><i class="fa-solid fa-arrow-right"></i></button>
+                                        <button type="button" onclick="moveOptionsCodecs('bulk_audio_codecs_selected', 'bulk_audio_codecs_available')" title="Remove Codec"><i class="fa-solid fa-arrow-left"></i></button>
+                                    </div>
+                                    <div class="listbox-col">
+                                        <label>Selected & Prioritized</label>
+                                        <select id="bulk_audio_codecs_selected" multiple ondblclick="moveOptionsCodecs('bulk_audio_codecs_selected', 'bulk_audio_codecs_available')">
+                                            <option value="ulaw">G.711 U-Law</option>
+                                            <option value="alaw">G.711 A-Law</option>
+                                        </select>
+                                    </div>
+                                    <div class="listbox-controls">
+                                        <button type="button" onclick="moveUpCodecs('bulk_audio_codecs_selected')" title="Move Priority Up"><i class="fa-solid fa-arrow-up"></i></button>
+                                        <button type="button" onclick="moveDownCodecs('bulk_audio_codecs_selected')" title="Move Priority Down"><i class="fa-solid fa-arrow-down"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label style="display: block; font-size: 1.05rem; margin-bottom: 0.8rem; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <i class="fa-solid fa-video" style="margin-right: 8px;"></i> Video Codecs
+                                </label>
+                                <div class="dual-listbox">
+                                    <div class="listbox-col">
+                                        <label>Available Codecs</label>
+                                        <select id="bulk_video_codecs_available" multiple ondblclick="moveOptionsCodecs('bulk_video_codecs_available', 'bulk_video_codecs_selected')">
+                                            <option value="vp8">VP8</option>
+                                            <option value="vp9">VP9</option>
+                                            <option value="h263">H.263</option>
+                                            <option value="h263p">H.263+</option>
+                                        </select>
+                                    </div>
+                                    <div class="listbox-controls">
+                                        <button type="button" onclick="moveOptionsCodecs('bulk_video_codecs_available', 'bulk_video_codecs_selected')" title="Add Codec"><i class="fa-solid fa-arrow-right"></i></button>
+                                        <button type="button" onclick="moveOptionsCodecs('bulk_video_codecs_selected', 'bulk_video_codecs_available')" title="Remove Codec"><i class="fa-solid fa-arrow-left"></i></button>
+                                    </div>
+                                    <div class="listbox-col">
+                                        <label>Selected & Prioritized</label>
+                                        <select id="bulk_video_codecs_selected" multiple ondblclick="moveOptionsCodecs('bulk_video_codecs_selected', 'bulk_video_codecs_available')">
+                                            <option value="h264">H.264</option>
+                                        </select>
+                                    </div>
+                                    <div class="listbox-controls">
+                                        <button type="button" onclick="moveUpCodecs('bulk_video_codecs_selected')" title="Move Priority Up"><i class="fa-solid fa-arrow-up"></i></button>
+                                        <button type="button" onclick="moveDownCodecs('bulk_video_codecs_selected')" title="Move Priority Down"><i class="fa-solid fa-arrow-down"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+
+                </div>
+                
+                <!-- Features Tab -->
+                <div id="bulk-tab-features" class="tab-content">
+                    <div class="bulk-form-grid">
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_dnd">
+                                <input type="checkbox" id="bulk_change_dnd" onchange="toggleBulkField(this, 'bulk_dnd_status')"> Do Not Disturb (DND)
+                            </label>
+                            <select id="bulk_dnd_status" class="form-control bulk-control" disabled>
+                                <option value="on">Enable DND</option>
+                                <option value="off">Disable DND</option>
+                            </select>
+                        </div>
+                        
+                        <div class="bulk-setting-row">
+                            <label class="bulk-setting-label" for="bulk_change_spy">
+                                <input type="checkbox" id="bulk_change_spy" onchange="toggleBulkField(this, 'bulk_allow_spy')"> Allow Others to Spy
+                            </label>
+                            <select id="bulk_allow_spy" class="form-control bulk-control" disabled>
+                                <option value="on">Allow Spy (on)</option>
+                                <option value="off">Deny Spy (off)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <h3 class="bulk-section-title"><i class="fa-solid fa-phone-arrow-right text-muted"></i> Call Forwarding</h3>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="bulk-setting-row" style="padding: 0;">
+                            <label class="bulk-setting-label" for="bulk_change_fwd_always">
+                                <input type="checkbox" id="bulk_change_fwd_always" onchange="toggleBulkForward('bulk_fwd_always_status', 'bulk_fwd_always')"> Forward Always
+                            </label>
+                            <select id="bulk_fwd_always_status" class="form-control bulk-control" style="width: 150px; flex: none;" disabled onchange="toggleBulkForwardNumber('bulk_fwd_always_status', 'bulk_fwd_always')">
+                                <option value="off">Disable</option>
+                                <option value="on">Enable</option>
+                            </select>
+                            <input type="text" id="bulk_fwd_always" class="form-control bulk-control" placeholder="Destination Number" disabled>
+                        </div>
+                        
+                        <div class="bulk-setting-row" style="padding: 0;">
+                            <label class="bulk-setting-label" for="bulk_change_fwd_busy">
+                                <input type="checkbox" id="bulk_change_fwd_busy" onchange="toggleBulkForward('bulk_fwd_busy_status', 'bulk_fwd_busy')"> Forward on Busy
+                            </label>
+                            <select id="bulk_fwd_busy_status" class="form-control bulk-control" style="width: 150px; flex: none;" disabled onchange="toggleBulkForwardNumber('bulk_fwd_busy_status', 'bulk_fwd_busy')">
+                                <option value="off">Disable</option>
+                                <option value="on">Enable</option>
+                            </select>
+                            <input type="text" id="bulk_fwd_busy" class="form-control bulk-control" placeholder="Destination Number" disabled>
+                        </div>
+                        
+                        <div class="bulk-setting-row" style="padding: 0;">
+                            <label class="bulk-setting-label" for="bulk_change_fwd_noanswer">
+                                <input type="checkbox" id="bulk_change_fwd_noanswer" onchange="toggleBulkForward('bulk_fwd_noanswer_status', 'bulk_fwd_noanswer')"> Forward on No Answer
+                            </label>
+                            <select id="bulk_fwd_noanswer_status" class="form-control bulk-control" style="width: 150px; flex: none;" disabled onchange="toggleBulkForwardNumber('bulk_fwd_noanswer_status', 'bulk_fwd_noanswer')">
+                                <option value="off">Disable</option>
+                                <option value="on">Enable</option>
+                            </select>
+                            <input type="text" id="bulk_fwd_noanswer" class="form-control bulk-control" placeholder="Destination Number" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions" style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeBulkEditModal()" style="min-width: 120px; font-weight: 600;">Cancel</button>
+                <button type="submit" class="btn btn-info" style="min-width: 200px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: transform 0.2s ease;">
+                    <i class="fa-solid fa-floppy-disk"></i> Apply Bulk Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if web_credentials %}
+<div id="webCredentialsModal" class="modal" style="display: block; z-index: 11000;">
+    <div class="modal-content" style="max-width: 520px; text-align: center;">
+        <div style="width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; color: #10b981; background: rgba(16,185,129,.12); font-size: 1.5rem;">
+            <i class="fa-solid fa-user-check"></i>
+        </div>
+        <h2 style="margin-bottom: 0.4rem;">Extension Created Successfully</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.4rem;">Web User Created</p>
+        <div style="display: grid; grid-template-columns: 120px 1fr; gap: .7rem; text-align: left; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-dark);">
+            <span style="color: var(--text-muted);">Username</span>
+            <code style="color: var(--text-main);">{{ web_credentials.username }}</code>
+            <span style="color: var(--text-muted);">Password</span>
+            <code id="createdWebPassword" style="color: var(--text-main);">{{ web_credentials.password }}</code>
+        </div>
+        <p style="color: #fbbf24; font-size: .85rem; margin: 1rem 0;">Please save this password. It will not be shown again.</p>
+        <div style="display: flex; justify-content: center; gap: .75rem;">
+            <button type="button" class="btn btn-secondary" onclick="copyTextToClipboard(document.getElementById('createdWebPassword').textContent)"><i class="fa-solid fa-copy"></i> Copy</button>
+            <button type="button" class="btn btn-info" onclick="document.getElementById('webCredentialsModal').remove()">Done</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const EXT_CAN_VIEW = {{ 'true' if can_view('extensions') else 'false' }};
+    const EXT_CAN_EDIT = {{ 'true' if can_edit('extensions') else 'false' }};
+    const EXT_CAN_DELETE = {{ 'true' if can_delete('extensions') else 'false' }};
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function(ch) {
+            return ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[ch];
+        });
+    }
+
+    function buildStatusBadge(ext) {
+        let statusBadge = "";
+        if (ext.status === 'Registered') {
+            statusBadge = `<span class="badge badge-registered"><i class="fa-solid fa-circle-check"></i> Registered</span>`;
+        } else if (ext.status === 'Busy') {
+            statusBadge = `<span class="badge badge-busy"><i class="fa-solid fa-phone-flip"></i> Busy</span>`;
+        } else if (ext.status === 'Ringing') {
+            statusBadge = `<span class="badge badge-ringing"><i class="fa-solid fa-phone-volume fa-pulse"></i> Ringing</span>`;
+        } else {
+            statusBadge = `<span class="badge badge-offline"><i class="fa-solid fa-circle-xmark"></i> Offline</span>`;
+        }
+
+        if (ext.dnd === 'on') {
+            statusBadge += ` <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); margin-left: 0.25rem;"><i class="fa-solid fa-bell-slash"></i> DND</span>`;
+        }
+
+        const forwards = [
+            ['fwd_always', 'Forward Always', 'FWD', '#3b82f6', 'rgba(59, 130, 246, 0.2)', 'rgba(59, 130, 246, 0.4)'],
+            ['fwd_noanswer', 'Forward No Answer', 'FWD NO ANSWER', '#22c55e', 'rgba(34, 197, 94, 0.18)', 'rgba(34, 197, 94, 0.35)'],
+            ['fwd_busy', 'Forward Busy', 'FWD BUSY', '#f59e0b', 'rgba(245, 158, 11, 0.2)', 'rgba(245, 158, 11, 0.4)']
+        ];
+        forwards.forEach(([key, title, label, color, bg, border]) => {
+            if (ext[key]) {
+                const safeValue = escapeHtml(ext[key]);
+                statusBadge += ` <span class="badge" style="background: ${bg}; color: ${color}; border: 1px solid ${border}; margin-left: 0.25rem;" title="${title}: ${safeValue}"><i class="fa-solid fa-share"></i> ${label}: ${safeValue}</span>`;
+            }
+        });
+        return statusBadge;
+    }
+
+    // Toggle Select check columns
+    let selectionMode = false;
+    
+    function toggleSelectAll() {
+        if (!EXT_CAN_EDIT && !EXT_CAN_DELETE) return;
+        selectionMode = !selectionMode;
+        const selectCols = document.querySelectorAll('.select-col');
+        selectCols.forEach(col => {
+            col.style.display = selectionMode ? 'table-cell' : 'none';
+        });
+        
+        const btnSelect = document.getElementById("btn-select-toggle");
+        if (selectionMode) {
+            btnSelect.innerHTML = `<i class="fa-solid fa-xmark"></i> Cancel Select`;
+            btnSelect.classList.remove("btn-secondary");
+            btnSelect.classList.add("btn-danger");
+        } else {
+            btnSelect.innerHTML = `<i class="fa-solid fa-list-check"></i> Select`;
+            btnSelect.classList.remove("btn-danger");
+            btnSelect.classList.add("btn-secondary");
+            // Uncheck all
+            const selectAllCheckbox = document.getElementById("select-all-checkbox");
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                toggleSelectAllRows(selectAllCheckbox);
+            }
+        }
+        updateBulkButtonsVisibility();
+    }
+
+    function toggleSelectAllRows(masterCheckbox) {
+        const checkboxes = document.querySelectorAll('.select-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = masterCheckbox.checked;
+        });
+        updateBulkButtonsVisibility();
+    }
+
+    // Update checkboxes state change
+    document.addEventListener("change", function(e) {
+        if (e.target && e.target.classList.contains("select-checkbox")) {
+            updateBulkButtonsVisibility();
+        }
+    });
+
+    function getSelectedExtensions() {
+        const checked = document.querySelectorAll('.select-checkbox:checked');
+        const list = [];
+        checked.forEach(cb => list.push(cb.value));
+        return list;
+    }
+
+    function updateBulkButtonsVisibility() {
+        const selected = getSelectedExtensions();
+        const bulkEditBtn = document.getElementById("btn-bulk-edit");
+        const bulkDeleteBtn = document.getElementById("btn-bulk-delete");
+        
+        if (selectionMode) {
+            if (bulkEditBtn && EXT_CAN_EDIT) {
+                bulkEditBtn.style.display = "inline-flex";
+                bulkEditBtn.style.opacity = selected.length === 0 ? "0.6" : "1";
+            }
+            if (bulkDeleteBtn && EXT_CAN_DELETE) {
+                bulkDeleteBtn.style.display = "inline-flex";
+                bulkDeleteBtn.style.opacity = selected.length === 0 ? "0.6" : "1";
+            }
+        } else {
+            if (bulkEditBtn) bulkEditBtn.style.display = "none";
+            if (bulkDeleteBtn) bulkDeleteBtn.style.display = "none";
+        }
+    }
+
+    // Bulk delete handler
+    function submitBulkDelete() {
+        if (!EXT_CAN_DELETE) return;
+        const selected = getSelectedExtensions();
+        if (selected.length === 0) {
+            alert("Please select at least one extension from the table first (check the boxes on the left).");
+            return;
+        }
+        if (!confirm(`Deleting these ${selected.length} extensions will also permanently delete their linked web users. Continue?`)) return;
+        
+        fetch('/extensions/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify({ extensions: selected })
+        })
+        .then(res => {
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return null;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.status === 'success') {
+                alert(data.msg);
+                window.location.reload();
+            } else {
+                alert(data.msg || "Error occurred");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Connection error occurred.");
+        });
+    }
+
+    // Bulk edit modal
+    function openBulkEditModal() {
+        if (!EXT_CAN_EDIT) return;
+        const selected = getSelectedExtensions();
+        if (selected.length === 0) {
+            alert("Please select at least one extension from the table first (check the boxes on the left).");
+            return;
+        }
+        document.getElementById("bulk-edit-count").innerText = selected.length;
+        document.getElementById("bulkEditModal").style.display = "block";
+    }
+
+    function closeBulkEditModal() {
+        document.getElementById("bulkEditModal").style.display = "none";
+    }
+
+    function toggleBulkField(checkbox, selectId) {
+        document.getElementById(selectId).disabled = !checkbox.checked;
+    }
+
+        
+    function toggleBulkCodecFields(checkbox) {
+        const group = document.getElementById("bulk_codecs_group");
+        group.style.opacity = checkbox.checked ? "1" : "0.3";
+        group.style.pointerEvents = checkbox.checked ? "auto" : "none";
+        group.style.filter = checkbox.checked ? "none" : "grayscale(100%)";
+    }
+
+    function moveOptionsCodecs(sourceId, destId) {
+        const src = document.getElementById(sourceId);
+        const dest = document.getElementById(destId);
+        if (!src || !dest) return;
+        Array.from(src.selectedOptions).forEach(opt => {
+            dest.appendChild(opt);
+            opt.selected = false;
+        });
+    }
+
+    function moveUpCodecs(selectId) {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        Array.from(sel.selectedOptions).forEach(opt => {
+            const prev = opt.previousElementSibling;
+            if (prev) {
+                sel.insertBefore(opt, prev);
+            }
+        });
+    }
+
+    function moveDownCodecs(selectId) {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        Array.from(sel.selectedOptions).reverse().forEach(opt => {
+            const next = opt.nextElementSibling;
+            if (next) {
+                sel.insertBefore(next, opt);
+            }
+        });
+    }
+
+
+    function switchBulkTab(evt, tabId) {
+        const contents = document.querySelectorAll("#bulkEditModal .tab-content");
+        for (let i = 0; i < contents.length; i++) {
+            contents[i].style.display = "none";
+        }
+        const buttons = document.querySelectorAll("#bulkEditModal .tab-btn");
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].classList.remove("active");
+        }
+        document.getElementById(tabId).style.display = "block";
+        evt.currentTarget.classList.add("active");
+    }
+    
+    function toggleBulkForward(statusId, numberId) {
+        const cb = event.target;
+        const statusEl = document.getElementById(statusId);
+        const numberEl = document.getElementById(numberId);
+        statusEl.disabled = !cb.checked;
+        if (cb.checked && statusEl.value === 'on') {
+            numberEl.disabled = false;
+        } else {
+            numberEl.disabled = true;
+        }
+    }
+    
+    function toggleBulkForwardNumber(statusId, numberId) {
+        const statusEl = document.getElementById(statusId);
+        const numberEl = document.getElementById(numberId);
+        if (statusEl.value === 'on') {
+            numberEl.disabled = false;
+        } else {
+            numberEl.disabled = true;
+        }
+    }
+    
+    function submitBulkEdit(e) {
+        e.preventDefault();
+        const selected = getSelectedExtensions();
+        if (selected.length === 0) return;
+        
+        const payload = { extensions: selected };
+        
+        if (document.getElementById("bulk_change_enabled") && document.getElementById("bulk_change_enabled").checked) payload.enabled = document.getElementById("bulk_enabled").value;
+        if (document.getElementById("bulk_change_contacts") && document.getElementById("bulk_change_contacts").checked) payload.max_contacts = document.getElementById("bulk_max_contacts").value;
+        if (document.getElementById("bulk_change_expiration") && document.getElementById("bulk_change_expiration").checked) payload.max_expiration = document.getElementById("bulk_max_expiration").value;
+        if (document.getElementById("bulk_change_ring_time") && document.getElementById("bulk_change_ring_time").checked) payload.ring_time = document.getElementById("bulk_ring_time").value;
+        if (document.getElementById("bulk_change_sync_ldap") && document.getElementById("bulk_change_sync_ldap").checked) payload.sync_ldap = document.getElementById("bulk_sync_ldap").value;
+        
+        if (document.getElementById("bulk_change_vm") && document.getElementById("bulk_change_vm").checked) payload.vm_enabled = document.getElementById("bulk_vm_enabled").value;
+        if (document.getElementById("bulk_change_vm_pin") && document.getElementById("bulk_change_vm_pin").checked) payload.vm_password = document.getElementById("bulk_vm_password").value;
+        
+        if (document.getElementById("bulk_change_record") && document.getElementById("bulk_change_record").checked) payload.record_mode = document.getElementById("bulk_record_mode").value;
+        if (document.getElementById("bulk_change_nat") && document.getElementById("bulk_change_nat").checked) payload.nat = document.getElementById("bulk_nat").value;
+        if (document.getElementById("bulk_change_direct") && document.getElementById("bulk_change_direct").checked) payload.direct_media = document.getElementById("bulk_direct_media").value;
+        if (document.getElementById("bulk_change_dtmf") && document.getElementById("bulk_change_dtmf").checked) payload.dtmf_mode = document.getElementById("bulk_dtmf_mode").value;
+        if (document.getElementById("bulk_change_moh") && document.getElementById("bulk_change_moh").checked) payload.moh_class = document.getElementById("bulk_moh_class").value;
+        if (document.getElementById("bulk_change_video") && document.getElementById("bulk_change_video").checked) payload.video_support = document.getElementById("bulk_video_support").value;
+        
+                if (document.getElementById("bulk_change_codecs") && document.getElementById("bulk_change_codecs").checked) {
+            const audioCodecs = Array.from(document.getElementById("bulk_audio_codecs_selected").options).map(el => el.value);
+            const videoCodecs = Array.from(document.getElementById("bulk_video_codecs_selected").options).map(el => el.value);
+            payload.codecs = audioCodecs.concat(videoCodecs);
+        }
+        
+        if (document.getElementById("bulk_change_dnd") && document.getElementById("bulk_change_dnd").checked) payload.dnd_status = document.getElementById("bulk_dnd_status").value;
+        if (document.getElementById("bulk_change_spy") && document.getElementById("bulk_change_spy").checked) payload.allow_spy = document.getElementById("bulk_allow_spy").value;
+        
+        if (document.getElementById("bulk_change_fwd_always") && document.getElementById("bulk_change_fwd_always").checked) {
+            payload.fwd_always_status = document.getElementById("bulk_fwd_always_status").value;
+            payload.fwd_always = document.getElementById("bulk_fwd_always").value;
+        }
+        if (document.getElementById("bulk_change_fwd_busy") && document.getElementById("bulk_change_fwd_busy").checked) {
+            payload.fwd_busy_status = document.getElementById("bulk_fwd_busy_status").value;
+            payload.fwd_busy = document.getElementById("bulk_fwd_busy").value;
+        }
+        if (document.getElementById("bulk_change_fwd_noanswer") && document.getElementById("bulk_change_fwd_noanswer").checked) {
+            payload.fwd_noanswer_status = document.getElementById("bulk_fwd_noanswer_status").value;
+            payload.fwd_noanswer = document.getElementById("bulk_fwd_noanswer").value;
+        }
+        
+        if (Object.keys(payload).length <= 1) {
+            alert("Please select at least one setting to change by checking its box.");
+            return;
+        }
+        
+        fetch('/extensions/bulk-edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => {
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return null;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.status === 'success') {
+                alert(data.msg);
+                window.location.reload();
+            } else {
+                alert(data.msg || "Error occurred");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Connection error occurred.");
+        });
+    }
+
+    // Dynamic Filter/Search
+    let current_page = 1;
+    function loadExtensionsTable(page = 1) {
+        current_page = page;
+        const limit = document.getElementById("per_page").value;
+        const q = document.getElementById("extension-search").value.trim();
+        
+        const colspanVal = (EXT_CAN_VIEW || EXT_CAN_EDIT || EXT_CAN_DELETE) ? 9 : 8;
+        const tbody = document.querySelector("#extensions-table tbody");
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="${colspanVal}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                    Loading extensions...
+                </td>
+            </tr>
+        `;
+        
+        fetch(`/api/extensions-list?page=${page}&limit=${limit}&q=${encodeURIComponent(q)}`)
+            .then(res => res.json())
+            .then(data => {
+                tbody.innerHTML = "";
+                if (data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="${colspanVal}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                                <i class="fa-solid fa-users-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                                No extensions found.
+                            </td>
+                        </tr>
+                    `;
+                    updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadExtensionsTable');
+                    if (q) {
+                        document.getElementById("search-count").innerText = `Found: ${data.total_rows} total`;
+                    } else {
+                        document.getElementById("search-count").innerText = "";
+                    }
+                    return;
+                }
+                
+                data.data.forEach(ext => {
+                    const tr = document.createElement("tr");
+                    tr.className = "ext-row";
+                    tr.id = `row-${ext.ext}`;
+                    tr.setAttribute("data-ext", ext.ext);
+                    
+                    const selectColStyle = selectionMode ? "" : "display: none;";
+                    
+                    const statusBadge = buildStatusBadge(ext);
+                    const safeExt = escapeHtml(ext.ext);
+                    const viewAction = EXT_CAN_VIEW ? `
+                                <button onclick="showExtInfo('${safeExt}')" class="list-action-btn list-action-info ext-action-btn ext-action-info" title="Info" aria-label="Info for extension ${safeExt}">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                </button>` : '';
+                    const editAction = EXT_CAN_EDIT ? `
+                                <a href="/extensions/edit/${encodeURIComponent(ext.ext)}" class="list-action-btn list-action-edit ext-action-btn ext-action-edit" title="Edit" aria-label="Edit extension ${safeExt}">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>` : '';
+                    const deleteAction = EXT_CAN_DELETE ? `
+                                <form action="/extensions/delete/${encodeURIComponent(ext.ext)}" method="POST" style="display:inline;" onsubmit="return confirm('Deleting this extension will also permanently delete its linked web user. Continue?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="list-action-btn list-action-delete ext-action-btn ext-action-delete" title="Delete" aria-label="Delete extension ${safeExt}">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>` : '';
+                    
+                    const actionsCol = (EXT_CAN_VIEW || EXT_CAN_EDIT || EXT_CAN_DELETE) ? `
+                        <td style="text-align: right;">
+                            <div class="list-row-actions ext-actions">
+                                ${viewAction}
+                                ${editAction}
+                                ${deleteAction}
+                            </div>
+                        </td>` : '';
+
+                    tr.innerHTML = `
+                        <td style="${selectColStyle}" class="select-col">
+                            <input type="checkbox" class="select-checkbox" value="${safeExt}">
+                        </td>
+                        <td><span class="ext-number">${safeExt}</span></td>
+                        <td><span class="ext-name-cell" dir="auto" title="${escapeHtml(ext.name || '-')}">${escapeHtml(ext.name || '-')}</span></td>
+                        <td>${statusBadge}</td>
+                        <td class="ext-reg-cell"><code>${escapeHtml(ext.reg_count)}</code></td>
+                        <td>${escapeHtml(ext.callerid_number || '-')}</td>
+                        <td><span class="ext-muted-cell" title="${escapeHtml(ext.email || '-')}">${escapeHtml(ext.email || '-')}</span></td>
+                        <td><span class="ext-muted-cell" title="${escapeHtml(ext.mobile || '-')}">${escapeHtml(ext.mobile || '-')}</span></td>
+                        ${actionsCol}
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadExtensionsTable');
+                if (q) {
+                    document.getElementById("search-count").innerText = `Found: ${data.total_rows} total`;
+                } else {
+                    document.getElementById("search-count").innerText = "";
+                }
+            })
+            .catch(err => console.error("Error loading extensions:", err));
+    }
+
+    function updateExtensionsStatus() {
+        const rows = document.querySelectorAll("#extensions-table tbody .ext-row");
+        if (rows.length === 0) return;
+        
+        const extsList = Array.from(rows).map(r => r.getAttribute("data-ext")).filter(Boolean);
+        const params = extsList.length > 0 ? `?exts=${encodeURIComponent(extsList.join(','))}` : '';
+        
+        fetch(`/api/extensions-status${params}`)
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data || !data.extensions) return;
+                data.extensions.forEach(ext => {
+                    const row = document.getElementById(`row-${ext.ext}`);
+                    if (row) {
+                        row.cells[3].innerHTML = buildStatusBadge(ext);
+                        row.cells[4].innerHTML = `<code>${escapeHtml(ext.reg_count)}</code>`;
+                    }
+                });
+            })
+            .catch(err => console.error("Error updating extensions status:", err));
+    }
+
+    // Show Extension Info Modal
+    function showExtInfo(ext) {
+        document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-users-gear"></i> Extension ${escapeHtml(ext)} Details`;
+        document.getElementById('modalSecret').innerText = "Loading...";
+        document.getElementById('modalMobile').innerText = "-";
+        document.getElementById('modalContacts').innerHTML = `<p style="color: var(--text-dark);"><i class="fa-solid fa-spinner fa-spin"></i> Retrieving registration state...</p>`;
+        
+        document.getElementById('infoModal').style.display = "block";
+        
+        fetch(`/extensions/info/${encodeURIComponent(ext)}`)
+            .then(async res => {
+                const contentType = res.headers.get('content-type') || '';
+                const payload = contentType.includes('application/json') ? await res.json() : {};
+                if (!res.ok) {
+                    throw new Error(payload.error || `Request failed with status ${res.status}`);
+                }
+                return payload;
+            })
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    closeModal();
+                    return;
+                }
+                
+                document.getElementById('modalSecret').innerText = data.secret || '-';
+                document.getElementById('modalMobile').innerText = data.mobile || '-';
+                
+                const contactsDiv = document.getElementById('modalContacts');
+                const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+                if (data.contact_error) {
+                    contactsDiv.innerHTML = `
+                        <div style="background-color: rgba(245, 158, 11, 0.14); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.28); color: #fbbf24; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(data.contact_error)}
+                        </div>
+                    `;
+                } else if (contacts.length === 0) {
+                    contactsDiv.innerHTML = `
+                        <div style="background-color: var(--status-offline-bg); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.1); color: var(--status-offline); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-circle-exclamation"></i> No registered devices found for this endpoint.
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    contacts.forEach(c => {
+                        const safeIp = escapeHtml(c.ip || c.ipport || '-');
+                        const safeBrand = escapeHtml(c.brand || 'Unknown');
+                        const safeModel = escapeHtml(c.model || 'Unknown');
+                        const safeStatus = escapeHtml(c.status || '-');
+                        const fullUa = escapeHtml(c.user_agent || '');
+                        html += `
+                            <div style="background-color: var(--border-color); padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                                <div style="display: flex; flex-direction: column; gap: 0.25rem;" title="${fullUa}">
+                                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                        <span style="color: #60a5fa; font-weight: 600; font-size: 0.95rem;"><i class="fa-solid fa-phone" style="font-size: 0.8rem; margin-right: 0.35rem; opacity: 0.8;"></i>${safeBrand}</span>
+                                        <span style="color: #cbd5e1; font-size: 0.9rem; background: var(--border-color); padding: 0.15rem 0.5rem; border-radius: 4px;">${safeModel}</span>
+                                    </div>
+                                    <div style="color: #94a3b8; font-size: 0.85rem; font-family: monospace;">
+                                        <i class="fa-solid fa-network-wired" style="font-size: 0.75rem; color: #64748b; margin-right: 0.35rem;"></i>${safeIp}
+                                    </div>
+                                </div>
+                                <span class="badge badge-registered btn-sm" style="font-size: 0.75rem; padding: 0.25rem 0.6rem; white-space: nowrap;">
+                                    <i class="fa-solid fa-circle-check"></i> ${safeStatus}
+                                </span>
+                            </div>
+                        `;
+                    });
+                    contactsDiv.innerHTML = html;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('modalSecret').innerText = "-";
+                document.getElementById('modalContacts').innerHTML = `<p style="color: var(--status-offline);"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(err.message || 'Failed to load extension details.')}</p>`;
+            });
+    }
+    
+    function closeModal() {
+        document.getElementById('infoModal').style.display = "none";
+    }
+    
+    async function copyTextToClipboard(value) {
+        const text = String(value || '').trim();
+        if (!text || text === '-' || text === 'Loading...') return false;
+
+        // Clipboard API is unavailable on plain HTTP and can be blocked by
+        // browser permissions, so retain a textarea fallback for the PBX UI.
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (error) {
+            // Continue with the compatibility fallback below.
+        }
+
+        const helper = document.createElement('textarea');
+        helper.value = text;
+        helper.setAttribute('readonly', '');
+        helper.style.position = 'fixed';
+        helper.style.opacity = '0';
+        document.body.appendChild(helper);
+        helper.select();
+        helper.setSelectionRange(0, helper.value.length);
+        let copied = false;
+        try {
+            copied = document.execCommand('copy');
+        } catch (error) {
+            copied = false;
+        }
+        helper.remove();
+        return copied;
+    }
+
+    async function copySecret() {
+        const button = document.getElementById('copySecretBtn');
+        const copied = await copyTextToClipboard(document.getElementById('modalSecret').innerText);
+        if (!button) return copied;
+
+        if (copied) {
+            const original = button.innerHTML;
+            button.innerHTML = '<i class="fa-solid fa-check"></i>';
+            button.title = 'Copied';
+            button.setAttribute('aria-label', 'SIP password copied');
+            setTimeout(() => {
+                button.innerHTML = original;
+                button.title = 'Copy SIP password';
+                button.setAttribute('aria-label', 'Copy SIP password');
+            }, 1600);
+        } else {
+            alert('Unable to copy the SIP password. Please select and copy it manually.');
+        }
+        return copied;
+    }
+    
+    window.onclick = function(event) {
+        const modal = document.getElementById('infoModal');
+        const bulkModal = document.getElementById('bulkEditModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+        if (event.target == bulkModal) {
+            bulkModal.style.display = "none";
+        }
+    }
+
+    // Set polling interval
+    document.addEventListener("DOMContentLoaded", function() {
+        loadExtensionsTable(1);
+        setInterval(updateExtensionsStatus, 5000);
+    });
+</script>
+{% endblock %}

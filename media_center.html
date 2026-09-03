@@ -1,0 +1,499 @@
+{% extends 'base.html' %}
+
+{% block title %}Media Center - RCM 7021 IP-PBX{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Premium audio player styling */
+    .audio-preview-container {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .audio-player-control {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background-color: var(--primary);
+        border: none;
+        color: #fff;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .audio-player-control:hover {
+        transform: scale(1.08);
+        background-color: var(--primary-light);
+    }
+    
+    .audio-player-info {
+        flex: 1;
+    }
+    
+    .audio-player-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #fff;
+    }
+    
+    .audio-player-sub {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 0.2rem;
+    }
+
+    /* Tabs Header customization */
+    .media-tabs {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 1.5rem;
+    }
+
+    .media-tab {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .media-tab:hover, .media-tab.active {
+        color: var(--primary);
+    }
+
+    .media-tab.active {
+        border-bottom-color: var(--primary);
+        background-color: rgba(255, 255, 255, 0.01);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Media Center</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage system audio recordings, IVR greetings, announcements and Music On Hold tracks</div>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button onclick="openPromptUploadModal()" class="btn btn-info" id="addPromptBtn">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Prompt
+        </button>
+        <button onclick="openCreateMohModal()" class="btn btn-secondary" id="createMohBtn" style="display: none;">
+            <i class="fa-solid fa-folder-plus"></i> Create MOH Class
+        </button>
+    </div>
+</div>
+
+<!-- Dashboard Metric Cards -->
+<div class="dashboard-grid" style="margin-bottom: 1.5rem;">
+    <div class="card">
+        <div class="card-title">TOTAL PROMPTS</div>
+        <div class="card-value" style="color: var(--primary);">{{ total_prompts }}</div>
+        <div class="card-desc">Interactive greetings & announcements</div>
+    </div>
+    <div class="card">
+        <div class="card-title">MOH CLASSES</div>
+        <div class="card-value" style="color: var(--status-ringing);">{{ moh_classes|length }}</div>
+        <div class="card-desc">Music on hold class directories</div>
+    </div>
+    <div class="card">
+        <div class="card-title">MOH TRACKS</div>
+        <div class="card-value" style="color: var(--status-registered);">{{ total_tracks }}</div>
+        <div class="card-desc">Total converted WAV audio files</div>
+    </div>
+    <div class="card">
+        <div class="card-title">STORAGE DIRECTORIES</div>
+        <div class="card-value" style="color: var(--text-muted); font-size: 1.8rem; font-family: monospace;">en/rcm</div>
+        <div class="card-desc">/var/lib/asterisk/sounds/</div>
+    </div>
+</div>
+
+<!-- Audio Player Preview Container (Hidden until played) -->
+<div class="audio-preview-container" id="playerContainer" style="display: none;">
+    <button class="audio-player-control" onclick="togglePlayback()" id="playPauseBtn">
+        <i class="fa-solid fa-play"></i>
+    </button>
+    <div class="audio-player-info">
+        <div class="audio-player-title" id="playerTitle">Select a prompt to play preview</div>
+        <div class="audio-player-sub" id="playerSub">-</div>
+    </div>
+    <audio id="audioElement" style="display: none;" onended="onAudioEnded()"></audio>
+</div>
+
+<!-- Tabs Navigation -->
+<div class="media-tabs">
+    <button class="media-tab {% if active_tab == 'prompts' %}active{% endif %}" onclick="switchTab('prompts')">
+        <i class="fa-solid fa-microphone"></i> Prompts Library
+    </button>
+    <button class="media-tab {% if active_tab == 'moh' %}active{% endif %}" onclick="switchTab('moh')">
+        <i class="fa-solid fa-music"></i> Music On Hold
+    </button>
+</div>
+
+<!-- PROMPTS TAB CONTENT -->
+<div id="promptsTab" class="tab-content {% if active_tab == 'prompts' %}active{% endif %}">
+    <!-- Filter Toolbar -->
+    <div class="panel" style="padding: 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 250px;">
+            <i class="fa-solid fa-magnifying-glass" style="color: var(--text-dark);"></i>
+            <input type="text" id="prompt-search" class="form-control" placeholder="Search prompts by name..." onkeyup="filterPrompts()" style="border: none; background: transparent;">
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Type:</span>
+            <select id="prompt-type-filter" class="form-control" style="width: 160px;" onchange="filterPrompts()">
+                <option value="">All Types</option>
+                <option value="general">General</option>
+                <option value="ivr">IVR</option>
+                <option value="announcement">Announcement</option>
+                <option value="queue">Queue</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Prompts Table -->
+    <div class="panel">
+        <div class="table-responsive">
+            <table class="table" id="prompts-table">
+                <thead>
+                    <tr>
+                        <th>Prompt Name</th>
+                        <th>Type Category</th>
+                        <th>Path</th>
+                        <th>Created At</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not prompts %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                            No audio prompts uploaded.
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for p in prompts %}
+                    <tr class="prompt-row" data-name="{{ p.name }}" data-type="{{ p.type }}">
+                        <td><strong>{{ p.name }}</strong></td>
+                        <td>
+                            {% if p.type == 'ivr' %}
+                            <span class="badge" style="background-color: rgba(99, 102, 241, 0.1); color: #818cf8; border-color: rgba(99, 102, 241, 0.2);">IVR</span>
+                            {% elif p.type == 'announcement' %}
+                            <span class="badge" style="background-color: rgba(20, 184, 166, 0.1); color: #2dd4bf; border-color: rgba(20, 184, 166, 0.2);">ANNOUNCEMENT</span>
+                            {% elif p.type == 'queue' %}
+                            <span class="badge" style="background-color: rgba(244, 63, 94, 0.1); color: #fb7185; border-color: rgba(244, 63, 94, 0.2);">QUEUE</span>
+                            {% else %}
+                            <span class="badge" style="background-color: rgba(148, 163, 184, 0.1); color: #94a3b8; border-color: rgba(148, 163, 184, 0.2);">GENERAL</span>
+                            {% endif %}
+                        </td>
+                        <td><code style="font-size: 0.8rem;">{{ p.path }}</code></td>
+                        <td><span style="font-size: 0.85rem; color: var(--text-muted);">{{ p.created_at[:16]|replace('T', ' ') }}</span></td>
+                        <td style="text-align: right;">
+                            <div class="action-buttons" style="justify-content: flex-end;">
+                                <button onclick="playPrompt('{{ p.id }}', '{{ p.name }}', '{{ p.type|upper }}')" class="btn btn-info btn-sm">
+                                    <i class="fa-solid fa-circle-play"></i> Play
+                                </button>
+                                <button onclick="openRenamePromptModal('{{ p.id }}', '{{ p.name }}')" class="btn btn-secondary btn-sm">
+                                    <i class="fa-solid fa-pen"></i> Rename
+                                </button>
+                                <form action="{{ url_for('media_prompt_delete', id=p.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete prompt {{ p.name }}? This will permanently delete the file.');">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fa-solid fa-trash-can"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MUSIC ON HOLD TAB CONTENT -->
+<div id="mohTab" class="tab-content {% if active_tab == 'moh' %}active{% endif %}">
+    <div class="panel">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Class Name</th>
+                        <th>Play Mode</th>
+                        <th>Directory Path</th>
+                        <th>Created At</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not moh_classes %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                            No Music On Hold classes configured.
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for c in moh_classes %}
+                    <tr>
+                        <td><strong>{{ c.name }}</strong></td>
+                        <td><span class="badge badge-gray" style="text-transform: uppercase;">{{ c.mode }}</span></td>
+                        <td><code style="font-size: 0.8rem;">{{ c.dir }}</code></td>
+                        <td><span style="font-size: 0.85rem; color: var(--text-muted);">{{ c.created_at[:16]|replace('T', ' ') if c.created_at else '-' }}</span></td>
+                        <td style="text-align: right;">
+                            <div class="action-buttons" style="justify-content: flex-end;">
+                                <a href="{{ url_for('media_moh_tracks', class_name=c.name) }}" class="btn btn-info btn-sm">
+                                    <i class="fa-solid fa-folder-open"></i> Manage Tracks
+                                </a>
+                                <form action="{{ url_for('media_moh_class_delete', name=c.name) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete MOH class {{ c.name }}? This will permanently delete all tracks inside it.');">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fa-solid fa-trash-can"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- UPLOAD PROMPT MODAL -->
+<div id="uploadPromptModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('uploadPromptModal')">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;"><i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary);"></i> Upload Audio Prompt</h2>
+        
+        <form action="{{ url_for('media_prompt_upload') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="prompt_name">Prompt Name <span style="color:#ff4a4a;">*</span></label>
+                <input type="text" id="prompt_name" name="name" class="form-control" placeholder="e.g. welcome_sound" required>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Alphanumeric characters, dashes, and underscores only.</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="prompt_type">Category Type</label>
+                <select id="prompt_type" name="type" class="form-control">
+                    <option value="general">General</option>
+                    <option value="ivr">IVR</option>
+                    <option value="announcement">Announcement</option>
+                    <option value="queue">Queue</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="prompt_file">Select Audio File <span style="color:#ff4a4a;">*</span></label>
+                <input type="file" id="prompt_file" name="audio" class="form-control" accept=".wav,.mp3,.gsm,.ogg" required>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Allowed formats: wav, mp3, gsm, ogg</span>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.5rem; padding-top: 1rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('uploadPromptModal')">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- RENAME PROMPT MODAL -->
+<div id="renamePromptModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('renamePromptModal')">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;"><i class="fa-solid fa-pen" style="color: var(--primary);"></i> Rename Prompt</h2>
+        
+        <form action="{{ url_for('media_prompt_rename') }}" method="POST">
+            <input type="hidden" id="rename_prompt_id" name="id">
+            
+            <div class="form-group">
+                <label for="rename_new_name">New Prompt Name <span style="color:#ff4a4a;">*</span></label>
+                <input type="text" id="rename_new_name" name="new_name" class="form-control" required>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.5rem; padding-top: 1rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('renamePromptModal')">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-circle-check"></i> Rename</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- CREATE MOH CLASS MODAL -->
+<div id="createMohModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('createMohModal')">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;"><i class="fa-solid fa-folder-plus" style="color: var(--primary);"></i> Create MOH Class</h2>
+        
+        <form action="{{ url_for('media_moh_class_create') }}" method="POST">
+            <div class="form-group">
+                <label for="moh_name">Class Name <span style="color:#ff4a4a;">*</span></label>
+                <input type="text" id="moh_name" name="name" class="form-control" placeholder="e.g. sales_hold" required>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Lowercase letters, numbers, and underscores only.</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="moh_mode">Play Mode</label>
+                <select id="moh_mode" name="mode" class="form-control">
+                    <option value="files">files (Play in alphabetical order)</option>
+                    <option value="sortalpha">sortalpha (Alphabetical sort)</option>
+                    <option value="random">random (Shuffle tracks randomly)</option>
+                </select>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.5rem; padding-top: 1rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createMohModal')">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function switchTab(tabName) {
+        document.querySelectorAll('.media-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        const addPromptBtn = document.getElementById("addPromptBtn");
+        const createMohBtn = document.getElementById("createMohBtn");
+
+        if (tabName === 'prompts') {
+            document.querySelector("[onclick=\"switchTab('prompts')\"]").classList.add('active');
+            document.getElementById('promptsTab').classList.add('active');
+            addPromptBtn.style.display = "block";
+            createMohBtn.style.display = "none";
+        } else {
+            document.querySelector("[onclick=\"switchTab('moh')\"]").classList.add('active');
+            document.getElementById('mohTab').classList.add('active');
+            addPromptBtn.style.display = "none";
+            createMohBtn.style.display = "block";
+        }
+        
+        // Stop audio when switching tabs
+        stopAudio();
+    }
+
+    // Audio Preview Controls
+    let currentPromptId = null;
+    const audio = document.getElementById("audioElement");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const playerContainer = document.getElementById("playerContainer");
+    const playerTitle = document.getElementById("playerTitle");
+    const playerSub = document.getElementById("playerSub");
+
+    function playPrompt(id, name, type) {
+        playerContainer.style.display = "flex";
+        
+        if (currentPromptId === id) {
+            togglePlayback();
+            return;
+        }
+        
+        currentPromptId = id;
+        playerTitle.textContent = name;
+        playerSub.textContent = `Type: ${type}`;
+        
+        audio.src = `/media_proxy?kind=prompt&id=${id}`;
+        audio.play()
+            .then(() => {
+                playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            })
+            .catch(err => {
+                console.error("Audio playback error:", err);
+                alert("Failed to play audio preview. Verify the file exists on Asterisk server.");
+                stopAudio();
+            });
+    }
+
+    function togglePlayback() {
+        if (!audio.src) return;
+        
+        if (audio.paused) {
+            audio.play();
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        } else {
+            audio.pause();
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        }
+    }
+
+    function stopAudio() {
+        audio.pause();
+        audio.src = "";
+        currentPromptId = null;
+        playerContainer.style.display = "none";
+    }
+
+    function onAudioEnded() {
+        playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+    }
+
+    // Prompts Table Filtering
+    function filterPrompts() {
+        const query = document.getElementById("prompt-search").value.toLowerCase().trim();
+        const typeFilter = document.getElementById("prompt-type-filter").value;
+        const rows = document.querySelectorAll("#prompts-table tbody tr.prompt-row");
+        
+        rows.forEach(row => {
+            const name = row.getAttribute("data-name").toLowerCase();
+            const type = row.getAttribute("data-type");
+            
+            const matchesQuery = name.includes(query);
+            const matchesType = !typeFilter || type === typeFilter;
+            
+            if (matchesQuery && matchesType) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    // Modals Controls
+    function openPromptUploadModal() {
+        document.getElementById("uploadPromptModal").style.display = "block";
+    }
+    
+    function openRenamePromptModal(id, currentName) {
+        document.getElementById("rename_prompt_id").value = id;
+        document.getElementById("rename_new_name").value = currentName;
+        document.getElementById("renamePromptModal").style.display = "block";
+    }
+    
+    function openCreateMohModal() {
+        document.getElementById("createMohModal").style.display = "block";
+    }
+    
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = "none";
+        }
+    }
+</script>
+{% endblock %}

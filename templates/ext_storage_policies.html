@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Storage Policies{% endblock %}
+{% block content %}
+<div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(15, 23, 42, 0.8) 100%); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 16px; padding: 2rem; margin-bottom: 2rem;">
+    <h1 style="margin: 0; color: #f8fafc; font-size: 1.8rem; font-weight: 700;"><i class="fa-solid fa-shield-halved" style="color: #3b82f6; margin-right: 10px;"></i> Storage Policies</h1>
+    <p style="color: #94a3b8; margin-top: 0.5rem; font-size: 0.95rem;">Tell the system what to do automatically. For example: "Move all recordings older than 30 days to my NAS".</p>
+</div>
+
+<form method="POST" action="/external-storage/policies/add" style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; margin-bottom: 3rem;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h3 style="color: white; margin-top: 0;"><i class="fa-solid fa-plus" style="color: #10b981;"></i> Create New Policy</h3>
+    
+    <div style="display: flex; gap: 1.5rem; margin-top: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Rule Name</label>
+            <input type="text" name="name" required placeholder="e.g. Monthly Archive to NAS" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--border-color); border-radius: 6px;">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Target Destination</label>
+            <select name="provider_id" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--border-color); border-radius: 6px;">
+                <option value="">-- Select a Connected Provider --</option>
+                {% for p in providers %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 1.5rem; margin-top: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Select files older than (Days)</label>
+            <input type="number" name="age_days" value="30" min="1" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--border-color); border-radius: 6px;">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Action to take</label>
+            <select name="action_mode" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--border-color); border-radius: 6px;">
+                <option value="move_delete">Move to External Storage (Delete Local Copy)</option>
+                <option value="copy_keep">Copy to External Storage (Keep Local Copy)</option>
+            </select>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <button type="submit" style="background: #10b981; color: white; padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1.1rem;"><i class="fa-solid fa-check"></i> Save & Activate Policy</button>
+    </div>
+</form>
+
+<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">
+    <h3 style="color: white; margin: 0;">Active Policies</h3>
+    <form method="POST" action="/external-storage/policies/run_now">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" style="background: #f59e0b; color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fa-solid fa-bolt"></i> Run Engine Now</button>
+    </form>
+</div>
+<table style="width: 100%; text-align: left; border-collapse: collapse; background: var(--bg-dark); border-radius: 12px; overflow: hidden;">
+    <thead>
+        <tr style="background: var(--border-color); color: #94a3b8; font-size: 0.85rem; text-transform: uppercase;">
+            <th style="padding: 1rem;">Rule Name</th>
+            <th style="padding: 1rem;">Condition</th>
+            <th style="padding: 1rem;">Destination</th>
+            <th style="padding: 1rem;">Action</th>
+            <th style="padding: 1rem;">Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for pol in policies %}
+        <tr style="border-bottom: 1px solid var(--border-color); color: #e2e8f0;">
+            <td style="padding: 1rem; font-weight: bold;">{{ pol.name }}</td>
+            <td style="padding: 1rem;">Older than <span style="color: #fbbf24;">{{ pol.age_days }} Days</span></td>
+            <td style="padding: 1rem;"><i class="fa-solid fa-server" style="color: #60a5fa; margin-right: 5px;"></i> {{ pol.provider_name }}</td>
+            <td style="padding: 1rem;">
+                {% if pol.action_mode == 'move_delete' %}<span style="color: #f43f5e;">Move & Delete Local</span>{% else %}<span style="color: #34d399;">Copy Only</span>{% endif %}
+            </td>
+            <td style="padding: 1rem;">
+                <form method="POST" action="/external-storage/policies/delete/{{ pol.id }}" style="display:inline;" onsubmit="return confirm('Stop and delete this policy?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-trash"></i> Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">No policies active.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

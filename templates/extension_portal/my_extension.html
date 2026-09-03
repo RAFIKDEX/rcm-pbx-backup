@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}My Extension{% endblock %}
+{% block content %}
+<div class="portal-page-header">
+    <div class="header-text">
+        <h1>My Extension</h1>
+        <p>Personal contact and call settings</p>
+    </div>
+    <div class="header-meta">
+        Extension {{ extension.ext }}
+    </div>
+</div>
+
+<form method="post" class="saas-table-container" style="padding-bottom: 0;" autocomplete="off">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="panel-head" style="padding: 1.25rem; border-bottom: 1px solid var(--portal-border); display: flex; justify-content: space-between; align-items: center; background: var(--border-color);">
+        <h2 style="margin:0; font-size: 1.1rem; color: var(--text-main);"><i class="fa-solid fa-address-card" style="color: var(--portal-primary); margin-right: 8px;"></i> Profile Details</h2>
+    </div>
+    <div style="padding: 1.5rem;">
+        <div class="form-grid">
+            <div class="form-group"><label>Extension Number</label><input class="modern-input" value="{{ extension.ext }}" readonly style="opacity: 0.6;"><div class="form-note">The extension number and web username cannot be changed.</div></div>
+            <div class="form-group"><label>Name</label><input class="modern-input" name="name" maxlength="80" value="{{ extension.name or '' }}"></div>
+            <div class="form-group"><label>Email</label><input class="modern-input" type="email" name="email" maxlength="160" value="{{ extension.email or '' }}"></div>
+            <div class="form-group"><label>Mobile</label><input class="modern-input" name="mobile" maxlength="32" value="{{ extension.mobile or '' }}"></div>
+            <div class="form-group"><label>New SIP Password</label><input class="modern-input" type="password" name="sip_password" autocomplete="new-password" placeholder="Leave blank to keep current"><div class="form-note">Changes SIP device auth. Does not change Web Password.</div></div>
+            <div class="form-group"><label>Voicemail PIN</label><input class="modern-input" type="password" inputmode="numeric" name="vm_password" maxlength="20" value="{{ extension.vm_password or '' }}"></div>
+            <div class="form-group"><label>Ring Time</label><input class="modern-input" type="number" name="ring_time" min="5" max="300" value="{{ extension.ring_time or 60 }}"></div>
+            <div class="form-group"><label>DND</label><select class="modern-select" name="dnd"><option value="off" {% if extension.dnd_status != 'on' %}selected{% endif %}>Disabled</option><option value="on" {% if extension.dnd_status == 'on' %}selected{% endif %}>Enabled</option></select></div>
+        </div>
+    </div>
+
+    <div class="panel-head" style="padding: 1.25rem; border-top: 1px solid var(--portal-border); border-bottom: 1px solid var(--portal-border); display: flex; justify-content: space-between; align-items: center; background: var(--border-color);">
+        <h2 style="margin:0; font-size: 1.1rem; color: var(--text-main);"><i class="fa-solid fa-share" style="color: var(--portal-primary); margin-right: 8px;"></i> Call Forwarding</h2>
+    </div>
+    <div style="padding: 1.5rem;">
+        <div class="form-grid">
+            <div class="form-group"><label>Always</label><input class="modern-input" name="fwd_always" maxlength="32" value="{{ extension.fwd_always or '' }}" placeholder="Destination or blank"></div>
+            <div class="form-group"><label>No Answer</label><input class="modern-input" name="fwd_noanswer" maxlength="32" value="{{ extension.fwd_noanswer or '' }}" placeholder="Destination or blank"></div>
+            <div class="form-group"><label>Busy</label><input class="modern-input" name="fwd_busy" maxlength="32" value="{{ extension.fwd_busy or '' }}" placeholder="Destination or blank"></div>
+            <div class="form-group"><label>Voicemail</label><select class="modern-select" name="vm_enabled"><option value="off" {% if not extension.vm_enabled %}selected{% endif %}>Disabled</option><option value="on" {% if extension.vm_enabled %}selected{% endif %}>Enabled</option></select></div>
+        </div>
+    </div>
+
+    <div style="padding: 1.25rem 1.5rem; border-top: 1px solid var(--portal-border); display: flex; justify-content: flex-end; gap: 0.75rem; background: rgba(0,0,0,0.2);">
+        <a class="btn-modern btn-secondary" href="{{ url_for('extension_portal_dashboard') }}">Cancel</a>
+        <button class="btn-modern" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,660 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if route %}Edit{% else %}Add{% endif %} Inbound Route - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Inbound Route Form Premium Styling */
+    .form-panel-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.75rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        transition: border-color 0.2s ease;
+    }
+
+    .form-panel-card:hover {
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .section-subtitle {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+
+    /* Switch Option Card */
+    .feature-switch-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+    }
+
+    .feature-switch-card:hover {
+        border-color: var(--primary);
+        background: rgba(14, 165, 233, 0.05);
+    }
+
+    .switch-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .switch-title {
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .switch-desc {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    /* Dual Listbox */
+    .dual-list-container {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .dual-list-box {
+        flex: 1;
+        min-width: 260px;
+    }
+
+    .dual-list-box select {
+        height: 200px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: #fff;
+        padding: 0.5rem;
+    }
+
+    .dual-list-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        align-items: center;
+    }
+
+    /* Dynamic Rule Cards */
+    .rule-card {
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--primary);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+        transition: all 0.25s ease;
+    }
+
+    .rule-card:hover {
+        border-color: rgba(14, 165, 233, 0.4);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .rule-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding-bottom: 0.85rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .rule-number {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 800;
+        color: var(--primary);
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Custom weekday buttons */
+    .weekday-picker {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-top: 0.35rem;
+    }
+
+    .weekday-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        transition: all 0.15s ease;
+    }
+
+    .weekday-item:hover {
+        border-color: var(--primary);
+        background: rgba(14, 165, 233, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fa-solid fa-phone-volume" style="color: var(--primary);"></i>
+            {% if route %}Edit Inbound Route: <span style="color: var(--primary);">{{ route.name }}</span>{% else %}Create Inbound Route{% endif %}
+        </h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Configure DID/Caller ID matching rules, trunks, time schedules, and target destinations
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('inbound_routes_list') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back to Routes
+        </a>
+    </div>
+</div>
+
+<form action="{% if route %}{{ url_for('inbound_route_edit', route_id=route.id) }}{% else %}{{ url_for('inbound_route_add') }}{% endif %}" method="POST" id="inboundForm">
+
+    <!-- Section 1: Basic Parameters & Status -->
+    <div class="form-panel-card">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders" style="color: var(--primary);"></i>
+                    Route Parameters & Status
+                </div>
+                <div class="section-subtitle">Set the route identifier and operational state</div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label for="name">Inbound Route Name <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Main Company DID / Sales Line" value="{% if route %}{{ route.name }}{% endif %}" required>
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+                <label>Route Active Status</label>
+                <label class="feature-switch-card" style="margin-top: 0;">
+                    <div class="switch-info">
+                        <span class="switch-title">Enable Route</span>
+                        <span class="switch-desc">Active in dialplan</span>
+                    </div>
+                    <input type="checkbox" name="enabled" {% if not route or route.enabled != false %}checked{% endif %} style="accent-color: var(--primary); transform: scale(1.3); cursor: pointer;">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Trunk Filtering (Optional) -->
+    <div class="form-panel-card">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    <i class="fa-solid fa-server" style="color: var(--primary);"></i>
+                    Trunk Filter (Optional)
+                </div>
+                <div class="section-subtitle">If no specific trunks are selected, this route will match calls arriving on any inbound trunk</div>
+            </div>
+        </div>
+
+        <div class="dual-list-container">
+            <div class="dual-list-box">
+                <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block; font-weight: 600;">
+                    Available Trunks
+                </label>
+                <select id="avail_trunks" class="form-control" multiple>
+                    {% for t in trunks %}
+                        {% if not route or t.name not in route.trunks %}
+                        <option value="{{ t.name }}">{{ t.name }} ({{ t.type }}){% if not t.enabled %} [Disabled]{% endif %}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="dual-list-actions">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addTrunk()" style="width: 120px; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                    Add <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="removeTrunk()" style="width: 120px; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                    <i class="fa-solid fa-arrow-left"></i> Remove
+                </button>
+            </div>
+
+            <div class="dual-list-box">
+                <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; display: block; font-weight: 600;">
+                    Selected Trunks
+                </label>
+                <select id="sel_trunks" class="form-control" multiple>
+                    {% if route and route.trunks %}
+                        {% for t_name in route.trunks %}
+                        <option value="{{ t_name }}">{{ t_name }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Inbound Matching Patterns -->
+    <div class="form-panel-card">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    <i class="fa-solid fa-hashtag" style="color: var(--primary);"></i>
+                    Inbound Matching Patterns (DID & Caller ID)
+                </div>
+                <div class="section-subtitle">Define matching criteria for incoming dialled number (DID) and source Caller ID</div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 3;">
+                <label for="did_patterns">Inbound DID Matching Patterns</label>
+                <textarea id="did_patterns" name="did_patterns" class="form-control" rows="3" placeholder="e.g. 23226054&#10;_09XXXXXX&#10;(One pattern per line, leave empty for any DID)" style="font-family: monospace;">{% if route %}{{ route.did_patterns|join('\n') }}{% endif %}</textarea>
+                <small style="color: var(--text-muted); font-size: 0.78rem; margin-top: 0.35rem; display: block;">
+                    Use standard Asterisk pattern syntax: prefix with <code>_</code> for patterns (e.g., <code>_X.</code> matches any number, <code>_02XXXXXX</code> matches 8 digits starting with 02).
+                </small>
+            </div>
+            <div class="form-group" style="flex: 2;">
+                <label for="cid_pattern">Source Caller ID Pattern (Optional)</label>
+                <input type="text" id="cid_pattern" name="cid_pattern" class="form-control" placeholder="e.g. _01X. (leave empty for any CID)" value="{% if route %}{{ route.cid_pattern }}{% endif %}">
+                <small style="color: var(--text-muted); font-size: 0.78rem; margin-top: 0.35rem; display: block;">
+                    Filter calls by calling party number. Leave empty to accept callers from any number.
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Call Recording & Forwarding Features -->
+    <div class="form-panel-card">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders" style="color: var(--primary);"></i>
+                    Call Recording & Special Forwarding
+                </div>
+                <div class="section-subtitle">Enable automatic call recording or trunk-to-trunk bridging</div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label class="feature-switch-card">
+                    <div class="switch-info">
+                        <span class="switch-title"><i class="fa-solid fa-microphone" style="color: #34d399; margin-right: 0.4rem;"></i> Auto Record Incoming Calls</span>
+                        <span class="switch-desc">Enable MixMonitor audio recording for all bridged calls landing on this route</span>
+                    </div>
+                    <input type="checkbox" name="auto_record" {% if route and route.auto_record %}checked{% endif %} style="accent-color: var(--primary); transform: scale(1.3); cursor: pointer;">
+                </label>
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+                <label class="feature-switch-card">
+                    <div class="switch-info">
+                        <span class="switch-title"><i class="fa-solid fa-phone-flip" style="color: #38bdf8; margin-right: 0.4rem;"></i> Enable Dial Trunk Forwarding</span>
+                        <span class="switch-desc">Allow external incoming callers to bridge out to external numbers via outbound routes</span>
+                    </div>
+                    <input type="checkbox" name="enable_dial_trunk" {% if route and route.enable_dial_trunk %}checked{% endif %} style="accent-color: var(--primary); transform: scale(1.3); cursor: pointer;">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Time-Based Destination Rules -->
+    <div class="form-panel-card">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    <i class="fa-solid fa-calendar-check" style="color: var(--primary);"></i>
+                    Time-Based Destination Rules
+                </div>
+                <div class="section-subtitle">Route incoming calls dynamically depending on business hours, holidays, or custom schedules</div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-info btn-sm" onclick="addRuleRow()" style="box-shadow: 0 0 12px rgba(14, 165, 233, 0.3);">
+                    <i class="fa-solid fa-plus"></i> Add Time Condition Rule
+                </button>
+            </div>
+        </div>
+
+        <div id="rules_container">
+            <!-- Dynamic Rule Cards injected here -->
+        </div>
+
+        <div id="no_rules_hint" style="text-align: center; color: var(--text-muted); padding: 1.5rem; background: rgba(255,255,255,0.015); border: 1px dashed var(--border-color); border-radius: 8px;">
+            <i class="fa-solid fa-clock" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.5;"></i>
+            No time condition rules added. All calls will proceed directly to the <strong>Default Fallback Destination</strong> below.
+        </div>
+    </div>
+
+    <!-- Section 6: Default Fallback Destination -->
+    <div class="form-panel-card" style="border-left: 4px solid #f59e0b;">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    <i class="fa-solid fa-reply-all" style="color: #fbbf24;"></i>
+                    Default Fallback Destination
+                </div>
+                <div class="section-subtitle">Executed when no time-based rules match, or if no time condition rules are configured</div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label style="font-weight: 600; color: #fff;">Target Fallback Destination</label>
+                <div id="default-dest-selector"></div>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="default_strip">Strip Leading Digits</label>
+                <input type="number" id="default_strip" name="default_strip" class="form-control" min="0" value="{% if route %}{{ route.default_strip or 0 }}{% else %}0{% endif %}">
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Number of digits to strip from DID before dialing</small>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="default_prepend">Prepend Digits</label>
+                <input type="text" id="default_prepend" name="default_prepend" class="form-control" placeholder="e.g. 0" value="{% if route %}{{ route.default_prepend or '' }}{% endif %}">
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Digits to prefix to the DID before dialing</small>
+            </div>
+        </div>
+    </div>
+
+    <div id="hiddenTrunks"></div>
+
+    <div class="form-actions" style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+        <a href="{{ url_for('inbound_routes_list') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-info" style="min-width: 180px; box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);">
+            <i class="fa-solid fa-floppy-disk"></i> Save Inbound Route
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Dual selection helpers
+    function moveOptions(src, dst) {
+        const selOpts = Array.from(src.selectedOptions);
+        selOpts.forEach(o => {
+            dst.add(o);
+        });
+    }
+    function addTrunk() {
+        moveOptions(document.getElementById("avail_trunks"), document.getElementById("sel_trunks"));
+    }
+    function removeTrunk() {
+        moveOptions(document.getElementById("sel_trunks"), document.getElementById("avail_trunks"));
+    }
+
+    // Rules logic
+    let ruleCounter = 0;
+    const officeProfiles = {{ office_times|tojson|safe }};
+    const holidayProfiles = {{ holidays|tojson|safe }};
+
+    function updateNoRulesHint() {
+        const container = document.getElementById("rules_container");
+        const hint = document.getElementById("no_rules_hint");
+        if (container.children.length === 0) {
+            hint.style.display = 'block';
+        } else {
+            hint.style.display = 'none';
+        }
+    }
+
+    function addRuleRow(ruleData = null) {
+        ruleCounter++;
+        const idx = ruleCounter;
+        
+        const container = document.getElementById("rules_container");
+        const card = document.createElement("div");
+        card.className = "rule-card";
+        card.id = "rule-card-" + idx;
+
+        let html = `
+            <div class="rule-header">
+                <span class="rule-number"><i class="fa-solid fa-clock"></i> Rule #${idx}</span>
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeRuleRow(${idx})">
+                    <i class="fa-solid fa-trash-can"></i> Remove Rule
+                </button>
+            </div>
+            <input type="hidden" name="rule_index[]" value="${idx}">
+
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label style="font-weight: 600;">Time Condition Type</label>
+                    <select name="time_condition_${idx}" id="time_condition_${idx}" class="form-control" onchange="toggleConditionFields(${idx})">
+                        <option value="office">Office Time (Working Hours)</option>
+                        <option value="out_office">Out of Office Time</option>
+                        <option value="holiday">Holiday Schedule</option>
+                        <option value="out_holiday">Out of Holiday</option>
+                        <option value="out_office_holiday">Out of Office Time or Holiday</option>
+                        <option value="office_out_holiday">Office Time and Out of Holiday</option>
+                        <option value="custom">Custom Schedule (Days & Time)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="office_group_${idx}" style="flex: 2;">
+                    <label style="font-weight: 600;">Office Time Profile</label>
+                    <select name="office_profile_${idx}" class="form-control">
+                        <option value="">-- Select Office Profile --</option>
+                        ${officeProfiles.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                    </select>
+                </div>
+
+                <div class="form-group" id="holiday_group_${idx}" style="flex: 2;">
+                    <label style="font-weight: 600;">Holiday Profile</label>
+                    <select name="holiday_profile_${idx}" class="form-control">
+                        <option value="">-- Select Holiday Profile --</option>
+                        ${holidayProfiles.map(h => `<option value="${h.id}">${h.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Custom Schedule Block -->
+            <div id="custom_time_block_${idx}" style="display: none; padding: 1.25rem; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 1.25rem;">
+                <div style="font-weight: 700; margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--primary);">
+                    <i class="fa-solid fa-calendar-days"></i> Custom Days & Time Parameters
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label style="font-size: 0.82rem; color: var(--text-muted);">Active Days of Week</label>
+                        <div class="weekday-picker">
+                            ${['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].map(day => `
+                                <label class="weekday-item">
+                                    <input type="checkbox" name="custom_days_${idx}[]" value="${day}" style="accent-color: var(--primary);">
+                                    <span>${day.substring(0,3).toUpperCase()}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label style="font-size: 0.82rem; color: var(--text-muted);">Start Time</label>
+                        <input type="time" name="custom_start_${idx}" class="form-control" value="09:00">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label style="font-size: 0.82rem; color: var(--text-muted);">End Time</label>
+                        <input type="time" name="custom_end_${idx}" class="form-control" value="17:00">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Destination & Digit Manipulation -->
+            <div class="form-row" style="margin-top: 0.5rem;">
+                <div class="form-group" style="flex: 2;">
+                    <label style="font-weight: 600;">Destination When Matched</label>
+                    <div id="dest-selector-${idx}"></div>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Strip Digits</label>
+                    <input type="number" name="strip_${idx}" class="form-control" min="0" value="0">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Prepend Digits</label>
+                    <input type="text" name="prepend_${idx}" class="form-control" placeholder="e.g. 9">
+                </div>
+            </div>
+        `;
+        
+        card.innerHTML = html;
+        container.appendChild(card);
+        updateNoRulesHint();
+
+        toggleConditionFields(idx);
+
+        if (ruleData) {
+            document.getElementById("time_condition_" + idx).value = ruleData.time_condition;
+            toggleConditionFields(idx);
+            
+            const officeSel = card.querySelector(`select[name="office_profile_${idx}"]`);
+            if (officeSel && ruleData.office_profile) officeSel.value = ruleData.office_profile;
+
+            const holidaySel = card.querySelector(`select[name="holiday_profile_${idx}"]`);
+            if (holidaySel && ruleData.holiday_profile) holidaySel.value = ruleData.holiday_profile;
+
+            if (ruleData.custom_days) {
+                ruleData.custom_days.forEach(day => {
+                    const chk = card.querySelector(`input[name="custom_days_${idx}[]"][value="${day}"]`);
+                    if (chk) chk.checked = true;
+                });
+            }
+            if (ruleData.custom_start) {
+                card.querySelector(`input[name="custom_start_${idx}"]`).value = ruleData.custom_start;
+            }
+            if (ruleData.custom_end) {
+                card.querySelector(`input[name="custom_end_${idx}"]`).value = ruleData.custom_end;
+            }
+
+            card.querySelector(`input[name="strip_${idx}"]`).value = ruleData.strip || 0;
+            card.querySelector(`input[name="prepend_${idx}"]`).value = ruleData.prepend || "";
+
+            renderDestinationSelector(
+                "dest-selector-" + idx,
+                "dest_type_" + idx,
+                "dest_value_" + idx,
+                ruleData.dest_type || "hangup",
+                ruleData.dest_val || ""
+            );
+        } else {
+            renderDestinationSelector(
+                "dest-selector-" + idx,
+                "dest_type_" + idx,
+                "dest_value_" + idx,
+                "hangup",
+                ""
+            );
+        }
+    }
+
+    function removeRuleRow(idx) {
+        const card = document.getElementById("rule-card-" + idx);
+        if (card) card.remove();
+        updateNoRulesHint();
+    }
+
+    function toggleConditionFields(idx) {
+        const tc = document.getElementById("time_condition_" + idx).value;
+        const officeGrp = document.getElementById("office_group_" + idx);
+        const holidayGrp = document.getElementById("holiday_group_" + idx);
+        const customBlock = document.getElementById("custom_time_block_" + idx);
+
+        officeGrp.style.display = "none";
+        holidayGrp.style.display = "none";
+        customBlock.style.display = "none";
+
+        if (tc === "office" || tc === "out_office") {
+            officeGrp.style.display = "block";
+        } else if (tc === "holiday" || tc === "out_holiday") {
+            holidayGrp.style.display = "block";
+        } else if (tc === "out_office_holiday" || tc === "office_out_holiday") {
+            officeGrp.style.display = "block";
+            holidayGrp.style.display = "block";
+        } else if (tc === "custom") {
+            customBlock.style.display = "block";
+        }
+    }
+
+    document.getElementById("inboundForm").addEventListener("submit", function(e) {
+        const holder = document.getElementById("hiddenTrunks");
+        holder.innerHTML = "";
+        
+        const sel = document.getElementById("sel_trunks");
+        const opts = Array.from(sel.options);
+        opts.forEach(o => {
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = "trunks[]";
+            inp.value = o.value;
+            holder.appendChild(inp);
+        });
+
+        const indexes = document.querySelectorAll('input[name="rule_index[]"]');
+        for (let i = 0; i < indexes.length; i++) {
+            const idx = indexes[i].value;
+            const tc = document.getElementById("time_condition_" + idx).value;
+            if (tc === "custom") {
+                const daysChecked = document.querySelectorAll(`input[name="custom_days_${idx}[]"]:checked`);
+                if (daysChecked.length === 0) {
+                    e.preventDefault();
+                    alert(`Please select at least one weekday for the Custom Schedule in Rule #${idx}.`);
+                    return;
+                }
+            }
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        renderDestinationSelector(
+            "default-dest-selector",
+            "default_dest_type",
+            "default_dest_value",
+            "{% if route and route.default_dest_type %}{{ route.default_dest_type }}{% else %}hangup{% endif %}",
+            "{% if route %}{{ route.default_dest_val }}{% endif %}"
+        );
+
+        {% if route and route.rules %}
+            const existingRules = {{ route.rules|tojson|safe }};
+            existingRules.forEach(r => {
+                addRuleRow(r);
+            });
+        {% endif %}
+        updateNoRulesHint();
+    });
+</script>
+{% endblock %}

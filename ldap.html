@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}LDAP Settings{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><h4 class="m-0">LDAP Server Settings</h4></div>
+            <div class="card-body">
+                <form id="ldapForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="username" name="username" class="form-control" value="{{ settings.username }}" required>
+                        <small class="text-muted">e.g., cn=user,dc=ippbx,dc=com</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" id="password" name="password" class="form-control" value="{{ settings.password }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Directory Node (Base DN)</label>
+                        <input type="text" id="base_dn" name="base_dn" class="form-control" value="{{ settings.base_dn }}" required>
+                        <small class="text-muted">e.g., dc=ippbx,dc=com</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contacts Sorting</label>
+                        <select id="sort_by" name="sort_by" class="form-select">
+                            <option value="name" {% if settings.sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                            <option value="number" {% if settings.sort_by == 'number' %}selected{% endif %}>Number (0-9)</option>
+                        </select>
+                    </div>
+                    <div class="mb-4 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="activate" name="activate" {% if settings.activate %}checked{% endif %} value="1">
+                        <label class="form-check-label" for="activate">Activate LDAP Server on Port 389</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Save Settings</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="m-0">Preview Fetched Contacts</h4>
+                <span class="badge bg-info">{{ contacts|length }} Total</span>
+            </div>
+            <div class="card-body p-0" style="max-height: 450px; overflow-y: auto;">
+                {% if not settings.activate %}
+                <div class="alert alert-warning m-3">
+                    <i class="fa-solid fa-triangle-exclamation"></i> LDAP Server is currently deactivated. No contacts will be served.
+                </div>
+                {% endif %}
+                <ul class="list-group list-group-flush">
+                    {% for contact in contacts %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">{{ contact.name }}</h6>
+                                <small class="text-muted">{{ contact.number }}</small>
+                            </div>
+                            <span class="badge {% if contact.type == 'Internal' %}bg-secondary{% else %}bg-success{% endif %} rounded-pill">{{ contact.type }}</span>
+                        </li>
+                    {% else %}
+                        <li class="list-group-item text-center text-muted py-4">No contacts synced to LDAP.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header"><h4 class="m-0"><i class="fa-solid fa-mobile-screen"></i> IP Phone Provisioning Guide</h4></div>
+    <div class="card-body">
+        <p>Use the following settings when configuring Yealink, Grandstream, or other LDAP-compatible IP phones:</p>
+        <pre class="bg-dark text-light p-3 rounded"><code>LDAP1 Title              :RCM7021
+LDAP1 Server             :&lt;PBX IP Address&gt;
+LDAP1 port               :389
+LDAP1 Base               :{{ settings.base_dn }}
+LDAP1 Use SSL            :0
+LDAP1 Version            :3
+LDAP1 Username           :{{ settings.username }}
+LDAP1 Password           :{{ settings.password }}
+LDAP1 Name Attr          :cn sn
+LDAP1 Tel Attr           :telephoneNumber
+LDAP1 Mobile Attr        :mobile
+LDAP1 Other Attr         :other
+LDAP1 Sort Attr          :cn
+LDAP1 Displayname        :cn
+LDAP1 Number Filter      :(|(telephoneNumber=%)(mobile=%)(other=%))
+LDAP1 Name Filter        :(|(cn=%)(sn=%))</code></pre>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+    document.getElementById('ldapForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const data = new FormData(this);
+        fetch('/contacts/ldap/save', {
+            method: 'POST',
+            body: data,
+            headers: {'X-CSRFToken': '{{ csrf_token() }}'}
+        }).then(response => response.json()).then(result => {
+            if (result.success) {
+                alert('LDAP Settings saved successfully!');
+                location.reload();
+            } else {
+                alert('Error saving settings: ' + result.error);
+            }
+        });
+    });
+</script>
+{% endblock %}

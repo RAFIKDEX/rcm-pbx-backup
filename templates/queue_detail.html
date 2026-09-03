@@ -1,0 +1,1024 @@
+{% extends 'base.html' %}
+{% block title %}Queue Details - {{ queue.queue_number }}{% endblock %}
+{% block content %}
+
+<style>
+    .sub-nav-bar {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.75rem;
+    }
+    .timeline-stepper {
+        position: relative;
+        padding-left: 2.2rem;
+        border-left: 2px solid var(--border-color);
+        margin-left: 1.25rem;
+    }
+    .timeline-node {
+        position: absolute;
+        left: -3.15rem;
+        top: 0;
+        width: 28px;
+        height: 28px;
+        background: var(--bg-dark);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+</style>
+
+<!-- Header and Controls -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="margin: 0; font-size: 1.75rem; color: var(--text-main);">
+            <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Queue Details: [{{ queue.queue_number }}] {{ queue.name }}
+        </h1>
+        <div style="margin-top: 0.25rem; font-size: 0.85rem; color: var(--text-muted);">
+            <a href="/" style="color: var(--primary); text-decoration: none;">Dashboard</a> / 
+            <a href="/call-center/stats" style="color: var(--primary); text-decoration: none;">Call Center</a> / 
+            <span style="color: var(--text-main);">Queue Details</span>
+        </div>
+    </div>
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <select id="exportType" class="form-control" style="width: 140px; padding: 0.4rem; font-size: 0.85rem; height: 35px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main);">
+            <option value="all">All Data (ZIP)</option>
+            <option value="calls">Calls</option>
+            <option value="agents">Agents</option>
+            <option value="sessions">Sessions</option>
+            <option value="pauses">Pauses</option>
+        </select>
+        <button type="button" onclick="exportQueueReport()" class="btn btn-secondary" style="height: 35px; padding: 0 0.75rem; font-size: 0.85rem;"><i class="fa-solid fa-download"></i> Export</button>
+        <button type="button" onclick="loadQueueData()" class="btn btn-info" style="font-weight: bold; height: 35px; padding: 0 0.75rem; font-size: 0.85rem;"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+        <a href="/call-center/stats" class="btn btn-secondary" style="height: 35px; padding: 0 0.75rem; font-size: 0.85rem; line-height: 1.5;"><i class="fa-solid fa-arrow-left"></i> Stats</a>
+        <a href="/queues" class="btn btn-secondary" style="height: 35px; padding: 0 0.75rem; font-size: 0.85rem; line-height: 1.5;"><i class="fa-solid fa-list"></i> Queues</a>
+    </div>
+</div>
+
+<!-- Date/Time Filters (Specific to this queue) -->
+<div class="panel" style="padding: 1rem; margin-bottom: 1.5rem;">
+    <form id="filterForm" onsubmit="loadQueueData(event)" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Date From</label>
+            <input type="date" id="date_from" class="form-control" style="padding: 0.5rem; width: 160px;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Date To</label>
+            <input type="date" id="date_to" class="form-control" style="padding: 0.5rem; width: 160px;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Time From</label>
+            <input type="time" id="time_from" class="form-control" style="padding: 0.5rem; width: 110px;" value="00:00">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Time To</label>
+            <input type="time" id="time_to" class="form-control" style="padding: 0.5rem; width: 110px;" value="23:59">
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-info" style="padding: 0.5rem 1.25rem;"><i class="fa-solid fa-filter"></i> Apply Filters</button>
+            <button type="button" onclick="resetFilters()" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Reset</button>
+        </div>
+    </form>
+</div>
+
+<!-- Queue KPI Cards -->
+<div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+    <!-- Group 1: Volume & Rates -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+        <div class="panel" style="padding: 1.25rem; border-left: 4px solid var(--primary); background: rgba(59, 130, 246, 0.03); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Total Volume</div>
+                <div id="kpi-total" style="font-size: 2.2rem; font-weight: bold; color: var(--text-main); font-family: 'Orbitron', sans-serif;">0</div>
+            </div>
+            <i class="fa-solid fa-phone-volume" style="font-size: 2.5rem; color: rgba(59, 130, 246, 0.2);"></i>
+        </div>
+        <div class="panel" style="padding: 1.25rem; border-left: 4px solid var(--status-registered); background: rgba(16, 185, 129, 0.03); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Answered</div>
+                <div id="kpi-answered" style="font-size: 2.2rem; font-weight: bold; color: var(--status-registered); font-family: 'Orbitron', sans-serif;">0</div>
+            </div>
+            <i class="fa-solid fa-headset" style="font-size: 2.5rem; color: rgba(16, 185, 129, 0.2);"></i>
+        </div>
+        <div class="panel" style="padding: 1.25rem; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.03); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Abandoned</div>
+                <div id="kpi-abandoned" style="font-size: 2.2rem; font-weight: bold; color: #ef4444; font-family: 'Orbitron', sans-serif;">0</div>
+            </div>
+            <i class="fa-solid fa-phone-slash" style="font-size: 2.5rem; color: rgba(239, 68, 68, 0.2);"></i>
+        </div>
+        <div class="panel" style="padding: 1.25rem; border-left: 4px solid #facc15; background: rgba(250, 204, 21, 0.03); display: flex; flex-direction: column; justify-content: center;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold; margin-bottom: 0.5rem;">Performance Rates</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;">
+                <span style="color: var(--text-muted);">Answer Rate:</span>
+                <span id="kpi-ans-rate" style="font-weight: bold; color: var(--text-main);">0%</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin-top: 0.25rem;">
+                <span style="color: var(--text-muted);">Abandon Rate:</span>
+                <span id="kpi-ab-rate" style="font-weight: bold; color: var(--text-main);">0%</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin-top: 0.25rem;">
+                <span style="color: var(--text-muted);">SLA (20s):</span>
+                <span id="kpi-sla" style="font-weight: bold; color: var(--status-registered);">0%</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Group 2: Time Metrics -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div class="panel" style="padding: 1rem; text-align: center; border-bottom: 2px solid #2dd4bf; background: rgba(45, 212, 191, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Wait Time (Avg)</div>
+            <div id="kpi-avg-wait" style="font-size: 1.5rem; font-weight: bold; color: #2dd4bf; margin-top: 0.4rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.3rem;">Max: <span id="kpi-max-wait" style="color: #f43f5e; font-weight:bold;">00:00</span></div>
+        </div>
+        <div class="panel" style="padding: 1rem; text-align: center; border-bottom: 2px solid #facc15; background: rgba(250, 204, 21, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Talk Time (Avg)</div>
+            <div id="kpi-avg-talk" style="font-size: 1.5rem; font-weight: bold; color: #facc15; margin-top: 0.4rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.3rem;">Max: <span id="kpi-max-talk" style="color: #fb923c; font-weight:bold;">00:00</span> &bull; Min: <span id="kpi-shortest-talk" style="color: #38bdf8; font-weight:bold;">00:00</span></div>
+        </div>
+        <div class="panel" style="padding: 1rem; text-align: center; border-bottom: 2px solid #fb923c; background: rgba(251, 146, 60, 0.03);">
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight:bold;">Hold Time (Avg)</div>
+            <div id="kpi-avg-hold" style="font-size: 1.5rem; font-weight: bold; color: #fb923c; margin-top: 0.4rem; font-family: 'Orbitron', sans-serif;">00:00</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.3rem;">Max: <span id="kpi-max-hold" style="color: #ef4444; font-weight:bold;">00:00</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs selector -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap;">
+    <button onclick="switchTab('tab-overview')" id="btn-tab-overview" class="btn btn-info tab-btn">Queue Overview</button>
+    <button onclick="switchTab('tab-calls')" id="btn-tab-calls" class="btn btn-secondary tab-btn">Calls</button>
+    <button onclick="switchTab('tab-logins')" id="btn-tab-logins" class="btn btn-secondary tab-btn">Agent Sessions</button>
+    <button onclick="switchTab('tab-pauses')" id="btn-tab-pauses" class="btn btn-secondary tab-btn">Pause History</button>
+    <button onclick="switchTab('tab-charts')" id="btn-tab-charts" class="btn btn-secondary tab-btn">Performance Charts</button>
+</div>
+
+<!-- TAB 1: QUEUE OVERVIEW -->
+<div id="tab-overview" class="tab-content">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Configuration settings -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Queue Configuration</h2>
+            </div>
+            <div style="padding: 1.25rem;">
+                <table class="table table-striped" style="width: 100%;">
+                    <tbody>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold; width: 45%;">Queue Number:</td>
+                            <td><strong style="color: var(--text-main);">{{ queue.queue_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Queue Name:</td>
+                            <td>{{ queue.name }}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Strategy:</td>
+                            <td><span class="badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; text-transform: uppercase;">{{ queue.strategy }}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: bold;">Music On Hold:</td>
+                            <td><code>{{ queue.music_on_hold }}</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Live Status Counter Summary -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Live Counters</h2>
+            </div>
+            <div style="padding: 1.25rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
+                <div style="background: var(--border-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Waiting Calls</div>
+                    <div id="live-overview-waiting" style="font-size: 2rem; font-weight: bold; color: var(--status-ringing); font-family: 'Orbitron', sans-serif;">0</div>
+                </div>
+                <div style="background: var(--border-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Talking Calls</div>
+                    <div id="live-overview-talking" style="font-size: 2rem; font-weight: bold; color: #38bdf8; font-family: 'Orbitron', sans-serif;">0</div>
+                </div>
+                <div style="background: var(--border-color); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Available Agents</div>
+                    <div id="live-overview-available" style="font-size: 2rem; font-weight: bold; color: #10b981; font-family: 'Orbitron', sans-serif;">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Real-time Columns: Members & Active Calls -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 1.5rem;">
+        <!-- Live Queue Members -->
+        <div class="panel">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2><i class="fa-solid fa-users" style="color: var(--primary);"></i> Queue Members (Live)</h2>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399;" id="live-mem-count">0 Agents</span>
+            </div>
+            <div style="padding: 1rem; max-height: 350px; overflow-y: auto;">
+                <div id="live-members-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem;">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Live Queue Calls -->
+        <div class="panel">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2><i class="fa-solid fa-phone-volume" style="color: var(--primary);"></i> Active Calls (Live)</h2>
+                <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;" id="live-call-count">0 Calls</span>
+            </div>
+            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                <table class="table" style="margin-bottom: 0;">
+                    <thead>
+                        <tr>
+                            <th>Caller</th>
+                            <th>Position</th>
+                            <th>Agent</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="live-calls-body">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 2: CALLS -->
+<div id="tab-calls" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Call Logs (Specific to Queue {{ queue.queue_number }})</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>CALLER</th>
+                        <th>TIME</th>
+                        <th>QUEUE</th>
+                        <th>INITIAL POSITION</th>
+                        <th>LAST POSITION</th>
+                        <th>AGENT</th>
+                        <th>WAITING TIME</th>
+                        <th>TALK TIME</th>
+                        <th>HOLD TIME</th>
+                        <th>STATUS</th>
+                        <th>HANGUP BY</th>
+                        <th>RECORDING</th>
+                        <th style="text-align: center;">TIMELINE</th>
+                    </tr>
+                </thead>
+                <tbody id="calls-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 3: AGENT SESSIONS -->
+<div id="tab-logins" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Agent Login Sessions History</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Login</th>
+                        <th>Logout</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="logins-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 4: PAUSE HISTORY -->
+<div id="tab-pauses" class="tab-content" style="display: none;">
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Agent Pauses/Break History</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Pause</th>
+                        <th>Unpause</th>
+                        <th>Duration</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="pauses-table-body">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 5: PERFORMANCE CHARTS -->
+<div id="tab-charts" class="tab-content" style="display: none;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Call Casing Overview</h2>
+            </div>
+            <div style="position: relative; height: 280px;">
+                <canvas id="queueVolumeChart"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Hourly Call Volume Peak</h2>
+            </div>
+            <div style="position: relative; height: 280px;">
+                <canvas id="queuePeakChart"></canvas>
+            </div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1;">
+            <div class="panel-header">
+                <h2>Agent Performance (Handled Queue Calls)</h2>
+            </div>
+            <div style="position: relative; height: 280px;">
+                <canvas id="queueAgentChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mini Audio Player Container -->
+<div id="audio-player-container" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000; background: var(--panel-dark); border: 1px solid var(--border-color); padding: 1rem; border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.6); align-items: center; gap: 1rem; animation: slideUp 0.3s ease;">
+    <div>
+        <i class="fa-solid fa-file-audio" style="color: var(--primary); font-size: 1.5rem;"></i>
+    </div>
+    <div style="flex: 1;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold; margin-bottom: 0.25rem;">Playing Call Recording</div>
+        <audio id="global-audio-player" controls style="height: 32px;"></audio>
+    </div>
+    <div>
+        <button class="btn btn-secondary btn-sm" onclick="stopAudio()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const queueNum = "{{ queue.queue_number }}";
+    let pollInterval = null;
+    let timerInterval = null;
+    
+    let liveCalls = [];
+    let liveMembers = [];
+    
+    // Charts variables
+    let volumeChart = null;
+    let peakChart = null;
+    let agentChart = null;
+
+    function escapeHtml(value) {
+        if (value == null) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+        });
+        
+        document.getElementById(tabId).style.display = 'block';
+        document.getElementById('btn-' + tabId).classList.remove('btn-secondary');
+        document.getElementById('btn-' + tabId).classList.add('btn-info');
+    }
+
+    function resetFilters() {
+        document.getElementById("date_from").value = '';
+        document.getElementById("date_to").value = '';
+        document.getElementById("time_from").value = '00:00';
+        document.getElementById("time_to").value = '23:59';
+        loadQueueData();
+    }
+
+    function formatDuration(sec) {
+        if (!sec || isNaN(sec) || sec < 0) return "00:00";
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        if (h > 0) {
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function loadQueueData(event) {
+        if (event) event.preventDefault();
+        
+        const date_from = document.getElementById("date_from").value;
+        const date_to = document.getElementById("date_to").value;
+        const time_from = document.getElementById("time_from").value;
+        const time_to = document.getElementById("time_to").value;
+        
+        let url = `/call-center/queues/${queueNum}/api?`;
+        if (date_from) url += `&date_from=${date_from}`;
+        if (date_to) url += `&date_to=${date_to}`;
+        if (time_from) url += `&time_from=${time_from}`;
+        if (time_to) url += `&time_to=${time_to}`;
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                populateKPIs(data.kpis);
+                
+                liveMembers = data.live_members;
+                liveCalls = data.live_calls;
+                renderLiveMembers();
+                renderLiveCalls();
+                
+                renderCallHistory(data.calls_history);
+                renderLoginHistory(data.login_history);
+                renderPauseHistory(data.pause_history);
+                
+                renderCharts(data);
+            })
+            .catch(err => console.error("Error loading queue details:", err));
+    }
+
+    function populateKPIs(kpis) {
+        document.getElementById("kpi-total").innerText = kpis.total_calls;
+        document.getElementById("kpi-answered").innerText = kpis.answered;
+        document.getElementById("kpi-abandoned").innerText = kpis.abandoned;
+        document.getElementById("kpi-ans-rate").innerText = kpis.ans_rate + '%';
+        document.getElementById("kpi-ab-rate").innerText = kpis.abandon_rate + '%';
+        document.getElementById("kpi-avg-talk").innerText = formatDuration(kpis.avg_talk);
+        document.getElementById("kpi-avg-wait").innerText = formatDuration(kpis.avg_wait);
+        document.getElementById("kpi-max-talk").innerText = formatDuration(kpis.longest_talk);
+        document.getElementById("kpi-max-wait").innerText = formatDuration(kpis.longest_wait);
+        document.getElementById("kpi-shortest-talk").innerText = formatDuration(kpis.shortest_talk || 0);
+        document.getElementById("kpi-sla").innerText = kpis.sla_pct + '%';
+        
+        document.getElementById("kpi-avg-hold").innerText = formatDuration(kpis.avg_hold);
+        document.getElementById("kpi-max-hold").innerText = formatDuration(kpis.longest_hold);
+    }
+
+    function renderLiveMembers() {
+        const container = document.getElementById("live-members-container");
+        container.innerHTML = '';
+        document.getElementById("live-mem-count").innerText = `${liveMembers.length} Agents`;
+        
+        let availableCount = 0;
+        let talkingCount = 0;
+        
+        if (liveMembers.length === 0) {
+            container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color: var(--text-muted); padding: 1rem;">No logged in agents.</div>`;
+            document.getElementById("live-overview-available").innerText = '0';
+            return;
+        }
+        
+        liveMembers.forEach((m, idx) => {
+            let stateColor = '#94a3b8';
+            let stateText = 'Offline';
+            let stateIcon = 'fa-circle-dot';
+            let activeTimer = false;
+            
+            if (m.paused) {
+                stateColor = '#f59e0b';
+                stateText = `Paused (${m.paused_reason || 'Break'})`;
+                stateIcon = 'fa-mug-hot';
+                activeTimer = true;
+            } else if (m.state === 1) {
+                stateColor = '#10b981';
+                stateText = 'Available';
+                stateIcon = 'fa-circle-check';
+                availableCount++;
+            } else if (m.state === 5) {
+                stateColor = '#ef4444';
+                stateText = 'Talking';
+                stateIcon = 'fa-phone-flip';
+                activeTimer = true;
+                talkingCount++;
+            } else if (m.state === 6) {
+                stateColor = '#3b82f6';
+                stateText = 'Ringing';
+                stateIcon = 'fa-bell';
+                activeTimer = true;
+            }
+            
+            const card = document.createElement("div");
+            card.style.background = 'rgba(255, 255, 255, 0.01)';
+            card.style.border = '1px solid var(--border-color)';
+            card.style.borderRadius = '4px';
+            card.style.padding = '0.75rem';
+            card.style.borderTop = `3px solid ${stateColor}`;
+            
+            const ext = m.location ? (m.location.split('/')[1] || '') : '';
+            
+            card.innerHTML = `
+                <div style="font-weight: bold; color: var(--text-main); font-size: 0.9rem;">${m.name}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.35rem;">Ext: ${ext}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:${stateColor}; font-weight:bold;">
+                    <span><i class="fa-solid ${stateIcon}"></i> ${stateText}</span>
+                    ${activeTimer ? `<span id="member-timer-${idx}" style="font-family: monospace; font-size: 0.75rem;">${formatDuration(m.status_duration)}</span>` : ''}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+        
+        document.getElementById("live-overview-available").innerText = availableCount;
+        document.getElementById("live-overview-talking").innerText = talkingCount;
+    }
+
+    function renderLiveCalls() {
+        const body = document.getElementById("live-calls-body");
+        body.innerHTML = '';
+        document.getElementById("live-call-count").innerText = `${liveCalls.length} Calls`;
+        
+        let waitingCount = 0;
+        
+        if (liveCalls.length === 0) {
+            body.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 1.5rem;">No active queue calls.</td></tr>`;
+            document.getElementById("live-overview-waiting").innerText = '0';
+            return;
+        }
+        
+        liveCalls.forEach((c, idx) => {
+            let statBadge = '';
+            const statusUpper = c.status ? c.status.toUpperCase() : 'WAITING';
+            if (statusUpper === 'TALKING' || statusUpper === 'ANSWERED') {
+                statBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">TALKING</span>`;
+            } else if (statusUpper === 'WAITING' || statusUpper === 'ENTERED') {
+                statBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">WAITING</span>`;
+                waitingCount++;
+            } else if (statusUpper === 'RINGING') {
+                statBadge = `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">RINGING</span>`;
+            } else if (statusUpper === 'HOLD') {
+                statBadge = `<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">HOLD</span>`;
+            } else {
+                statBadge = `<span class="badge badge-gray">${statusUpper}</span>`;
+            }
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${c.caller}</strong></td>
+                <td>${c.position > 0 ? c.position : '-'}</td>
+                <td>${c.agent || '-'}</td>
+                <td>${statBadge}</td>
+                <td style="font-family: monospace;" id="call-timer-${idx}">${formatDuration(c.duration)}</td>
+            `;
+            body.appendChild(tr);
+        });
+        
+        document.getElementById("live-overview-waiting").innerText = waitingCount;
+    }
+
+    function renderCallHistory(calls) {
+        const body = document.getElementById("calls-table-body");
+        body.innerHTML = '';
+        if (!calls || calls.length === 0) {
+            body.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>`;
+            return;
+        }
+        calls.forEach(c => {
+            const entryTime = new Date(c.timestamp * 1000).toLocaleString();
+            const statusUpper = c.status ? c.status.toUpperCase().replace('_', ' ') : 'ENTERED';
+
+            
+            let statusBadge = '';
+            if (statusUpper === 'ANSWERED') {
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">ANSWERED</span>`;
+            } else if (statusUpper === 'ABANDONED') {
+                statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">ABANDONED</span>`;
+            } else if (statusUpper === 'CANCELED' || statusUpper === 'CANCELLED') {
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">CANCELED</span>`;
+            } else if (statusUpper === 'NO ANSWER') {
+                statusBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">NO ANSWER</span>`;
+            } else if (statusUpper === 'TIMEOUT') {
+                statusBadge = `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">TIMEOUT</span>`;
+            } else {
+                statusBadge = `<span class="badge badge-gray">${statusUpper}</span>`;
+            }
+            
+            let recPlay = '-';
+            if (c.recording_file) {
+                recPlay = `<button class="btn btn-info btn-xs" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="playAudio('${c.recording_file}')"><i class="fa-solid fa-play"></i> Play</button>`;
+            }
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${c.caller}</strong></td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${entryTime}</td>
+                <td><a href="/call-center/queues/${c.queue_id || c.queuename}" style="color: var(--primary); text-decoration: none; font-weight: bold;">${c.queue_name || c.queuename}</a></td>
+                <td><code>${c.initial_position || '0'}</code></td>
+                <td><code>${c.last_position || '0'}</code></td>
+                <td>${c.agent || '-'}</td>
+                <td>${formatDuration(c.wait_time)}</td>
+                <td>${statusUpper === 'ANSWERED' ? formatDuration(c.talk_time) : '-'}</td>
+                <td>${formatDuration(c.hold_time || 0)}</td>
+                <td>${statusBadge}</td>
+                <td><span style="text-transform: capitalize; color: var(--text-main); font-weight: 500;">${((c.hangup_by && c.hangup_by.toUpperCase() === 'AGENT') ? 'agent' : ((c.hangup_by && c.hangup_by.toUpperCase() === 'CALLER') ? 'caller' : (statusUpper === 'ANSWERED' ? 'agent' : 'caller')))}</span></td>
+                <td>${recPlay}</td>
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="toggleTimeline('${c.uniqueid}', this)">
+                        <i class="fa-solid fa-timeline"></i> Events
+                    </button>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function toggleTimeline(uid, btn) {
+        const tr = btn.closest('tr');
+        let nextTr = tr.nextElementSibling;
+        if (nextTr && nextTr.classList.contains('timeline-row')) {
+            nextTr.style.display = nextTr.style.display === 'none' ? 'table-row' : 'none';
+            return;
+        }
+        
+        const newTr = document.createElement('tr');
+        newTr.className = 'timeline-row';
+        newTr.innerHTML = `<td colspan="12" style="background: rgba(11, 15, 25, 0.6); padding: 1.5rem;"><div id="timeline-content-${uid}" class="timeline-stepper">Loading timeline...</div></td>`;
+        tr.parentNode.insertBefore(newTr, tr.nextSibling);
+        
+        // Queue Details keeps its original queue-event timeline. The CDR
+        // page uses /call-center/call-details for the newer Call Journey.
+        fetch(`/api/calls/${encodeURIComponent(uid)}/events`)
+            .then(res => res.json())
+            .then(events => {
+                const container = document.getElementById(`timeline-content-${uid}`);
+                const payload = Array.isArray(events) ? { events } : (events || {});
+                const timelineData = Array.isArray(payload.events) ? payload.events : (payload.timeline || []);
+                if (!Array.isArray(timelineData) || timelineData.length === 0) {
+                    container.innerHTML = `<span style="color: var(--text-muted);">No event transition records for this call.</span>`;
+                    return;
+                }
+                const totals = payload.totals || { wait: 0, talk: 0, hold: 0 };
+                
+                function formatDurationLong(seconds) {
+                    if (!seconds) return "00:00:00";
+                    const h = Math.floor(seconds / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    const s = Math.floor(seconds % 60);
+                    return [h, m, s].map(v => v < 10 ? "0" + v : v).join(":");
+                }
+
+                let html = `
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 150px; background: var(--border-color); padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Wait Time</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); font-family: monospace;">${formatDurationLong(totals.wait)}</div>
+                        </div>
+                        <div style="flex: 1; min-width: 150px; background: var(--border-color); padding: 1rem; border-radius: 8px; border-left: 4px solid #10b981;">
+                            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Talk Time</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); font-family: monospace;">${formatDurationLong(totals.talk)}</div>
+                        </div>
+                        <div style="flex: 1; min-width: 150px; background: var(--border-color); padding: 1rem; border-radius: 8px; border-left: 4px solid #c084fc;">
+                            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Hold Time</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); font-family: monospace;">${formatDurationLong(totals.hold)}</div>
+                        </div>
+                    </div>
+                    <div style="font-weight: bold; color: var(--text-main); margin-bottom: 1.25rem; font-family: 'Orbitron', sans-serif; font-size: 0.85rem; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-history" style="color: var(--primary);"></i> CALL FLOW DETAILS TIMELINE [UID: ${escapeHtml(uid)}]
+                    </div>
+                    <div class="timeline-stepper" style="border-left: 2px solid rgba(255,255,255,0.06); padding-left: 1.5rem; margin-left: 1rem;">
+                `;
+                
+                timelineData.forEach(evt => {
+                    const eventName = evt.display_event || evt.event || evt.title || '';
+                    const eventTime = evt.time || evt.timestamp || '';
+                    const detailParts = [
+                        evt.agent ? `Agent: ${evt.agent_name ? `${evt.agent_name} (${evt.agent})` : evt.agent}` : '',
+                        evt.queue_name ? `Queue: ${evt.queue_name}${evt.queue ? ` (${evt.queue})` : ''}` : '',
+                        evt.position_duration || '',
+                        evt.transfer_target_display ? `To: ${evt.transfer_target_display}` : '',
+                        evt.transfer_destination_agent ? `Destination agent: ${evt.transfer_destination_agent}` : '',
+                        evt.transfer_type ? `Type: ${evt.transfer_type}` : '',
+                        evt.reason || ''
+                    ].filter(Boolean);
+                    if (evt.agent_status && !evt.display_event) detailParts.push(`Agent status: ${evt.agent_status}`);
+                    if (Array.isArray(evt.agent_statuses) && evt.agent_statuses.length) {
+                        detailParts.push(`Agent status: ${evt.agent_statuses.map(item => `${item.extension || ''}${item.agent_name ? ` (${item.agent_name})` : ''} — ${item.status}`).join(', ')}`);
+                    }
+                    const eventDetails = [evt.details_html || evt.details || '', ...detailParts].filter(Boolean).join(' · ');
+                    let badgeColor = 'var(--primary)';
+                    let icon = 'fa-circle';
+                    const typeUpper = eventName.toUpperCase();
+                    if (typeUpper.includes('ENTER') || typeUpper.includes('START')) { badgeColor = '#3b82f6'; icon = 'fa-right-to-bracket'; }
+                    else if (typeUpper.includes('CALLER ENDED')) { badgeColor = '#f97316'; icon = 'fa-phone-slash'; }
+                    else if (typeUpper.includes('RING')) { badgeColor = '#f59e0b'; icon = 'fa-phone-volume'; }
+                    else if (typeUpper.includes('ANSWER')) { badgeColor = '#10b981'; icon = 'fa-phone-flip'; }
+                    else if (typeUpper.includes('HOLD')) { badgeColor = '#c084fc'; icon = 'fa-pause'; }
+                    else if (typeUpper.includes('UNHOLD')) { badgeColor = '#818cf8'; icon = 'fa-play'; }
+                    else if (typeUpper.includes('HANGUP') || typeUpper.includes('COMPLETE') || typeUpper.includes('ABANDON')) { badgeColor = '#ef4444'; icon = 'fa-circle-xmark'; }
+                    
+                    html += `
+                        <div style="position: relative; margin-bottom: 1.25rem;">
+                            <div class="timeline-node" style="border: 2px solid ${badgeColor}; color: ${badgeColor}; left: -2.4rem;">
+                                <i class="fa-solid ${icon}"></i>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                <span style="font-weight: bold; color: var(--text-main); font-size: 0.9rem;">${eventName}</span>
+                                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">${eventTime}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">${eventDetails}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+                container.innerHTML = html;
+            })
+            .catch(err => {
+                console.error("Error loading call details timeline:", err);
+                document.getElementById(`timeline-content-${uid}`).innerText = "Error loading timeline.";
+            });
+    }
+
+    function playAudio(filename) {
+        if (!filename) return alert("Audio file not specified.");
+        const player = document.getElementById("global-audio-player");
+        player.onerror = function() {
+            alert("Cannot play recording. The external storage device (NAS/USB) is currently offline or disconnected.");
+            document.getElementById("audio-player-container").style.display = "none";
+        };
+        player.src = `/recordings/play/${filename}`;
+        document.getElementById("audio-player-container").style.display = "flex";
+        player.play();
+    }
+
+    function stopAudio() {
+        const player = document.getElementById("global-audio-player");
+        player.onerror = function() {
+            alert("Cannot play recording. The external storage device (NAS/USB) is currently offline or disconnected.");
+            document.getElementById("audio-player-container").style.display = "none";
+        };
+        player.pause();
+        player.src = "";
+        document.getElementById("audio-player-container").style.display = "none";
+    }
+
+    function renderLoginHistory(sessions) {
+        const body = document.getElementById("logins-table-body");
+        body.innerHTML = '';
+        if (!sessions || sessions.length === 0) {
+            body.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No login sessions recorded.</td></tr>`;
+            return;
+        }
+        const grouped = {};
+        sessions.forEach(s => {
+            const ag = s.agent_display || s.agent;
+            if (!grouped[ag]) grouped[ag] = { agent: ag, type: s.type, totalTime: 0, isActive: false, sessions: [] };
+            grouped[ag].sessions.push(s);
+            grouped[ag].totalTime += s.total_online_time;
+            if (s.logout_time === 0) grouped[ag].isActive = true;
+        });
+
+        Object.values(grouped).forEach((g, index) => {
+            const isStatic = g.type === 'STATIC';
+            const totalDur = isStatic ? '<span style="color: var(--text-muted);">N/A (Static member)</span>' : formatDuration(g.totalTime);
+            const statusBadge = g.isActive ? '<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Active Now</span>' : '<span class="badge" style="background: var(--border-color); color: #cbd5e1; border: 1px solid var(--border-color);">Offline</span>';
+            const statusHtml = isStatic ? '<span style="color: var(--text-muted);">N/A</span>' : statusBadge;
+            
+            body.innerHTML += `
+                <tr style="cursor: pointer; background: var(--border-color);" onclick="document.querySelectorAll('.logins-child-${index}').forEach(el => el.style.display = el.style.display === 'none' ? 'table-row' : 'none')">
+                    <td>
+                        <i class="fa-solid fa-chevron-down" style="color: #64748b; font-size: 0.8rem; margin-right: 0.5rem; width: 15px;"></i>
+                        <span class="badge" style="background: var(--border-color); color: ${isStatic ? '#38bdf8' : '#c084fc'}; border: 1px solid ${isStatic ? '#38bdf8' : '#c084fc'}; font-family: monospace; font-size: 0.8rem; margin-right: 0.5rem; padding: 0.15rem 0.4rem;">${isStatic ? 'S' : 'D'}</span>
+                        <strong><i class="fa-solid fa-user-clock" style="color: var(--primary); margin-right: 0.3rem;"></i> ${g.agent}</strong>
+                    </td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted);">${g.sessions.length} Session(s)</td>
+                    <td style="font-size: 0.85rem;">${statusHtml}</td>
+                    <td><span style="font-weight: bold; color: var(--text-main); font-family: monospace; font-size: 1.05rem;">${totalDur}</span></td>
+                </tr>
+                ${g.sessions.map((s, sIdx) => {
+                    const login = isStatic ? 'N/A' : new Date(s.login_time * 1000).toLocaleString();
+                    const logout = isStatic ? 'N/A' : (s.logout_time ? new Date(s.logout_time * 1000).toLocaleString() : 'Active');
+                    const duration = isStatic ? 'N/A' : formatDuration(s.total_online_time);
+                    return `
+                        <tr class="logins-child-${index}" style="display: none; background: rgba(0,0,0,0.15);">
+                            <td style="padding-left: 2.5rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color);"><i class="fa-solid fa-arrow-turn-up fa-rotate-90" style="margin-right:0.4rem; color: #475569;"></i> Session ${g.sessions.length - sIdx}</td>
+                            <td style="color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color);">${login}</td>
+                            <td style="color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color);">${logout}</td>
+                            <td style="border-top: 1px solid var(--border-color);"><span style="font-family: monospace; font-size: 0.95rem; color: #94a3b8;">${duration}</span></td>
+                        </tr>
+                    `;
+                }).join('')}
+            `;
+        });
+    }
+
+    function renderPauseHistory(pauses) {
+        const body = document.getElementById("pauses-table-body");
+        body.innerHTML = '';
+        if (!pauses || pauses.length === 0) {
+            body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No pauses recorded.</td></tr>`;
+            return;
+        }
+        const grouped = {};
+        pauses.forEach(p => {
+            const ag = p.agent_display || p.agent;
+            if (!grouped[ag]) grouped[ag] = { agent: ag, type: p.type, totalTime: 0, isActive: false, pauses: [] };
+            grouped[ag].pauses.push(p);
+            grouped[ag].totalTime += (p.unpause_time ? p.unpause_time - p.pause_time : (Date.now()/1000 - p.pause_time));
+            if (!p.unpause_time) grouped[ag].isActive = true;
+        });
+
+        Object.values(grouped).forEach((g, index) => {
+            const isStatic = g.type === 'STATIC';
+            const totalDur = formatDuration(g.totalTime);
+            const statusBadge = g.isActive ? '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">On Break</span>' : '<span class="badge" style="background: var(--border-color); color: #cbd5e1; border: 1px solid var(--border-color);">Not Paused</span>';
+            const statusHtml = statusBadge;
+            
+            body.innerHTML += `
+                <tr style="cursor: pointer; background: var(--border-color);" onclick="document.querySelectorAll('.pauses-child-${index}').forEach(el => el.style.display = el.style.display === 'none' ? 'table-row' : 'none')">
+                    <td>
+                        <i class="fa-solid fa-chevron-down" style="color: #64748b; font-size: 0.8rem; margin-right: 0.5rem; width: 15px;"></i>
+                        <span class="badge" style="background: var(--border-color); color: ${isStatic ? '#38bdf8' : '#c084fc'}; border: 1px solid ${isStatic ? '#38bdf8' : '#c084fc'}; font-family: monospace; font-size: 0.8rem; margin-right: 0.5rem; padding: 0.15rem 0.4rem;">${isStatic ? 'S' : 'D'}</span>
+                        <strong><i class="fa-solid fa-mug-hot" style="color: #f59e0b; margin-right: 0.3rem;"></i> ${g.agent}</strong>
+                    </td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted);">${g.pauses.length} Pause(s)</td>
+                    <td style="font-size: 0.85rem;">${statusHtml}</td>
+                    <td><span style="font-weight: bold; color: var(--text-main); font-family: monospace; font-size: 1.05rem;">${totalDur}</span></td>
+                    <td></td>
+                </tr>
+                ${g.pauses.map((p, pIdx) => {
+                    const start = new Date(p.pause_time * 1000).toLocaleString();
+                    const unpause = p.unpause_time ? new Date(p.unpause_time * 1000).toLocaleString() : 'Active';
+                    const dur = p.unpause_time ? formatDuration(p.unpause_time - p.pause_time) : 'Active';
+                    return `
+                        <tr class="pauses-child-${index}" style="display: none; background: rgba(0,0,0,0.15);">
+                            <td style="padding-left: 2.5rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color);"><i class="fa-solid fa-arrow-turn-up fa-rotate-90" style="margin-right:0.4rem; color: #475569;"></i> Pause ${g.pauses.length - pIdx}</td>
+                            <td style="color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color);">${start}</td>
+                            <td style="color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-color);">${unpause}</td>
+                            <td style="border-top: 1px solid var(--border-color);"><span style="font-family: monospace; font-size: 0.95rem; color: #94a3b8;">${dur}</span></td>
+                            <td style="border-top: 1px solid var(--border-color);"><span class="badge" style="background: var(--border-color); color: #cbd5e1; border: 1px solid var(--border-color); padding: 0.15rem 0.5rem; font-size: 0.75rem;">${p.reason || 'Pause'}</span></td>
+                        </tr>
+                    `;
+                }).join('')}
+            `;
+        });
+    }
+
+    function renderCharts(data) {
+        if (volumeChart) volumeChart.destroy();
+        if (peakChart) peakChart.destroy();
+        if (agentChart) agentChart.destroy();
+        
+        const answered = data.kpis.answered;
+        const abandoned = data.kpis.abandoned;
+        const cancelled = data.kpis.cancelled;
+        const total = data.kpis.total_calls;
+        const noAnswer = Math.max(0, total - answered - abandoned - cancelled);
+        
+        const ctxVol = document.getElementById('queueVolumeChart').getContext('2d');
+        volumeChart = new Chart(ctxVol, {
+            type: 'doughnut',
+            data: {
+                labels: ['Answered', 'Abandoned', 'Canceled', 'No Answer'],
+                datasets: [{
+                    data: [answered, abandoned, cancelled, noAnswer],
+                    backgroundColor: ['#10b981', '#ef4444', '#f59e0b', '#64748b'],
+                    borderColor: '#151d30',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        const hrLabels = data.peak_hours.map(p => p.hour);
+        const hrTotal = data.peak_hours.map(p => p.total);
+        const ctxPeak = document.getElementById('queuePeakChart').getContext('2d');
+        peakChart = new Chart(ctxPeak, {
+            type: 'line',
+            data: {
+                labels: hrLabels,
+                datasets: [{
+                    label: 'Call Volume',
+                    data: hrTotal,
+                    backgroundColor: 'rgba(192, 132, 252, 0.15)',
+                    borderColor: '#c084fc',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+        
+        const agLabels = data.agent_performance.map(a => a.agent);
+        const agCalls = data.agent_performance.map(a => a.calls);
+        const ctxAg = document.getElementById('queueAgentChart').getContext('2d');
+        agentChart = new Chart(ctxAg, {
+            type: 'bar',
+            data: {
+                labels: agLabels,
+                datasets: [{
+                    label: 'Calls Answered',
+                    data: agCalls,
+                    backgroundColor: 'rgba(0, 173, 181, 0.4)',
+                    borderColor: '#00adb5',
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+    }
+
+    function startLocalTimers() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            liveCalls.forEach((c, idx) => {
+                const el = document.getElementById(`call-timer-${idx}`);
+                if (el) {
+                    c.duration = (c.duration || 0) + 1;
+                    el.innerText = formatDuration(c.duration);
+                }
+            });
+            liveMembers.forEach((m, idx) => {
+                const el = document.getElementById(`member-timer-${idx}`);
+                if (el) {
+                    m.status_duration = (m.status_duration || 0) + 1;
+                    el.innerText = formatDuration(m.status_duration);
+                }
+            });
+        }, 1000);
+    }
+    
+    function exportQueueReport() {
+        const type = document.getElementById("exportType").value;
+        const params = new URLSearchParams();
+        params.append("type", type);
+        params.append("queue", "{{ queue.queue_number }}");
+        
+        const dateFrom = document.getElementById("date_from")?.value;
+        const dateTo = document.getElementById("date_to")?.value;
+        const timeFrom = document.getElementById("time_from")?.value;
+        const timeTo = document.getElementById("time_to")?.value;
+        
+        if (dateFrom) params.append("date_from", dateFrom);
+        if (dateTo) params.append("date_to", dateTo);
+        if (timeFrom) params.append("time_from", timeFrom);
+        if (timeTo) params.append("time_to", timeTo);
+        
+        const url = `/call-center/stats/export?${params.toString()}`;
+        window.open(url, '_blank');
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const now = new Date();
+        const start = new Date();
+        start.setDate(now.getDate() - 7);
+        
+        document.getElementById("date_from").value = start.toISOString().substring(0,10);
+        document.getElementById("date_to").value = now.toISOString().substring(0,10);
+        
+        loadQueueData();
+        startLocalTimers();
+    });
+</script>
+{% endblock %}

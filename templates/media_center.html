@@ -1,0 +1,1391 @@
+{% extends 'base.html' %}
+
+{% block title %}Media Center - RCM 7021 IP-PBX{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ====================================================
+       MEDIA CENTER ULTRA-PREMIUM GUI DESIGN SYSTEM
+       ==================================================== */
+    
+    /* Hero Header Panel */
+    .media-hero {
+        background: linear-gradient(135deg, rgba(21, 29, 48, 0.85) 0%, rgba(11, 15, 25, 0.95) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.75rem 2rem;
+        margin-bottom: 1.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .media-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 350px;
+        height: 350px;
+        background: radial-gradient(circle, rgba(0, 173, 181, 0.12) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .media-hero-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .media-hero-icon {
+        width: 54px;
+        height: 54px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(0, 173, 181, 0.2), rgba(0, 173, 181, 0.05));
+        border: 1px solid rgba(0, 173, 181, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        color: var(--primary);
+        box-shadow: 0 0 20px rgba(0, 173, 181, 0.15);
+    }
+
+    .media-hero-text h1 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.65rem;
+        font-weight: 700;
+        color: var(--text-main);
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+
+    .media-hero-text p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        max-width: 620px;
+    }
+
+    .media-hero-actions {
+        display: flex;
+        gap: 0.85rem;
+        align-items: center;
+        z-index: 2;
+    }
+
+    /* Premium Button Enhancements */
+    .media-btn-upload {
+        background: linear-gradient(135deg, var(--primary) 0%, #008f96 100%);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        font-weight: 600;
+        padding: 0.75rem 1.35rem;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(0, 173, 181, 0.25);
+    }
+
+    .media-btn-upload:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 173, 181, 0.4);
+        background: linear-gradient(135deg, #00cbd3 0%, var(--primary) 100%);
+    }
+
+    .media-btn-create {
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        font-weight: 600;
+        padding: 0.75rem 1.35rem;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .media-btn-create:hover {
+        background: var(--border-color);
+        border-color: var(--primary);
+        color: var(--text-main);
+        transform: translateY(-2px);
+    }
+
+    /* Ultra-Premium Studio Download Button */
+    .media-btn-download {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(6, 182, 212, 0.18) 100%);
+        border: 1px solid rgba(52, 211, 153, 0.45);
+        color: #34d399;
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 0.42rem 0.95rem;
+        border-radius: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 10px rgba(16, 185, 129, 0.12);
+        white-space: nowrap;
+    }
+
+    .media-btn-download i {
+        font-size: 0.88rem;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .media-btn-download:hover {
+        background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+        border-color: #6ee7b7;
+        color: var(--text-main); !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    .media-btn-download:hover i {
+        transform: translateY(2px);
+    }
+
+    .media-btn-download:active {
+        transform: translateY(0);
+    }
+
+    /* ====================================================
+       COMPACT STUDIO ACTION BUTTONS (UI Enhancements)
+       ==================================================== */
+    .media-action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 0.88rem;
+        text-decoration: none;
+        position: relative;
+        background: transparent;
+    }
+
+    .media-action-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .media-action-btn:active {
+        transform: translateY(0) scale(0.96);
+    }
+
+    /* Play Button (Cyan/Teal Theme) */
+    .media-action-btn.btn-play {
+        background: rgba(0, 173, 181, 0.14);
+        border-color: rgba(0, 173, 181, 0.35);
+        color: #00cbd3;
+    }
+    .media-action-btn.btn-play:hover {
+        background: linear-gradient(135deg, #00cbd3 0%, #008f96 100%);
+        border-color: #00cbd3;
+        color: #0b0f19 !important;
+        box-shadow: 0 5px 16px rgba(0, 173, 181, 0.4);
+    }
+
+    /* Download Button (Emerald/Green Theme) */
+    .media-action-btn.btn-download {
+        background: rgba(16, 185, 129, 0.14);
+        border-color: rgba(16, 185, 129, 0.35);
+        color: #34d399;
+    }
+    .media-action-btn.btn-download:hover {
+        background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+        border-color: #34d399;
+        color: var(--text-main); !important;
+        box-shadow: 0 5px 16px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Edit/Rename Button (Slate/Blue Theme) */
+    .media-action-btn.btn-edit {
+        background: rgba(148, 163, 184, 0.12);
+        border-color: rgba(148, 163, 184, 0.28);
+        color: #cbd5e1;
+    }
+    .media-action-btn.btn-edit:hover {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border-color: #60a5fa;
+        color: var(--text-main); !important;
+        box-shadow: 0 5px 16px rgba(59, 130, 246, 0.4);
+    }
+
+    /* Delete Button (Rose/Red Theme) */
+    .media-action-btn.btn-delete {
+        background: rgba(239, 68, 68, 0.14);
+        border-color: rgba(239, 68, 68, 0.35);
+        color: #f87171;
+    }
+    .media-action-btn.btn-delete:hover {
+        background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+        border-color: #f87171;
+        color: var(--text-main); !important;
+        box-shadow: 0 5px 16px rgba(239, 68, 68, 0.4);
+    }
+
+    /* Manage Tracks Pill Button */
+    .media-action-btn.btn-tracks {
+        width: auto;
+        padding: 0 0.85rem;
+        gap: 0.45rem;
+        background: rgba(0, 173, 181, 0.14);
+        border-color: rgba(0, 173, 181, 0.35);
+        color: #00cbd3;
+        font-weight: 600;
+        font-size: 0.82rem;
+    }
+    .media-action-btn.btn-tracks:hover {
+        background: linear-gradient(135deg, #00cbd3 0%, #008f96 100%);
+        border-color: #00cbd3;
+        color: #0b0f19 !important;
+        box-shadow: 0 5px 16px rgba(0, 173, 181, 0.4);
+    }
+
+    /* Studio Dashboard Grid */
+    .studio-dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .studio-card {
+        background: linear-gradient(145deg, rgba(21, 29, 48, 0.7), rgba(11, 15, 25, 0.9));
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 1.35rem 1.5rem;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .studio-card:hover {
+        border-color: rgba(0, 173, 181, 0.35);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .studio-card-icon {
+        position: absolute;
+        top: 1.25rem;
+        right: 1.25rem;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        background: var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: var(--text-muted);
+    }
+
+    .studio-card:hover .studio-card-icon {
+        color: var(--primary);
+        background: rgba(0, 173, 181, 0.1);
+    }
+
+    .studio-card-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    .studio-card-value {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.1;
+        margin-bottom: 0.45rem;
+    }
+
+    .studio-card-desc {
+        font-size: 0.8rem;
+        color: var(--text-dark);
+    }
+
+    /* Studio Audio Player Deck */
+    .audio-preview-container {
+        background: linear-gradient(135deg, rgba(0, 173, 181, 0.12), rgba(15, 23, 42, 0.95));
+        border: 1px solid rgba(0, 173, 181, 0.35);
+        border-radius: 14px;
+        padding: 1.15rem 1.5rem;
+        margin-bottom: 1.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        box-shadow: 0 12px 30px rgba(0, 173, 181, 0.12);
+        animation: slideDownFade 0.35s ease;
+    }
+
+    @keyframes slideDownFade {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .audio-player-left {
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+        flex: 1;
+    }
+
+    .audio-player-control {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), #00cbd3);
+        border: none;
+        color: var(--text-main);
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 0 20px rgba(0, 173, 181, 0.4);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .audio-player-control:hover {
+        transform: scale(1.08);
+        box-shadow: 0 0 25px rgba(0, 173, 181, 0.6);
+    }
+
+    .audio-player-info {
+        flex: 1;
+    }
+
+    .audio-player-title {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: var(--text-main);
+        margin-bottom: 0.15rem;
+    }
+
+    .audio-player-sub {
+        font-size: 0.82rem;
+        color: #99f6e4;
+    }
+
+    /* Equalizer Waves Animation */
+    .audio-visualizer {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        height: 32px;
+        padding: 0 0.5rem;
+    }
+
+    .eq-bar {
+        width: 4px;
+        background: linear-gradient(to top, var(--primary), #67e8f9);
+        border-radius: 2px;
+        height: 6px;
+        transition: height 0.2s ease;
+    }
+
+    .is-playing .eq-bar:nth-child(1) { animation: bounceEq 0.7s infinite alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(2) { animation: bounceEq 0.5s infinite 0.1s alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(3) { animation: bounceEq 0.8s infinite 0.2s alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(4) { animation: bounceEq 0.6s infinite 0.15s alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(5) { animation: bounceEq 0.9s infinite 0.3s alternate ease-in-out; }
+    .is-playing .eq-bar:nth-child(6) { animation: bounceEq 0.65s infinite 0.05s alternate ease-in-out; }
+
+    @keyframes bounceEq {
+        0% { height: 6px; }
+        100% { height: 28px; }
+    }
+
+    .audio-player-close {
+        background: var(--border-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .audio-player-close:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.4);
+        color: #f87171;
+    }
+
+    /* Tabs Navigation */
+    .studio-tabs {
+        display: flex;
+        gap: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .media-tab {
+        background: var(--border-color);
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        padding: 0.85rem 1.6rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border-radius: 10px 10px 0 0;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .media-tab:hover {
+        color: var(--text-main);
+        background: var(--border-color);
+    }
+
+    .media-tab.active {
+        background: rgba(0, 173, 181, 0.12);
+        border-color: rgba(0, 173, 181, 0.35);
+        border-bottom-color: var(--primary);
+        color: var(--text-main);
+    }
+
+    .tab-badge {
+        background: var(--border-color);
+        color: var(--text-main);
+        font-size: 0.75rem;
+        padding: 0.15rem 0.6rem;
+        border-radius: 20px;
+        font-weight: 700;
+    }
+
+    .media-tab.active .tab-badge {
+        background: var(--primary);
+        color: var(--text-main);
+    }
+
+    /* Studio Search & Filter Bar */
+    .studio-filter-bar {
+        background: linear-gradient(135deg, rgba(21, 29, 48, 0.65), rgba(11, 15, 25, 0.85));
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+    }
+
+    .search-input-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+        min-width: 260px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 0.55rem 1rem;
+        transition: border-color 0.25s;
+    }
+
+    .search-input-wrap:focus-within {
+        border-color: var(--primary);
+        box-shadow: 0 0 12px rgba(0, 173, 181, 0.15);
+    }
+
+    .search-input-wrap input {
+        border: none;
+        background: transparent;
+        color: var(--text-main);
+        width: 100%;
+        font-size: 0.92rem;
+        outline: none;
+    }
+
+    /* Category Badges & Table Elegance */
+    .badge-cat {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-general { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.25); }
+    .badge-ivr { background: rgba(99, 102, 241, 0.14); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
+    .badge-announcement { background: rgba(20, 184, 166, 0.14); color: #5eead4; border: 1px solid rgba(20, 184, 166, 0.3); }
+    .badge-queue { background: rgba(244, 63, 94, 0.14); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-ring_group { background: rgba(234, 179, 8, 0.14); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.3); }
+
+    .badge-ok {
+        background: rgba(16, 185, 129, 0.12);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 0.35rem 0.75rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .badge-bad {
+        background: rgba(239, 68, 68, 0.12);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        padding: 0.35rem 0.75rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .prompt-icon-box {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(0, 173, 181, 0.1);
+        color: var(--primary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        font-size: 1.05rem;
+    }
+
+    .table tr.prompt-row {
+        transition: background 0.2s ease;
+    }
+
+    .table tr.prompt-row:hover {
+        background: rgba(255, 255, 255, 0.025);
+    }
+
+    /* Modal Studio Aesthetics */
+    .modal-content {
+        background: linear-gradient(145deg, #131b2e, #0c111e);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- HERO HEADER PANEL -->
+<div class="media-hero">
+    <div class="media-hero-title">
+        <div class="media-hero-icon">
+            <i class="fa-solid fa-compact-disc fa-spin" style="--fa-animation-duration: 12s;"></i>
+        </div>
+        <div class="media-hero-text">
+            <h1>Media Center & Audio Studio</h1>
+            <p>Manage system voice prompts, interactive IVR greetings, announcements, and Music On Hold class directories.</p>
+        </div>
+    </div>
+    <div class="media-hero-actions">
+        {% if can_create('voice_prompts') or can_create('system_prompts') %}
+        <button onclick="openPromptUploadModal()" class="media-btn-upload" id="addPromptBtn">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Prompt
+        </button>
+        {% endif %}
+        {% if can_create('music_on_hold') %}
+        <button onclick="openCreateMohModal()" class="media-btn-create" id="createMohBtn" style="display: none;">
+            <i class="fa-solid fa-folder-plus"></i> Create MOH Class
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- STUDIO DASHBOARD METRIC CARDS -->
+<div class="studio-dashboard-grid">
+    <div class="studio-card">
+        <div class="studio-card-icon"><i class="fa-solid fa-microphone-lines"></i></div>
+        <div class="studio-card-title">TOTAL PROMPTS</div>
+        <div class="studio-card-value" style="color: var(--primary);">{{ total_prompts }}</div>
+        <div class="studio-card-desc">Interactive voice prompts</div>
+    </div>
+    <div class="studio-card">
+        <div class="studio-card-icon"><i class="fa-solid fa-folder-tree"></i></div>
+        <div class="studio-card-title">MOH CLASSES</div>
+        <div class="studio-card-value" style="color: #60a5fa;">{{ moh_classes|length }}</div>
+        <div class="studio-card-desc">Hold music directories</div>
+    </div>
+    <div class="studio-card">
+        <div class="studio-card-icon"><i class="fa-solid fa-music"></i></div>
+        <div class="studio-card-title">MOH TRACKS</div>
+        <div class="studio-card-value" style="color: #34d399;">{{ total_tracks }}</div>
+        <div class="studio-card-desc">Converted WAV audio files</div>
+    </div>
+    <div class="studio-card">
+        <div class="studio-card-icon"><i class="fa-solid fa-hard-drive"></i></div>
+        <div class="studio-card-title">STORAGE DIRECTORY</div>
+        <div class="studio-card-value" style="color: #e2e8f0; font-size: 1.45rem;">en/rcm</div>
+        <div class="studio-card-desc">/var/lib/asterisk/sounds/</div>
+    </div>
+</div>
+
+<!-- FLOATING STUDIO AUDIO PLAYER DECK (Hidden until preview played) -->
+<div class="audio-preview-container" id="playerContainer" style="display: none;">
+    <div class="audio-player-left">
+        <button class="audio-player-control" onclick="togglePlayback()" id="playPauseBtn" title="Play / Pause">
+            <i class="fa-solid fa-play"></i>
+        </button>
+        <div class="audio-player-info">
+            <div class="audio-player-title" id="playerTitle">Select a prompt to play preview</div>
+            <div class="audio-player-sub" id="playerSub">-</div>
+        </div>
+    </div>
+    
+    <div class="audio-visualizer" id="visualizerDeck">
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+    </div>
+
+    <button class="audio-player-close" onclick="stopAudio()" title="Close Preview">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
+    
+    <audio id="audioElement" style="display: none;" onended="onAudioEnded()"></audio>
+</div>
+
+<!-- STUDIO TABS NAVIGATION -->
+<div class="studio-tabs">
+    {% if voice_access %}
+    <button class="media-tab {% if active_tab == 'prompts' %}active{% endif %}" onclick="switchTab('prompts')">
+        <i class="fa-solid fa-microphone"></i> Custom Prompts
+        <span class="tab-badge">{{ total_custom_prompts }}</span>
+    </button>
+    
+    <button class="media-tab {% if active_tab == 'survey' %}active{% endif %}" onclick="switchTab('survey')">
+        <i class="fa-solid fa-square-poll-vertical"></i> Survey Prompts
+        <span class="tab-badge">{{ total_survey_prompts }}</span>
+    </button>
+    
+    <button id="systemTab" class="media-tab {% if active_tab == 'system' %}active{% endif %}" onclick="switchTab('system')">
+        <i class="fa-solid fa-server"></i> System Prompts
+        <span class="tab-badge">{{ total_system_prompts }}</span>
+    </button>
+    {% endif %}
+    {% if moh_access %}
+    <button class="media-tab {% if active_tab == 'moh' %}active{% endif %}" onclick="switchTab('moh')">
+        <i class="fa-solid fa-music"></i> Music On Hold
+        <span class="tab-badge">{{ moh_classes|length }}</span>
+    </button>
+    {% endif %}
+</div>
+
+<!-- PROMPTS TAB CONTENT -->
+{% if voice_access %}
+<div id="promptsTab" class="tab-content {% if active_tab == 'prompts' %}active{% endif %}">
+    <!-- Search & Type Filter Toolbar -->
+    <div class="studio-filter-bar">
+        <div class="search-input-wrap">
+            <i class="fa-solid fa-magnifying-glass" style="color: var(--primary);"></i>
+            <input type="text" id="prompt-search" placeholder="Search audio prompts by name..." onkeyup="filterPrompts()">
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Category Filter:</span>
+            <select id="prompt-type-filter" class="form-control" style="width: 175px; background-color: rgba(0,0,0,0.35); border-color: var(--border-color);" onchange="filterPrompts()">
+                <option value="">All Types</option>
+                <option value="general">General</option>
+                <option value="ivr">IVR</option>
+                <option value="announcement">Announcement</option>
+                <option value="queue">Queue</option>
+                <option value="ring_group">Ring Group</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Prompts Table -->
+    <div class="panel">
+        <div class="table-responsive">
+            <table class="table" id="prompts-table">
+                <thead>
+                    <tr>
+                        <th>Prompt Name</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not custom_prompts %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3.5rem;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2.8rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                            <span style="font-size: 1.05rem; font-weight: 600;">No audio prompts uploaded.</span>
+                            <p style="font-size: 0.85rem; color: var(--text-dark); margin-top: 0.25rem;">Click "Upload Prompt" above to add your first system greeting.</p>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for p in custom_prompts %}
+                    <tr class="prompt-row" data-name="{{ p.name }}" data-type="{{ p.type }}">
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="prompt-icon-box">
+                                    <i class="fa-solid fa-file-audio"></i>
+                                </div>
+                                <div>
+                                    <strong style="font-size: 0.96rem; color: var(--text-main);">{{ p.name }}</strong>
+                                    <div style="font-size: 0.78rem; color: var(--text-dark);">.wav audio format</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if p.type == 'general' %}
+                            <span class="badge-cat badge-general"><i class="fa-solid fa-layer-group"></i> GENERAL</span>
+                            {% elif p.type == 'ivr' %}
+                            <span class="badge-cat badge-ivr"><i class="fa-solid fa-sitemap"></i> IVR</span>
+                            {% elif p.type == 'announcement' %}
+                            <span class="badge-cat badge-announcement"><i class="fa-solid fa-bullhorn"></i> ANNOUNCEMENT</span>
+                            {% elif p.type == 'queue' %}
+                            <span class="badge-cat badge-queue"><i class="fa-solid fa-users"></i> QUEUE</span>
+                            {% elif p.type == 'ring_group' %}
+                            <span class="badge-cat badge-ring_group"><i class="fa-solid fa-phone-volume"></i> RING GROUP</span>
+                            {% else %}
+                            <span class="badge-cat badge-general">{{ p.type_label|upper }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="{% if p.status.ok %}badge-ok{% else %}badge-bad{% endif %}" title="{{ p.status.detail }}">
+                                {% if p.status.ok %}<i class="fa-solid fa-circle-check"></i>{% else %}<i class="fa-solid fa-triangle-exclamation"></i>{% endif %}
+                                {{ p.status.label }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="action-buttons" style="justify-content: flex-end;">
+                                {% if can_view('voice_prompts') %}
+                                <button onclick="playPrompt('{{ p.id }}', '{{ p.name }}', '{{ p.type|upper }}')" class="media-action-btn btn-play" {% if not p.status.ok %}disabled title="{{ p.status.detail }}"{% else %}title="Play Prompt"{% endif %}>
+                                    <i class="fa-solid fa-play"></i>
+                                </button>
+                                <a href="{{ url_for('media_prompt_download', id=p.id) }}" class="media-action-btn btn-download" {% if not p.status.ok %}style="pointer-events: none; opacity: 0.5;" title="{{ p.status.detail }}"{% else %}title="Download Audio File"{% endif %}>
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                                {% endif %}
+                                {% if can_edit('voice_prompts') %}
+                                <button onclick="openEditPromptModal('{{ p.id }}', '{{ p.name }}', '{{ p.type }}')" class="media-action-btn btn-edit" title="Edit Prompt">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                {% endif %}
+                                {% if can_delete('voice_prompts') %}
+                                <form action="{{ url_for('media_prompt_delete', id=p.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete prompt {{ p.name }}? This will permanently delete the file.');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="media-action-btn btn-delete" title="Delete Prompt">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- SURVEY PROMPTS TAB CONTENT -->
+{% if voice_access %}
+<div id="surveyTab" class="tab-content {% if active_tab == 'survey' %}active{% endif %}">
+    <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">Survey Prompts</h3>
+            <button type="button" class="media-btn-upload" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="document.getElementById('prompt_type').value='survey'; document.getElementById('uploadPromptModal').style.display='block';">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Upload Survey Prompt
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table" id="survey-prompts-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;"></th>
+                        <th>Survey Prompt Name</th>
+                        <th style="width:120px; text-align:center;">Duration</th>
+                        <th style="width:180px; text-align:center;">Updated At</th>
+                        <th style="width:180px; text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in survey_prompts %}
+                    <tr class="prompt-row" data-id="{{ p.id }}">
+                        <td class="text-center">
+                            <i class="fa-solid fa-square-poll-vertical text-muted"></i>
+                        </td>
+                        <td>
+                            <strong style="color: var(--text-main);">{{ p.name }}</strong>
+                        </td>
+                        <td class="text-center" style="font-family: monospace; color:#94a3b8;">
+                            {{ p.get('duration', '00:00') }}
+                        </td>
+                        <td class="text-center text-muted" style="font-size: 0.85rem;">
+                            {{ p.get('created_at', '')[:10] }}
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                                <button onclick="playPrompt('{{ p.id }}', '{{ p.name }}', '{{ p.type|upper }}')" class="media-action-btn btn-play" {% if not p.status.ok %}disabled title="{{ p.status.detail }}"{% else %}title="Play Preview"{% endif %}>
+                                    <i class="fa-solid fa-play"></i>
+                                </button>
+                                <a href="{{ url_for('media_prompt_download', id=p.id) }}" class="media-action-btn btn-download" title="Download WAV">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                                {% if has_permission('voice_prompts', 'edit') %}
+                                <button type="button" class="media-action-btn btn-edit" onclick="openRenameModal('{{ p.id }}', '{{ p.name }}', '{{ p.type }}')" title="Rename Prompt">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                {% endif %}
+                                {% if has_permission('voice_prompts', 'delete') %}
+                                <form action="{{ url_for('media_prompt_delete', id=p.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Are you sure you want to delete the survey prompt \\'{{ p.name }}\\'?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="media-action-btn btn-delete" title="Delete Survey Prompt">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted" style="padding: 2rem;">
+                            <i class="fa-solid fa-face-frown-open" style="font-size: 2rem; margin-bottom: 0.5rem; color:#475569;"></i><br>
+                            No Survey Prompts uploaded yet.<br>
+                            Click the button below to upload a new survey prompt.<br><br>
+                            <button type="button" class="media-btn-upload" onclick="document.getElementById('prompt_type').value='survey'; document.getElementById('uploadPromptModal').style.display='block';" style="margin-top: 0.5rem;">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Upload Survey Prompt
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- SYSTEM PROMPT TAB CONTENT -->
+{% if system_access %}
+<div id="systemPromptsTab" class="tab-content {% if active_tab == 'system' %}active{% endif %}">
+    <div class="panel">
+        <div class="table-responsive">
+            <table class="table" id="system-prompts-table">
+                <thead>
+                    <tr>
+                        <th>Prompt Name</th>
+                        <th>Used By</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not system_prompts %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3.5rem;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2.8rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                            <span style="font-size: 1.05rem; font-weight: 600;">No system prompts uploaded.</span>
+                            <p style="font-size: 0.85rem; color: var(--text-dark); margin-top: 0.25rem;">Upload system prompts for IVR timeout and invalid input behavior.</p>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for p in system_prompts %}
+                    <tr class="system-prompt-row" data-name="{{ p.name }}">
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="prompt-icon-box">
+                                    <i class="fa-solid fa-file-audio"></i>
+                                </div>
+                                <div>
+                                    <strong style="font-size: 0.96rem; color: var(--text-main);">{{ p.name }}</strong>
+                                    <div style="font-size: 0.78rem; color: var(--text-dark);">.wav audio format</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge-cat badge-general"><i class="fa-solid fa-gear"></i> SYSTEM PROMPT</span>
+                        </td>
+                        <td>
+                            <span class="{% if p.status.ok %}badge-ok{% else %}badge-bad{% endif %}" title="{{ p.status.detail }}">
+                                {% if p.status.ok %}<i class="fa-solid fa-circle-check"></i>{% else %}<i class="fa-solid fa-triangle-exclamation"></i>{% endif %}
+                                {{ p.status.label }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="action-buttons" style="justify-content: flex-end;">
+                                {% if can_view('system_prompts') %}
+                                <button onclick="playPrompt('{{ p.id }}', '{{ p.name }}', 'SYSTEM')" class="media-action-btn btn-play" {% if not p.status.ok %}disabled title="{{ p.status.detail }}"{% else %}title="Play Prompt"{% endif %}>
+                                    <i class="fa-solid fa-play"></i>
+                                </button>
+                                <a href="{{ url_for('media_prompt_download', id=p.id) }}" class="media-action-btn btn-download" {% if not p.status.ok %}style="pointer-events: none; opacity: 0.5;" title="{{ p.status.detail }}"{% else %}title="Download Audio File"{% endif %}>
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                                {% endif %}
+                                {% if can_edit('system_prompts') %}
+                                <button onclick="openEditPromptModal('{{ p.id }}', '{{ p.name }}', '{{ p.type }}')" class="media-action-btn btn-edit" title="Edit Prompt">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                {% endif %}
+                                {% if can_delete('system_prompts') %}
+                                <form action="{{ url_for('media_prompt_delete', id=p.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete prompt {{ p.name }}? This will permanently delete the file.');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="media-action-btn btn-delete" title="Delete Prompt">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- MUSIC ON HOLD TAB CONTENT -->
+{% if moh_access %}
+<div id="mohTab" class="tab-content {% if active_tab == 'moh' %}active{% endif %}">
+    <div class="panel">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Class Name</th>
+                        <th>Play Mode</th>
+                        <th>Directory Path</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not moh_classes %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3.5rem;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2.8rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                            <span style="font-size: 1.05rem; font-weight: 600;">No Music On Hold classes configured.</span>
+                            <p style="font-size: 0.85rem; color: var(--text-dark); margin-top: 0.25rem;">Click "Create MOH Class" above to create your first hold music playlist.</p>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for c in moh_classes %}
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="prompt-icon-box" style="background: rgba(96, 165, 250, 0.1); color: #60a5fa;">
+                                    <i class="fa-solid fa-folder-music"></i>
+                                </div>
+                                <div>
+                                    <strong style="font-size: 0.96rem; color: var(--text-main);">{{ c.name }}</strong>
+                                    <div style="font-size: 0.78rem; color: var(--text-dark);">Hold Music Class</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: var(--border-color); color: var(--text-main); border: 1px solid var(--border-color); text-transform: uppercase;">
+                                <i class="fa-solid fa-sliders" style="margin-right: 0.3rem; color: var(--primary);"></i>{{ c.mode }}
+                            </span>
+                        </td>
+                        <td><code style="font-size: 0.82rem; background: rgba(0, 0, 0, 0.3); padding: 0.3rem 0.6rem; border-radius: 6px;">{{ c.dir }}</code></td>
+                        <td style="text-align: right;">
+                            <div class="action-buttons" style="justify-content: flex-end;">
+                                <a href="{{ url_for('media_moh_tracks', class_name=c.name) }}" class="media-action-btn btn-tracks" title="Manage Playlist Tracks">
+                                    <i class="fa-solid fa-folder-open"></i> Manage Tracks
+                                </a>
+                                {% if can_edit('music_on_hold') %}
+                                <button type="button" class="media-action-btn btn-edit" onclick="openEditMohModal('{{ c.name }}', '{{ c.mode }}')" title="Edit MOH Class">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                {% endif %}
+                                {% if can_delete('music_on_hold') %}
+                                <form action="{{ url_for('media_moh_class_delete', name=c.name) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete MOH class {{ c.name }}? This will permanently delete all tracks inside it.');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="media-action-btn btn-delete" title="Delete MOH Class">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- UPLOAD PROMPT MODAL -->
+{% if can_create('voice_prompts') or can_create('system_prompts') %}
+<div id="uploadPromptModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('uploadPromptModal')">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;">
+            <i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary); margin-right: 0.5rem;"></i> Upload Audio Prompt
+        </h2>
+        
+        <form action="{{ url_for('media_prompt_upload') }}" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="prompt_name">Prompt Name <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(Optional)</span></label>
+                <input type="text" id="prompt_name" name="name" class="form-control" placeholder="Leave blank to use filename">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Letters, numbers, spaces, dashes, and underscores allowed.</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="prompt_type">Used For Category <span style="color:#ff4a4a;">*</span></label>
+                <select id="prompt_type" name="type" class="form-control">
+                    <option value="general">General</option>
+                    <option value="ivr">IVR</option>
+                    <option value="announcement">Announcement</option>
+                    <option value="queue">Queue</option>
+                    <option value="ring_group">Ring Group</option>
+                    <option value="survey">Survey Prompts</option>
+                </select>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">General appears everywhere. Specific categories appear only in their matching screen.</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="prompt_file">Select Audio File <span style="color:#ff4a4a;">*</span></label>
+                <input type="file" id="prompt_file" name="audio" class="form-control" accept="audio/*,.wav,.mp3,.gsm,.ogg,.m4a,.aac,.flac,.wma" required multiple style="padding: 0.75rem;">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Audio is automatically converted to Asterisk WAV: 8 kHz, mono, 16-bit PCM.</span>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('uploadPromptModal')">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-cloud-arrow-up"></i> Upload & Convert</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- EDIT PROMPT MODAL -->
+{% if can_edit('voice_prompts') or can_edit('system_prompts') %}
+<div id="renamePromptModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('renamePromptModal')">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;">
+            <i class="fa-solid fa-pen-to-square" style="color: var(--primary); margin-right: 0.5rem;"></i> Edit Prompt Details
+        </h2>
+        
+        <form action="{{ url_for('media_prompt_rename') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="rename_prompt_id" name="id">
+            
+            <div class="form-group">
+                <label for="rename_new_name">Prompt Name</label>
+                <input type="text" id="rename_new_name" name="new_name" class="form-control" placeholder="Leave empty to keep current name">
+            </div>
+
+            <div class="form-group">
+                <label for="edit_prompt_type">Used For Category <span style="color:#ff4a4a;">*</span></label>
+                <select id="edit_prompt_type" name="type" class="form-control" required>
+                    <option value="general">General</option>
+                    <option value="ivr">IVR</option>
+                    <option value="announcement">Announcement</option>
+                    <option value="queue">Queue</option>
+                    <option value="ring_group">Ring Group</option>
+                    <option value="survey">Survey Prompts</option>
+                </select>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('renamePromptModal')">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-circle-check"></i> Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- CREATE MOH CLASS MODAL -->
+{% if can_create('music_on_hold') %}
+<div id="createMohModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('createMohModal')">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;">
+            <i class="fa-solid fa-folder-plus" style="color: var(--primary); margin-right: 0.5rem;"></i> Create MOH Class
+        </h2>
+        
+        <form action="{{ url_for('media_moh_class_create') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="moh_name">Class Name <span style="color:#ff4a4a;">*</span></label>
+                <input type="text" id="moh_name" name="name" class="form-control" placeholder="e.g. sales_hold" required>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Lowercase letters, numbers, and underscores only.</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="moh_mode">Play Mode</label>
+                <select id="moh_mode" name="mode" class="form-control">
+                    <option value="files">files (Play in alphabetical order)</option>
+                    <option value="sortalpha">sortalpha (Alphabetical sort)</option>
+                    <option value="random">random (Shuffle tracks randomly)</option>
+                </select>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createMohModal')">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Create Class</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- EDIT MOH CLASS MODAL -->
+{% if can_edit('music_on_hold') %}
+<div id="editMohModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('editMohModal')">&times;</span>
+        <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.25rem; margin-bottom: 1.5rem;">
+            <i class="fa-solid fa-pen-to-square" style="color: var(--primary); margin-right: 0.5rem;"></i> Edit MOH Class Settings
+        </h2>
+        
+        <form action="" id="editMohForm" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="edit_moh_name">Class Name</label>
+                <input type="text" id="edit_moh_name" class="form-control" disabled style="background-color: var(--bg-dark); color: var(--text-muted);">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_moh_mode">Play Mode</label>
+                <select id="edit_moh_mode" name="mode" class="form-control">
+                    <option value="files">files (Play in alphabetical order)</option>
+                    <option value="sortalpha">sortalpha (Alphabetical sort)</option>
+                    <option value="random">random (Shuffle tracks randomly)</option>
+                </select>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editMohModal')">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function switchTab(tabName) {
+        document.querySelectorAll('.media-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        const addPromptBtn = document.getElementById("addPromptBtn");
+        const createMohBtn = document.getElementById("createMohBtn");
+
+        const promptTypeSelect = document.getElementById("prompt_type");
+
+        if (tabName === 'prompts') {
+            document.querySelector("[onclick=\"switchTab('prompts')\"]").classList.add('active');
+            document.getElementById('promptsTab').classList.add('active');
+            if (addPromptBtn) addPromptBtn.style.display = "inline-flex";
+            if (createMohBtn) createMohBtn.style.display = "none";
+            if (promptTypeSelect) promptTypeSelect.value = "general";
+        } else if (tabName === 'survey') {
+            document.querySelector("[onclick=\"switchTab('survey')\"]").classList.add('active');
+            document.getElementById('surveyTab').classList.add('active');
+            if (addPromptBtn) addPromptBtn.style.display = "inline-flex";
+            if (createMohBtn) createMohBtn.style.display = "none";
+            if (promptTypeSelect) promptTypeSelect.value = "survey";
+        } else if (tabName === 'system') {
+            document.querySelector("[onclick=\"switchTab('system')\"]").classList.add('active');
+            document.getElementById('systemPromptsTab').classList.add('active');
+            if (addPromptBtn) addPromptBtn.style.display = "inline-flex";
+            if (createMohBtn) createMohBtn.style.display = "none";
+        } else {
+            document.querySelector("[onclick=\"switchTab('moh')\"]").classList.add('active');
+            document.getElementById('mohTab').classList.add('active');
+            if (addPromptBtn) addPromptBtn.style.display = "none";
+            if (createMohBtn) createMohBtn.style.display = "inline-flex";
+        }
+        
+        // Stop audio when switching tabs
+        stopAudio();
+    }
+
+    // Audio Preview Controls
+    let currentPromptId = null;
+    const audio = document.getElementById("audioElement");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const playerContainer = document.getElementById("playerContainer");
+    const playerTitle = document.getElementById("playerTitle");
+    const playerSub = document.getElementById("playerSub");
+    const visualizerDeck = document.getElementById("visualizerDeck");
+
+    function playPrompt(id, name, type) {
+        playerContainer.style.display = "flex";
+        
+        if (currentPromptId === id) {
+            togglePlayback();
+            return;
+        }
+        
+        currentPromptId = id;
+        playerTitle.textContent = name;
+        playerSub.textContent = `Type: ${type} • PCM 8kHz WAV`;
+        
+        audio.src = `/media_proxy?kind=prompt&id=${id}`;
+        audio.play()
+            .then(() => {
+                playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                if (visualizerDeck) visualizerDeck.classList.add("is-playing");
+            })
+            .catch(err => {
+                console.error("Audio playback error:", err);
+                alert("Failed to play audio preview. Verify the file exists on Asterisk server.");
+                stopAudio();
+            });
+    }
+
+    function togglePlayback() {
+        if (!audio.src) return;
+        
+        if (audio.paused) {
+            audio.play();
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            if (visualizerDeck) visualizerDeck.classList.add("is-playing");
+        } else {
+            audio.pause();
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            if (visualizerDeck) visualizerDeck.classList.remove("is-playing");
+        }
+    }
+
+    function stopAudio() {
+        audio.pause();
+        audio.src = "";
+        currentPromptId = null;
+        playerContainer.style.display = "none";
+        if (visualizerDeck) visualizerDeck.classList.remove("is-playing");
+    }
+
+    function onAudioEnded() {
+        playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        if (visualizerDeck) visualizerDeck.classList.remove("is-playing");
+    }
+
+    // Prompts Table Filtering
+    function filterPrompts() {
+        const query = document.getElementById("prompt-search").value.toLowerCase().trim();
+        const typeFilter = document.getElementById("prompt-type-filter").value;
+        const rows = document.querySelectorAll("#prompts-table tbody tr.prompt-row");
+        
+        rows.forEach(row => {
+            const name = row.getAttribute("data-name").toLowerCase();
+            const type = row.getAttribute("data-type");
+            
+            const matchesQuery = name.includes(query);
+            const matchesType = !typeFilter || type === typeFilter;
+            
+            if (matchesQuery && matchesType) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    // Modals Controls
+    const customPromptOptions = `
+        <option value="general">General</option>
+        <option value="ivr">IVR</option>
+        <option value="announcement">Announcement</option>
+        <option value="queue">Queue</option>
+        <option value="ring_group">Ring Group</option>
+        <option value="survey">Survey Prompts</option>
+    `;
+    const systemPromptOptions = `<option value="system">System Prompt</option>`;
+
+    function openPromptUploadModal() {
+        const systemTabActive = document.getElementById('systemTab') && document.getElementById('systemTab').classList.contains('active');
+        const surveyTabActive = document.getElementById('surveyTab') && document.getElementById('surveyTab').classList.contains('active');
+        const typeSelect = document.getElementById("prompt_type");
+        typeSelect.innerHTML = systemTabActive ? systemPromptOptions : customPromptOptions;
+        if (systemTabActive) {
+            typeSelect.value = "system";
+        } else if (surveyTabActive) {
+            typeSelect.value = "survey";
+        } else {
+            typeSelect.value = "general";
+        }
+        document.getElementById("uploadPromptModal").style.display = "block";
+    }
+    
+    function openEditPromptModal(id, currentName, currentType) {
+        document.getElementById("rename_prompt_id").value = id;
+        document.getElementById("rename_new_name").value = currentName;
+        const editTypeSelect = document.getElementById("edit_prompt_type");
+        editTypeSelect.innerHTML = currentType === "system" ? systemPromptOptions : customPromptOptions;
+        editTypeSelect.value = currentType || "general";
+        document.getElementById("renamePromptModal").style.display = "block";
+    }
+    
+    function openCreateMohModal() {
+        document.getElementById("createMohModal").style.display = "block";
+    }
+
+    function openEditMohModal(name, mode) {
+        document.getElementById("edit_moh_name").value = name;
+        document.getElementById("edit_moh_mode").value = mode;
+        document.getElementById("editMohForm").action = "/media/moh/class/edit/" + name;
+        document.getElementById("editMohModal").style.display = "block";
+    }
+    
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = "none";
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if trunk %}Edit Trunk - RCM 7021{% else %}Add Trunk - RCM 7021{% endif %}{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>{% if trunk %}Edit Trunk ({{ trunk.name }}){% else %}Add SIP Trunk{% endif %}</h1>
+        <div style="font-size: 0.9rem; color: #888; margin-top: 0.2rem;">Configure IP-PBX trunk routing, transport and registration credentials</div>
+    </div>
+    <div>
+        <a href="{{ url_for('trunks') }}" class="btn btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Trunks
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <form action="{% if trunk %}{{ url_for('trunks_edit', name=trunk.name) }}{% else %}{{ url_for('trunks_add') }}{% endif %}" method="POST" id="trunkForm">
+        
+        <!-- Enable Trunk Switch -->
+        <div class="switch-group" style="margin-bottom: 2rem;">
+            <label class="switch">
+                <input type="checkbox" name="enabled" {% if not trunk or trunk.enabled %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+            <div>
+                <strong>Enable This Trunk <span class="tooltip-container">!<span class="tooltip-text">Active trunks will attempt connections and be available for routing.</span></span></strong>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Trunk Name <span class="tooltip-container">!<span class="tooltip-text">A unique alphanumeric name for the trunk (no spaces, e.g. ProviderSIP).</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. MyTrunk" required
+                       {% if trunk %}value="{{ trunk.name }}" readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+            </div>
+            <div class="form-group">
+                <label for="type">Trunk Type <span class="tooltip-container">!<span class="tooltip-text">Choose between IP Peer (static IP connection) or Register Trunk (registration via credentials).</span></span></label>
+                <select id="type" name="type" class="form-control" onchange="toggleType()">
+                    <option value="peer" {% if trunk and trunk.type == 'peer' %}selected{% endif %}>IP Peer (Static IP / No Registration)</option>
+                    <option value="register" {% if trunk and trunk.type == 'register' %}selected{% endif %}>Register Trunk</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Registration Mode (Hidden for Peer) -->
+        <div class="form-row" id="register_mode_row" style="display: none;">
+            <div class="form-group" style="max-width: 50%;">
+                <label for="register_mode">Registration Mode <span class="tooltip-container">!<span class="tooltip-text">Client mode: we register to provider. Server mode: provider registers to us.</span></span></label>
+                <select id="register_mode" name="register_mode" class="form-control" onchange="toggleType()">
+                    <option value="client" {% if trunk and trunk.register_mode == 'client' %}selected{% endif %}>Client (We register to the remote server)</option>
+                    <option value="server" {% if trunk and trunk.register_mode == 'server' %}selected{% endif %}>Server (Remote clients register to us)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Server Address & Port (Hidden for Register Server) -->
+        <div class="form-row" id="server_address_row">
+            <div class="form-group">
+                <label for="server_addr" id="server_addr_label">Remote Server IP/Host <span class="tooltip-container">!<span class="tooltip-text">The IP address or domain name of the remote SIP server.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="server_addr" name="server_addr" class="form-control" placeholder="e.g. sip.provider.com"
+                       value="{% if trunk %}{{ trunk.server_addr or '' }}{% endif %}">
+            </div>
+            <div class="form-group">
+                <label for="server_port">Remote Server Port <span class="tooltip-container">!<span class="tooltip-text">SIP port of the remote server. Defaults to 5060.</span></span></label>
+                <input type="number" id="server_port" name="server_port" class="form-control" min="1" max="65535"
+                       value="{% if trunk %}{{ trunk.server_port }}{% else %}5060{% endif %}">
+            </div>
+        </div>
+
+        <!-- Credentials (Hidden for Peer) -->
+        <div class="form-row" id="credentials_row" style="display: none;">
+            <div class="form-group" id="username_col">
+                <label for="username">Auth Username <span class="tooltip-container">!<span class="tooltip-text">Username used for registering and authenticating with the remote server.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="SIP username"
+                       value="{% if trunk %}{{ trunk.username or '' }}{% endif %}">
+            </div>
+            <div class="form-group">
+                <label for="password" id="password_label">Auth Password <span class="tooltip-container">!<span class="tooltip-text">Password used by the SIP device to authenticate with the PBX.</span></span> <span style="color: #ff4a4a;">*</span></label>
+                <input type="text" id="password" name="password" class="form-control" placeholder="SIP password / secret"
+                       value="{% if trunk %}{{ trunk.password or '' }}{% endif %}">
+            </div>
+        </div>
+
+        <!-- Advanced registration parameters (Hidden for Peer & Register Server) -->
+        <div id="client_adv_section" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="auth_id">Authentication ID (Auth ID) <span class="tooltip-container">!<span class="tooltip-text">Optional authentication ID. Defaults to Auth Username if left blank.</span></span></label>
+                    <input type="text" id="auth_id" name="auth_id" class="form-control" placeholder="Optional - default to Username"
+                           value="{% if trunk %}{{ trunk.auth_id or '' }}{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label for="identify_by">Identify Endpoint By <span class="tooltip-container">!<span class="tooltip-text">Method used to match incoming requests to this trunk endpoint.</span></span></label>
+                    <select id="identify_by" name="identify_by" class="form-control">
+                        <option value="username" {% if trunk and trunk.identify_by == 'username' %}selected{% endif %}>Username</option>
+                        <option value="ip" {% if trunk and trunk.identify_by == 'ip' %}selected{% endif %}>IP / Hostname</option>
+                        <option value="header" {% if trunk and trunk.identify_by == 'header' %}selected{% endif %}>Header</option>
+                        <option value="auth_username" {% if trunk and trunk.identify_by == 'auth_username' %}selected{% endif %}>Auth Username</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="from_user">From User <span class="tooltip-container">!<span class="tooltip-text">Optional username to specify in the 'From' header of outbound SIP requests.</span></span></label>
+                    <input type="text" id="from_user" name="from_user" class="form-control" placeholder="Optional"
+                           value="{% if trunk %}{{ trunk.from_user or '' }}{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label for="from_domain">From Domain <span class="tooltip-container">!<span class="tooltip-text">Optional domain to specify in the 'From' header of outbound SIP requests.</span></span></label>
+                    <input type="text" id="from_domain" name="from_domain" class="form-control" placeholder="Optional"
+                           value="{% if trunk %}{{ trunk.from_domain or '' }}{% endif %}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="outproxy_addr">Outbound Proxy IP/Host <span class="tooltip-container">!<span class="tooltip-text">Optional outbound proxy server address to route SIP traffic through.</span></span></label>
+                    <input type="text" id="outproxy_addr" name="outproxy_addr" class="form-control" placeholder="e.g. proxy.provider.com"
+                           value="{% if trunk %}{{ trunk.outproxy_addr or '' }}{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label for="outproxy_port">Outbound Proxy Port <span class="tooltip-container">!<span class="tooltip-text">Optional port of the outbound proxy server.</span></span></label>
+                    <input type="number" id="outproxy_port" name="outproxy_port" class="form-control" placeholder="e.g. 5060"
+                           value="{% if trunk and trunk.outproxy_port %}{{ trunk.outproxy_port }}{% endif %}">
+                </div>
+            </div>
+        </div>
+
+        <!-- Transport & Keepalive Parameters -->
+        <div class="form-row">
+            <div class="form-group">
+                <label for="transport">SIP Transport <span class="tooltip-container">!<span class="tooltip-text">Transport protocol used for SIP signaling.</span></span></label>
+                <select id="transport" name="transport" class="form-control">
+                    <option value="transport-udp" {% if trunk and trunk.transport == 'transport-udp' %}selected{% endif %}>UDP (transport-udp)</option>
+                    <option value="transport-tcp" {% if trunk and trunk.transport == 'transport-tcp' %}selected{% endif %}>TCP (transport-tcp)</option>
+                    <option value="transport-tls" {% if trunk and trunk.transport == 'transport-tls' %}selected{% endif %}>TLS (transport-tls)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="keepalive">Keepalive Interval (seconds) <span class="tooltip-container">!<span class="tooltip-text">How often to send keep-alive messages to remote endpoint.</span></span></label>
+                <input type="number" id="keepalive" name="keepalive" class="form-control" min="5" max="3600"
+                       value="{% if trunk %}{{ trunk.keepalive }}{% else %}60{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="context">Context <span class="tooltip-container">!<span class="tooltip-text">The entry point context in the Asterisk dialplan for incoming calls on this trunk.</span></span></label>
+                <input type="text" id="context" name="context" class="form-control" placeholder="e.g. from-trunk or from-pri"
+                       value="{% if trunk %}{{ trunk.context or '' }}{% endif %}">
+            </div>
+            <div class="form-group">
+                <label for="codecs">Allowed Codecs (comma separated) <span class="tooltip-container">!<span class="tooltip-text">Comma-separated list of allowed codecs (e.g., ulaw,alaw,g729).</span></span></label>
+                <input type="text" id="codecs" name="codecs" class="form-control" placeholder="e.g. ulaw,alaw"
+                       value="{% if trunk %}{{ trunk.codecs or 'ulaw,alaw' }}{% else %}ulaw,alaw{% endif %}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" id="allowed_ip_col">
+                <label for="allowed_ip">Allowed IP / Hostname <span class="tooltip-container">!<span class="tooltip-text">Required for Server Mode identify or static IP matching.</span></span></label>
+                <input type="text" id="allowed_ip" name="allowed_ip" class="form-control" placeholder="e.g. 192.168.1.100"
+                       value="{% if trunk %}{{ trunk.allowed_ip or '' }}{% endif %}">
+            </div>
+            <div class="form-group" id="caller_id_col">
+                <label for="caller_id">Caller ID <span class="tooltip-container">!<span class="tooltip-text">Outbound caller ID for this trunk, formatted as "Name" &lt;Number&gt;.</span></span></label>
+                <input type="text" id="caller_id" name="caller_id" class="form-control" placeholder="e.g. &quot;My Trunk&quot; &lt;5551234&gt;"
+                       value="{% if trunk %}{{ trunk.caller_id or '' }}{% endif %}">
+            </div>
+        </div>
+
+        <!-- Qualify Toggle -->
+        <div class="switch-group" style="margin-bottom: 2rem;">
+            <label class="switch">
+                <input type="checkbox" name="qualify" {% if not trunk or trunk.qualify %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+            <div>
+                <strong>Enable Qualify <span class="tooltip-container">!<span class="tooltip-text">Checks if the remote SIP device or trunk is reachable.</span></span></strong>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <a href="{{ url_for('trunks') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Save Trunk</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleType() {
+        const type = document.getElementById("type").value;
+        const regModeRow = document.getElementById("register_mode_row");
+        const credentialsRow = document.getElementById("credentials_row");
+        const serverAddressRow = document.getElementById("server_address_row");
+        const usernameCol = document.getElementById("username_col");
+        const clientAdvSection = document.getElementById("client_adv_section");
+        const allowedIpCol = document.getElementById("allowed_ip_col");
+        const contextInput = document.getElementById("context");
+
+        const serverAddrInput = document.getElementById("server_addr");
+        const usernameInput = document.getElementById("username");
+        const passwordInput = document.getElementById("password");
+
+        if (type === "peer") {
+            regModeRow.style.display = "none";
+            credentialsRow.style.display = "none";
+            serverAddressRow.style.display = "flex";
+            clientAdvSection.style.display = "none";
+            allowedIpCol.style.display = "none";
+            
+            serverAddrInput.required = true;
+            usernameInput.required = false;
+            passwordInput.required = false;
+
+            if (!contextInput.value) {
+                contextInput.value = "from-pri";
+            }
+        } else {
+            // Register trunk
+            regModeRow.style.display = "flex";
+            const regMode = document.getElementById("register_mode").value;
+            
+            if (regMode === "client") {
+                // Client mode: we register to provider
+                credentialsRow.style.display = "flex";
+                usernameCol.style.display = "block";
+                serverAddressRow.style.display = "flex";
+                clientAdvSection.style.display = "block";
+                allowedIpCol.style.display = "none";
+                
+                serverAddrInput.required = true;
+                usernameInput.required = true;
+                passwordInput.required = true;
+
+                if (!contextInput.value || contextInput.value === "from-pri") {
+                    contextInput.value = "from-trunk";
+                }
+            } else {
+                // Server mode: provider registers to us
+                credentialsRow.style.display = "flex";
+                usernameCol.style.display = "none"; // Username will match the Trunk Name
+                serverAddressRow.style.display = "none";
+                clientAdvSection.style.display = "none";
+                allowedIpCol.style.display = "block";
+                
+                serverAddrInput.required = false;
+                usernameInput.required = false;
+                passwordInput.required = true;
+
+                if (!contextInput.value || contextInput.value === "from-pri") {
+                    contextInput.value = "from-trunk";
+                }
+            }
+        }
+    }
+
+    // Call on load to set correct inputs
+    toggleType();
+</script>
+{% endblock %}

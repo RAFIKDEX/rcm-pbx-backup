@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Databases
+*.sqlite3
+*.db
+*.db-journal
+*.bak
+
+# PBX/System Data
+recordings/
+coredumps/
+voicemail/
+logs/
+*.log
+/dex_files/
+
+# Temporary files
+*.swp
+.DS_Store
+scratch/

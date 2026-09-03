@@ -1,0 +1,654 @@
+{% extends base_template %}
+{% block title %}CON Agent Console{% endblock %}
+
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
+
+    :root {
+        --base-color: #1a1a24;
+        --shadow-dark: #121219;
+        --shadow-light: #22222f;
+        --accent: #4ade80;
+        --text-main: #e2e8f0;
+        --text-muted: #64748b;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --info: #3b82f6;
+    }
+
+    body {
+        background-color: var(--base-color);
+        font-family: 'Montserrat', sans-serif;
+        color: var(--text-main);
+        min-height: 100vh;
+        margin: 0;
+        padding-top: 2rem;
+    }
+
+    /* Simplified Minimalist mixins */
+    .neu-flat {
+        background: var(--panel-dark);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        border-radius: 12px;
+        border: 1px solid #2d2d3f;
+    }
+
+    .neu-pressed {
+        background: var(--bg-dark);
+        border-radius: 10px;
+        border: 1px solid #2d2d3f;
+    }
+
+    .neu-button {
+        background: var(--panel-dark);
+        border: 1px solid #3d3d5c;
+        border-radius: 8px;
+        transition: all 0.2s ease-in-out;
+        color: var(--text-main);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 600;
+        padding: 0.8rem 1.2rem;
+        font-size: 0.95rem;
+    }
+
+    .neu-button:hover {
+        background: #323248;
+    }
+
+    .neu-button:active, .neu-button.active {
+        background: var(--panel-dark);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+        color: var(--accent);
+    }
+
+    .neu-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .neu-button.btn-danger:active, .neu-button.btn-mute-active { color: var(--danger); }
+    .neu-button.btn-warning:active { color: var(--warning); }
+    .neu-button.btn-info:active { color: var(--info); }
+
+    /* Layout */
+    .agent-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 2rem;
+    }
+
+    .header-panel {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .header-info h1 {
+        margin: 0 0 5px 0;
+        font-size: 1.4rem;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .header-meta {
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    .header-stats {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .login-timer {
+        text-align: right;
+    }
+
+    .login-timer p { margin: 0; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .login-timer h2 { margin: 5px 0 0 0; font-size: 1.2rem; font-weight: 800; color: var(--text-main); }
+    .login-timer h2.highlight { color: var(--danger); }
+
+    .main-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 2rem;
+    }
+
+    .panel {
+        padding: 1.5rem;
+    }
+
+    .panel-title {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 0 0 1.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .status-circle-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+
+    .status-circle {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--panel-dark);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        border: 3px solid #2d2d3f;
+        transition: all 0.3s ease;
+    }
+
+    .status-circle.s-available { border-color: var(--accent); box-shadow: 0 0 15px rgba(74, 222, 128, 0.2); }
+    .status-circle.s-talking { border-color: var(--danger); box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
+    .status-circle.s-paused { border-color: var(--warning); box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); }
+
+    .status-text {
+        font-size: 1.2rem;
+        font-weight: 800;
+        margin-bottom: 5px;
+    }
+    
+    .status-time {
+        font-size: 1.4rem;
+        font-weight: 700;
+        font-family: monospace;
+        color: var(--text-muted);
+    }
+
+    .s-available .status-text { color: var(--accent); }
+    .s-talking .status-text { color: var(--danger); }
+    .s-paused .status-text { color: var(--warning); }
+
+    .call-controls-container {
+        margin-top: 1.5rem;
+    }
+
+    .call-info-neu {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .info-box-neu {
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .info-box-neu span { display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 5px; }
+    .info-box-neu strong { font-size: 1.2rem; color: var(--accent); font-weight: 800; }
+
+    .action-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .break-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .btn-break {
+        justify-content: center;
+        padding: 1rem;
+        font-size: 0.95rem;
+    }
+
+    .active-break-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .active-break-panel i { font-size: 2.5rem; color: var(--warning); margin-bottom: 1rem; }
+    .active-break-panel h3 { font-size: 1.3rem; color: var(--text-main); margin: 0 0 1.5rem 0; }
+
+    .script-panel {
+        margin-top: 2rem;
+    }
+
+    .script-content {
+        color: var(--text-main);
+        font-size: 0.95rem;
+        line-height: 1.6;
+        padding: 1.5rem;
+        min-height: 120px;
+        white-space: pre-wrap;
+    }
+
+    /* Modal & Toasts */
+    #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+    .neu-toast { padding: 1rem 1.5rem; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 0.95rem; transition: all 0.3s ease; }
+    .toast-success { color: var(--accent); }
+    .toast-error { color: var(--danger); }
+    .toast-warning { color: var(--warning); }
+    .toast-info { color: var(--info); }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 2000; }
+    .modal-content { width: 350px; padding: 2rem; text-align: center; }
+    .modal-content h3 { color: var(--info); font-size: 1.2rem; margin: 0 0 1.5rem 0; }
+    .modal-input { width: 100%; background: var(--bg-dark); border: 1px solid #3d3d5c; padding: 1rem; border-radius: 8px; color: var(--text-main); font-size: 1rem; margin-bottom: 1.5rem; text-align: center; outline: none; box-sizing: border-box; }
+    .modal-actions { display: flex; gap: 1rem; }
+</style>
+
+<div class="agent-container">
+    <div class="header-panel neu-flat">
+        <div class="header-info">
+            <h1><i class="fa-solid fa-headset"></i> Agent Workspace</h1>
+            <div class="header-meta">
+                Ext: {{ session.get('extension_ext') }} &nbsp;|&nbsp; User: {{ agent_name }}
+            </div>
+        </div>
+        
+        <div class="header-stats">
+            <div class="login-timer">
+                <p>Waiting Calls</p>
+                <h2 id="waiting-calls" class="highlight">0</h2>
+            </div>
+            <div class="login-timer">
+                <p>Avg Handle Time</p>
+                <h2 id="avg-handle-time">00:00</h2>
+            </div>
+            <div class="login-timer">
+                <p>SLA</p>
+                <h2 id="sla-percent">100%</h2>
+            </div>
+            <div class="login-timer">
+                <p>Login Since</p>
+                <h2 id="login-since">--:--</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-grid">
+        <!-- Left Panel: Call Script -->
+        <div class="panel neu-flat script-panel" style="margin-top: 0;">
+            <h2 class="panel-title"><i class="fa-solid fa-file-lines"></i> Call Script</h2>
+            <div class="script-content neu-pressed" id="call-script">
+                Waiting for incoming connection...
+            </div>
+        </div>
+
+        <!-- Right Panel: Breaks & Status -->
+        <div>
+            <!-- Break Management -->
+            <div class="panel neu-flat" style="margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 class="panel-title" style="margin: 0;"><i class="fa-solid fa-mug-hot"></i> Breaks</h2>
+                    <div id="global-break-timer" style="font-size: 1.4rem; font-weight: 800; font-family: monospace; color: var(--accent); padding: 5px 15px; border-radius: 8px; background: var(--bg-dark); border: 1px solid #2d2d3f; transition: all 0.3s ease;">
+                        --:--
+                    </div>
+                </div>
+                
+                <div id="break-buttons" class="break-grid">
+                    <!-- Break Buttons Injected Here -->
+                </div>
+
+                <div id="active-break-control" class="active-break-panel" style="display: none;">
+                    <i class="fa-solid fa-mug-hot"></i>
+                    <h3 id="active-break-reason">Paused</h3>
+                    <button class="neu-button btn-info" style="width: 100%;" onclick="stopBreak()">
+                        <i class="fa-solid fa-play"></i> Resume Work
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Status & Call Control -->
+            <div class="panel neu-flat">
+                <h2 class="panel-title"><i class="fa-solid fa-satellite-dish"></i> Live Status</h2>
+                
+                <div class="status-circle-container">
+                    <div class="status-circle s-available" id="status-circle">
+                        <div class="status-text" id="status-badge">Idle</div>
+                        <div class="status-time" id="status-timer">00:00</div>
+                    </div>
+                </div>
+
+                <!-- Call Controls (Hidden when idle) -->
+                <div class="call-controls-container" id="active-call-panel" style="display: none;">
+                    <div class="call-info-neu">
+                        <div class="info-box-neu neu-pressed">
+                            <span>Caller ID</span>
+                            <strong id="caller-id">--</strong>
+                        </div>
+                        <div class="info-box-neu neu-pressed">
+                            <span>Queue</span>
+                            <strong id="queue-id">--</strong>
+                        </div>
+                    </div>
+
+                    <div id="ringing-controls" style="display: none; text-align: center;">
+                        <div style="padding: 1.5rem; color: var(--warning); font-size: 1.1rem; font-weight: bold; animation: pulse 1.5s infinite;">
+                            <i class="fa-solid fa-phone-volume fa-shake" style="font-size: 1.5rem; margin-bottom: 10px; display: block;"></i>
+                            Incoming Call... Please Answer Softphone
+                        </div>
+                    </div>
+
+                    <div id="incall-controls" class="action-grid" style="display: none;">
+                        <button class="neu-button" id="btn-mute" onclick="toggleMute()"><i class="fa-solid fa-microphone-slash"></i> Mute</button>
+                        <button class="neu-button btn-info" onclick="openTransferModal()"><i class="fa-solid fa-exchange-alt"></i> Transfer</button>
+                        <button class="neu-button btn-danger" style="grid-column: span 2;" onclick="callAction('hangup')"><i class="fa-solid fa-phone-slash"></i> Hangup Call</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- Transfer Modal -->
+<div class="modal-overlay" id="transfer-modal">
+    <div class="modal-content neu-flat">
+        <h3><i class="fa-solid fa-exchange-alt"></i> Transfer Call</h3>
+        <input type="text" id="transfer-target" class="modal-input" placeholder="Enter Target Ext" onkeypress="if(event.key === 'Enter') confirmTransfer();">
+        <div class="modal-actions">
+            <button class="neu-button" style="flex: 1;" onclick="closeTransferModal()">Cancel</button>
+            <button class="neu-button btn-info" style="flex: 1;" onclick="confirmTransfer()">Transfer</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let lastStatus = null;
+let timerSeconds = 0;
+let timerInterval = null;
+let isMuted = false;
+
+let totalBreakLimit = 3600;
+let totalBreakUsed = 0;
+let isPaused = false;
+let globalBreakInterval = null;
+
+function updateGlobalBreakTimerDisplay() {
+    const remaining = totalBreakLimit - totalBreakUsed;
+    const timerDiv = document.getElementById("global-break-timer");
+    
+    let displaySecs = Math.abs(remaining);
+    let sign = remaining < 0 ? "-" : "";
+    let timeStr = sign + formatTime(displaySecs);
+    
+    timerDiv.textContent = timeStr;
+    
+    if (remaining < 0) {
+        timerDiv.style.color = "var(--danger)";
+        timerDiv.style.animation = "pulse 1s infinite";
+        timerDiv.style.boxShadow = "inset 3px 3px 6px rgba(239, 68, 68, 0.2), inset -3px -3px 6px rgba(239, 68, 68, 0.1)";
+    } else if (remaining < 300) {
+        timerDiv.style.color = "var(--warning)";
+        timerDiv.style.animation = "none";
+        timerDiv.style.boxShadow = "inset 3px 3px 6px rgba(245, 158, 11, 0.2), inset -3px -3px 6px rgba(245, 158, 11, 0.1)";
+    } else {
+        timerDiv.style.color = "var(--accent)";
+        timerDiv.style.animation = "none";
+        timerDiv.style.boxShadow = "inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light)";
+    }
+}
+
+if (!globalBreakInterval) {
+    globalBreakInterval = setInterval(() => {
+        if (isPaused) {
+            totalBreakUsed++;
+            updateGlobalBreakTimerDisplay();
+        }
+    }, 1000);
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `neu-flat neu-toast toast-${type}`;
+    
+    let icon = 'fa-info-circle';
+    if(type === 'success') icon = 'fa-check-circle';
+    if(type === 'error') icon = 'fa-exclamation-circle';
+    if(type === 'warning') icon = 'fa-exclamation-triangle';
+    
+    toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+function openTransferModal() {
+    document.getElementById('transfer-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('transfer-target').focus(), 50);
+}
+
+function closeTransferModal() {
+    document.getElementById('transfer-modal').style.display = 'none';
+    document.getElementById('transfer-target').value = '';
+}
+
+function formatTime(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function updateStatus() {
+    fetch("{{ url_for('con_bp.api_con_agent_status') }}")
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+            
+            totalBreakLimit = data.total_break_limit !== undefined ? data.total_break_limit : 3600;
+            totalBreakUsed = data.total_break_used !== undefined ? data.total_break_used : 0;
+            isPaused = !!data.paused;
+            updateGlobalBreakTimerDisplay();
+
+            const badge = document.getElementById("status-badge");
+            const circle = document.getElementById("status-circle");
+            
+            badge.textContent = data.status;
+            circle.className = "status-circle";
+            
+            if (data.status === "Available" || data.status === "Idle") {
+                circle.classList.add("s-available");
+                document.getElementById("status-timer").style.display = "none";
+            } else if (data.status === "Pause") {
+                circle.classList.add("s-paused");
+                badge.textContent = data.paused_reason || "Paused";
+                document.getElementById("status-timer").style.display = "block";
+            } else if (data.status === "Talking" || data.status === "Busy" || data.status === "Ringing") {
+                circle.classList.add("s-talking");
+                document.getElementById("status-timer").style.display = "block";
+            }
+            
+            let loginText = "Offline";
+            if (data.login_time) {
+                const parts = data.login_time.split(' ');
+                loginText = parts.length > 1 ? parts[1] : data.login_time;
+            }
+            document.getElementById("login-since").textContent = loginText;
+            document.getElementById("waiting-calls").textContent = data.waiting_calls || "0";
+            document.getElementById("avg-handle-time").textContent = formatTime(data.avg_handle_time || 0);
+            document.getElementById("sla-percent").textContent = (data.sla !== undefined ? data.sla : 100) + "%";
+            
+            if (lastStatus !== data.status) {
+                lastStatus = data.status;
+                if (data.status === "Talking" || data.status === "Busy") {
+                    timerSeconds = data.call_duration || 0;
+                } else if (data.status === "Ringing") {
+                    timerSeconds = 0;
+                } else {
+                    timerSeconds = data.status_duration || 0;
+                }
+                
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    timerSeconds++;
+                    document.getElementById("status-timer").textContent = formatTime(timerSeconds);
+                }, 1000);
+            } else if (data.status === "Talking" || data.status === "Busy") {
+                // Keep timer in sync with real call duration from backend
+                if (Math.abs(timerSeconds - (data.call_duration || 0)) > 3) {
+                     timerSeconds = data.call_duration || 0;
+                }
+            }
+            
+            if (data.caller) {
+                document.getElementById("active-call-panel").style.display = "block";
+                document.getElementById("caller-id").textContent = data.caller;
+                document.getElementById("queue-id").textContent = data.queue;
+                document.getElementById("call-script").textContent = data.script || "No script configured for this queue.";
+                
+                if (data.status === "Ringing") {
+                    document.getElementById("ringing-controls").style.display = "block";
+                    document.getElementById("incall-controls").style.display = "none";
+                } else {
+                    document.getElementById("ringing-controls").style.display = "none";
+                    document.getElementById("incall-controls").style.display = "grid";
+                }
+            } else {
+                document.getElementById("active-call-panel").style.display = "none";
+                document.getElementById("call-script").textContent = "Waiting for incoming connection...";
+                if (isMuted) {
+                    isMuted = false;
+                    renderMuteButton();
+                }
+            }
+            
+            const breakBtns = document.getElementById("break-buttons");
+            const activeBreak = document.getElementById("active-break-control");
+            
+            if (data.paused) {
+                breakBtns.style.display = "none";
+                activeBreak.style.display = "flex";
+                document.getElementById("active-break-reason").textContent = data.paused_reason || "Paused";
+            } else {
+                breakBtns.style.display = "grid";
+                activeBreak.style.display = "none";
+                
+                if (data.breaks && data.breaks.length > 0) {
+                    breakBtns.innerHTML = "";
+                    data.breaks.forEach(b => {
+                        const btn = document.createElement("button");
+                        btn.className = "neu-button btn-break";
+                        btn.innerHTML = `<span><i class="fa-solid fa-mug-hot"></i> ${b.reason}</span>`;
+                        btn.onclick = () => startBreak(b.reason);
+                        breakBtns.appendChild(btn);
+                    });
+                } else if (breakBtns.children.length === 0) {
+                    breakBtns.innerHTML = `<button class="neu-button btn-break" onclick="startBreak('Break')"><span><i class="fa-solid fa-mug-hot"></i> Break</span></button>`;
+                }
+            }
+        })
+        .catch(e => console.error("Status fetch error:", e));
+}
+
+function startBreak(reason) {
+    fetch("{{ url_for('con_bp.api_con_agent_break') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token() }}" },
+        body: JSON.stringify({action: "start", reason: reason})
+    }).then(r => r.json()).then(d => {
+        if(d.success) { updateStatus(); }
+        else showToast(d.error, "error");
+    }).catch(e => showToast("Network error", "error"));
+}
+
+function stopBreak() {
+    fetch("{{ url_for('con_bp.api_con_agent_break') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token() }}" },
+        body: JSON.stringify({action: "stop"})
+    }).then(r => r.json()).then(d => {
+        if(d.success) { updateStatus(); }
+        else showToast("Failed to resume", "error");
+    }).catch(e => showToast("Network error", "error"));
+}
+
+function renderMuteButton() {
+    const btn = document.getElementById("btn-mute");
+    if (isMuted) {
+        btn.classList.add("btn-mute-active");
+        btn.innerHTML = `<i class="fa-solid fa-microphone"></i> Unmute`;
+    } else {
+        btn.classList.remove("btn-mute-active");
+        btn.innerHTML = `<i class="fa-solid fa-microphone-slash"></i> Mute`;
+    }
+}
+
+function toggleMute() {
+    const action = isMuted ? "unmute" : "mute";
+    callAction(action, () => {
+        isMuted = !isMuted;
+        renderMuteButton();
+    });
+}
+
+function callAction(action, onSuccess = null) {
+    fetch("{{ url_for('con_bp.api_con_agent_call_control') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token() }}" },
+        body: JSON.stringify({action: action})
+    }).then(r => r.json()).then(d => {
+        if(d.success) {
+            if (action === "transfer") showToast("Transfer successful", "success");
+            if (onSuccess) onSuccess();
+            updateStatus();
+        } else {
+            showToast(d.error || "Action failed", "warning");
+        }
+    }).catch(e => showToast("Network error", "error"));
+}
+
+function confirmTransfer() {
+    let target = document.getElementById('transfer-target').value.trim();
+    if (target) {
+        fetch("{{ url_for('con_bp.api_con_agent_call_control') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token() }}" },
+            body: JSON.stringify({action: "transfer", target: target})
+        }).then(r => r.json()).then(d => {
+            closeTransferModal();
+            if(d.success) { showToast("Transfer successful", "success"); updateStatus(); }
+            else showToast(d.error, "error");
+        }).catch(e => showToast("Network error", "error"));
+    } else {
+        showToast("Enter a valid number", "warning");
+    }
+}
+
+setInterval(updateStatus, 2000);
+updateStatus();
+</script>
+{% endblock %}

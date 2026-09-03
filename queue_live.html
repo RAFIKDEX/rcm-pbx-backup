@@ -1,0 +1,1268 @@
+{% extends 'base.html' %}
+
+{% block title %}Queue Live Operations Wallboard - RCM 7021{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --wb-bg: #0f172a;
+        --wb-panel: rgba(30, 41, 59, 0.75);
+        --wb-panel-hover: rgba(51, 65, 85, 0.85);
+        --wb-border: rgba(255, 255, 255, 0.08);
+        --wb-primary: #3b82f6;
+        --wb-primary-glow: rgba(59, 130, 246, 0.3);
+        --wb-success: #10b981;
+        --wb-warning: #f59e0b;
+        --wb-danger: #ef4444;
+        --wb-danger-glow: rgba(239, 68, 68, 0.4);
+        --wb-purple: #8b5cf6;
+        --wb-cyan: #06b6d4;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+    }
+
+    /* Custom Animations */
+    @keyframes pulseGlow {
+        0%, 100% { box-shadow: 0 0 15px var(--wb-danger-glow); }
+        50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.8); }
+    }
+    @keyframes livePing {
+        0% { transform: scale(1); opacity: 1; }
+        75%, 100% { transform: scale(2); opacity: 0; }
+    }
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.98); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Wallboard Core Styles */
+    .wb-container {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--text-main);
+        padding-bottom: 3rem;
+    }
+
+    .wb-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--wb-border);
+        border-radius: 16px;
+        padding: 1.25rem 1.75rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .wb-title h1 {
+        font-size: 1.75rem;
+        font-weight: 800;
+        margin: 0;
+        background: linear-gradient(to right, #60a5fa, #38bdf8, #818cf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .wb-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 0.35rem 0.85rem;
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        position: relative;
+    }
+    .wb-status-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #34d399;
+        border-radius: 50%;
+        position: relative;
+    }
+    .wb-status-dot::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background-color: #34d399;
+        border-radius: 50%;
+        animation: livePing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    /* Supervisor Console Toolbar */
+    .wb-toolbar {
+        background: var(--wb-panel);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--wb-border);
+        border-radius: 14px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .wb-toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .wb-input, .wb-select {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #fff;
+        padding: 0.45rem 0.85rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        outline: none;
+        transition: all 0.2s;
+    }
+    .wb-input:focus, .wb-select:focus {
+        border-color: var(--wb-primary);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    .wb-btn {
+        background: var(--wb-primary);
+        color: #fff;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+    .wb-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+    .wb-btn-danger { background: var(--wb-danger); }
+    .wb-btn-danger:hover { background: #dc2626; }
+    .wb-btn-warning { background: var(--wb-warning); color: #0f172a; }
+    .wb-btn-warning:hover { background: #d97706; }
+    .wb-btn-purple { background: var(--wb-purple); }
+    .wb-btn-purple:hover { background: #7c3aed; }
+    .wb-btn-sm { padding: 0.3rem 0.65rem; font-size: 0.75rem; }
+
+    /* Alert Banner Cards */
+    #alerts-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    .wb-alert-card {
+        background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(15, 23, 42, 0.9));
+        border: 1px solid rgba(239, 68, 68, 0.5);
+        border-left: 5px solid var(--wb-danger);
+        border-radius: 10px;
+        padding: 0.85rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        animation: slideDown 0.3s ease-out, pulseGlow 2s infinite;
+    }
+
+    /* Queue Overview Cards Grid */
+    .wb-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .wb-card {
+        background: var(--wb-panel);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--wb-border);
+        border-radius: 16px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .wb-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(96, 165, 250, 0.4);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    }
+    .wb-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 0.75rem;
+    }
+    .wb-card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+    }
+    .wb-card-sub {
+        font-size: 0.8rem;
+        color: var(--text-sub);
+        margin-top: 0.2rem;
+    }
+    
+    /* Donut & Gauge Display */
+    .wb-donut-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        margin: 1rem 0;
+    }
+    .wb-metric-box {
+        text-align: center;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        min-width: 80px;
+    }
+    .wb-metric-val {
+        font-size: 1.5rem;
+        font-weight: 800;
+        font-family: 'Orbitron', monospace;
+    }
+    .wb-metric-label {
+        font-size: 0.7rem;
+        color: var(--text-sub);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.2rem;
+    }
+
+    /* Live Tables & Panels */
+    .wb-panel-box {
+        background: var(--wb-panel);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--wb-border);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .wb-panel-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 0.75rem;
+    }
+    .wb-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 0.5rem;
+    }
+    .wb-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        color: var(--text-sub);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .wb-table td {
+        padding: 0.85rem 1rem;
+        background: rgba(15, 23, 42, 0.6);
+        color: #fff;
+        font-size: 0.9rem;
+        vertical-align: middle;
+    }
+    .wb-table tr td:first-child { border-radius: 10px 0 0 10px; }
+    .wb-table tr td:last-child { border-radius: 0 10px 10px 0; }
+    .wb-table tr:hover td { background: rgba(30, 41, 59, 0.9); }
+
+    /* Agent Cards Grid */
+    .wb-agent-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1rem;
+    }
+    .wb-agent-card {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid var(--wb-border);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        transition: all 0.2s;
+    }
+    .wb-agent-card:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+    .wb-badge {
+        display: inline-block;
+        padding: 0.25rem 0.65rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .badge-available { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-busy { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-ringing { background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); animation: pulse 1s infinite; }
+    .badge-paused { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); }
+    .badge-offline { background: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.4); }
+
+    /* Activity Feed Ticker */
+    .wb-ticker {
+        max-height: 250px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-family: monospace;
+        font-size: 0.85rem;
+        padding-right: 0.5rem;
+    }
+    .wb-ticker-item {
+        background: rgba(15, 23, 42, 0.6);
+        border-left: 3px solid var(--wb-primary);
+        padding: 0.5rem 0.85rem;
+        border-radius: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Modals */
+    .wb-modal-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(8px);
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.2s ease-out;
+    }
+    .wb-modal {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        padding: 2rem;
+        width: 90%;
+        max-width: 480px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+</style>
+
+<div class="wb-container">
+    <!-- Real-Time Alerts Banner Container -->
+    <div id="alerts-container"></div>
+
+    <!-- Wallboard Header -->
+    <div class="wb-header">
+        <div class="wb-title">
+            <h1><i class="fa-solid fa-headset fa-pulse" style="color: var(--wb-cyan);"></i> Queue Live Wallboard</h1>
+            <div style="font-size: 0.85rem; color: var(--text-sub); margin-top: 0.25rem;">
+                Real-Time Operations Monitor • Intelligent ChanSpy & Supervisor Control Console
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1.25rem;">
+            <div id="clock-display" style="font-family: 'Orbitron', monospace; font-size: 1.25rem; font-weight: 700; color: #fff; background: rgba(15, 23, 42, 0.8); padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                00:00:00
+            </div>
+            <div class="wb-status-pill">
+                <div class="wb-status-dot"></div>
+                <span id="sync-status">Live Syncing</span>
+            </div>
+            <button onclick="toggleAudioAlerts()" id="audio-toggle-btn" class="wb-btn" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                <i class="fa-solid fa-volume-high" id="audio-icon"></i> <span id="audio-text">Audio Alerts: ON</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Supervisor Command Toolbar -->
+    <div class="wb-toolbar">
+        <div class="wb-toolbar-group">
+            <span style="font-weight: 700; color: #fff; font-size: 0.9rem;">
+                <i class="fa-solid fa-user-shield" style="color: var(--wb-primary);"></i> SUPERVISOR CONSOLE:
+            </span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.8rem; color: var(--text-sub);">Extension:</span>
+                <input type="text" id="supervisor_ext" class="wb-input" value="5002" style="width: 80px; text-align: center; font-weight: bold;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.8rem; color: var(--text-sub);">ChanSpy Mode:</span>
+                <select id="spy_type" class="wb-select">
+                    <option value="listen">Listen Only (Silent)</option>
+                    <option value="whisper">Whisper (Coach Agent)</option>
+                    <option value="barge">Barge In (Join Call)</option>
+                </select>
+            </div>
+        </div>
+        <div class="wb-toolbar-group">
+            <div style="position: relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 0.8rem;"></i>
+                <input type="text" id="global-search" class="wb-input" placeholder="Filter queues, calls, agents..." style="padding-left: 28px; width: 220px;" oninput="applyGlobalFilter()">
+            </div>
+            <button onclick="syncNow()" class="wb-btn wb-btn-sm" title="Force Refresh">
+                <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- VIEW 1: OVERVIEW WALLBOARD -->
+    <div id="overview-view">
+        <!-- Queue Cards Grid -->
+        <div id="queues-grid" class="wb-grid">
+            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: var(--text-sub);">
+                <i class="fa-solid fa-circle-notch fa-spin fa-2x"></i>
+                <div style="margin-top: 1rem;">Loading Queue Live Operations...</div>
+            </div>
+        </div>
+
+        <!-- Middle Row: Live Calls Monitor & Activity Feed -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+            <!-- Left: Live Calls Table -->
+            <div class="wb-panel-box" style="margin-bottom: 0;">
+                <div class="wb-panel-title">
+                    <span><i class="fa-solid fa-phone-volume" style="color: var(--wb-primary);"></i> Active Call Monitor</span>
+                    <span id="call-counter" class="wb-badge badge-available">0 Active</span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="wb-table">
+                        <thead>
+                            <tr>
+                                <th>Caller ID</th>
+                                <th>Queue</th>
+                                <th>Pos / State</th>
+                                <th>Assigned Agent</th>
+                                <th>Duration</th>
+                                <th>Supervisor Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-calls-body">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-sub); padding: 2.5rem;">
+                                    No active calls currently in queue.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right: Real-Time Activity Ticker -->
+            <div class="wb-panel-box" style="margin-bottom: 0;">
+                <div class="wb-panel-title">
+                    <span><i class="fa-solid fa-bolt" style="color: var(--wb-warning);"></i> Live Event Feed</span>
+                    <span id="stream-status" style="font-size: 0.75rem; color: var(--wb-success);"><i class="fa-solid fa-circle fa-2xs"></i> SSE Connected</span>
+                </div>
+                <div id="timeline-container" class="wb-ticker">
+                    <div style="text-align: center; color: var(--text-sub); padding: 2rem;">Waiting for live queue events...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Section: Live Agent Management Board -->
+        <div class="wb-panel-box">
+            <div class="wb-panel-title">
+                <span><i class="fa-solid fa-users" style="color: var(--wb-cyan);"></i> Live Agent Management Console</span>
+                <div style="display: flex; gap: 0.5rem;">
+                    <span id="agents-stats-summary" style="font-size: 0.85rem; color: var(--text-sub);">--</span>
+                </div>
+            </div>
+            <div id="live-agents-grid" class="wb-agent-grid">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-sub);">
+                    No agents monitored.
+                </div>
+            </div>
+        </div>
+    </div> <!-- End Overview View -->
+
+    <!-- VIEW 2: QUEUE DETAIL DRILL-DOWN DASHBOARD -->
+    <div id="detail-view" style="display: none; animation: fadeIn 0.3s ease-out;">
+        <div class="wb-header" style="margin-bottom: 1.5rem;">
+            <div>
+                <button onclick="closeQueueDetail()" class="wb-btn" style="background: rgba(255,255,255,0.1); margin-bottom: 0.5rem;">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Wallboard Overview
+                </button>
+                <h1 id="detail-queue-title" style="font-size: 1.75rem; font-weight: 800; color: #fff;">Queue Detail</h1>
+            </div>
+            <div id="detail-queue-sub" style="font-size: 1rem; color: var(--wb-cyan); font-weight: 600;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; margin-bottom: 2rem;">
+            <!-- SLA & Performance Gauge -->
+            <div class="wb-panel-box" style="margin-bottom: 0; text-align: center;">
+                <div class="wb-panel-title" style="justify-content: center;">
+                    <span><i class="fa-solid fa-chart-pie" style="color: var(--wb-primary);"></i> Service Level (SLA)</span>
+                </div>
+                <div style="position: relative; width: 180px; height: 180px; margin: 1.5rem auto;">
+                    <svg width="180" height="180" viewBox="0 0 36 36" style="transform: rotate(-90deg); width: 100%; height: 100%;">
+                        <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="rgba(255,255,255,0.05)" stroke-width="3"/>
+                        <circle id="detail-gauge-circle" cx="18" cy="18" r="15.915" fill="transparent" stroke="#10b981" stroke-width="3" stroke-dasharray="100 100" stroke-dashoffset="0" style="transition: stroke-dashoffset 0.8s ease;"/>
+                    </svg>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                        <div id="detail-sla-val" style="font-family: 'Orbitron', monospace; font-size: 2.2rem; font-weight: 800; color: #fff; line-height: 1;">100%</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; margin-top: 0.3rem;">Target Met</div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
+                    <div>
+                        <div id="detail-completed-val" style="font-size: 1.25rem; font-weight: 700; color: var(--wb-success);">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub);">Completed</div>
+                    </div>
+                    <div>
+                        <div id="detail-abandoned-val" style="font-size: 1.25rem; font-weight: 700; color: var(--wb-danger);">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub);">Abandoned</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Agents Status in Queue -->
+            <div class="wb-panel-box" style="margin-bottom: 0;">
+                <div class="wb-panel-title">
+                    <span><i class="fa-solid fa-user-clock" style="color: var(--wb-cyan);"></i> Assigned Queue Agents</span>
+                    <span id="detail-agents-count" class="wb-badge badge-available">0 Members</span>
+                </div>
+                <div id="detail-agents-grid" class="wb-agent-grid">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-sub);">No agents assigned.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Queue Active Calls -->
+        <div class="wb-panel-box">
+            <div class="wb-panel-title">
+                <span><i class="fa-solid fa-list-ol" style="color: var(--wb-primary);"></i> Queue Active Calls</span>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="wb-table">
+                    <thead>
+                        <tr>
+                            <th>Caller ID</th>
+                            <th>Position</th>
+                            <th>Status / State</th>
+                            <th>Assigned Agent</th>
+                            <th>Wait / Talk Time</th>
+                            <th>Supervisor Controls</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-calls-body">
+                        <tr><td colspan="6" style="text-align: center; color: var(--text-sub); padding: 2rem;">No calls in this queue.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div> <!-- End Detail View -->
+</div>
+
+<!-- MODAL 1: CALL TRANSFER CONSOLE -->
+<div id="transfer-modal" class="wb-modal-overlay">
+    <div class="wb-modal">
+        <h3 style="margin-top: 0; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-share-nodes" style="color: var(--wb-primary);"></i> Transfer Live Call
+        </h3>
+        <p style="color: var(--text-sub); font-size: 0.85rem;">Redirect active channel <strong id="transfer-channel-label" style="color: #fff;"></strong> to a new destination extension or queue.</p>
+        <input type="hidden" id="transfer-channel-val">
+        <div style="margin: 1.25rem 0;">
+            <label style="display: block; font-size: 0.8rem; color: var(--text-sub); margin-bottom: 0.4rem;">Target Extension or Queue Number:</label>
+            <input type="text" id="transfer-exten-input" class="wb-input" placeholder="e.g. 5003 or 6500" style="width: 100%; box-sizing: border-box; font-size: 1rem; padding: 0.65rem;">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+            <button onclick="closeModal('transfer-modal')" class="wb-btn" style="background: rgba(255,255,255,0.1);">Cancel</button>
+            <button onclick="submitTransferCall()" class="wb-btn wb-btn-purple"><i class="fa-solid fa-share"></i> Redirect Call</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: AGENT PAUSE CONSOLE -->
+<div id="pause-modal" class="wb-modal-overlay">
+    <div class="wb-modal">
+        <h3 style="margin-top: 0; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-pause" style="color: var(--wb-warning);"></i> Remote Agent Pause
+        </h3>
+        <p style="color: var(--text-sub); font-size: 0.85rem;">Select pause reason for Agent <strong id="pause-agent-label" style="color: #fff;"></strong> in Queue <strong id="pause-queue-label" style="color: #fff;"></strong>.</p>
+        <input type="hidden" id="pause-agent-val">
+        <input type="hidden" id="pause-queue-val">
+        <div style="margin: 1.25rem 0;">
+            <label style="display: block; font-size: 0.8rem; color: var(--text-sub); margin-bottom: 0.4rem;">Pause Reason:</label>
+            <select id="pause-reason-select" class="wb-select" style="width: 100%; padding: 0.65rem; font-size: 0.95rem;">
+                <option value="Break">Coffee / Break</option>
+                <option value="Lunch">Lunch Time</option>
+                <option value="Meeting">Team Meeting</option>
+                <option value="Training">Training / Coaching</option>
+                <option value="Admin">Admin / After Call Work</option>
+            </select>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+            <button onclick="closeModal('pause-modal')" class="wb-btn" style="background: rgba(255,255,255,0.1);">Cancel</button>
+            <button onclick="submitPauseAgent()" class="wb-btn wb-btn-warning"><i class="fa-solid fa-pause"></i> Pause Agent</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* GLOBAL STATE & WEB AUDIO ALERTS */
+    let liveData = null;
+    let selectedQueueNum = null;
+    let audioAlertsEnabled = true;
+    let activeAlertIds = new Set();
+    let audioCtx = null;
+
+    // Initialize Digital Clock
+    setInterval(() => {
+        const now = new Date();
+        document.getElementById("clock-display").innerText = now.toLocaleTimeString('en-US', { hour12: false });
+    }, 1000);
+
+    // Audio Alert Synthesizer (No external file needed)
+    function playAlertBeep() {
+        if (!audioAlertsEnabled) return;
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+            osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } catch (e) {
+            console.warn("Audio error:", e);
+        }
+    }
+
+    function toggleAudioAlerts() {
+        audioAlertsEnabled = !audioAlertsEnabled;
+        const btn = document.getElementById("audio-toggle-btn");
+        const icon = document.getElementById("audio-icon");
+        const txt = document.getElementById("audio-text");
+        if (audioAlertsEnabled) {
+            icon.className = "fa-solid fa-volume-high";
+            txt.innerText = "Audio Alerts: ON";
+            btn.style.borderColor = "var(--wb-success)";
+            playAlertBeep();
+        } else {
+            icon.className = "fa-solid fa-volume-xmark";
+            txt.innerText = "Audio Alerts: MUTED";
+            btn.style.borderColor = "var(--wb-border)";
+        }
+    }
+
+    /* LIVE API FETCHing & WALLBOARD RENDERING */
+    function syncLive() {
+        fetch('/call-center/live/api')
+            .then(res => {
+                if (!res.ok) throw new Error("Network response error");
+                return res.json();
+            })
+            .then(data => {
+                liveData = data;
+                document.getElementById("sync-status").innerText = "Live Syncing";
+                renderWallboard();
+                if (selectedQueueNum) renderQueueDetail(selectedQueueNum);
+            })
+            .catch(err => {
+                console.error("Live sync error:", err);
+                document.getElementById("sync-status").innerText = "Sync Reconnecting...";
+            });
+    }
+
+    function syncNow() {
+        syncLive();
+    }
+
+    function renderWallboard() {
+        if (!liveData) return;
+        renderAlerts(liveData.alerts || []);
+        renderQueueCards(liveData.queues || {});
+        renderActiveCalls(liveData.active_calls || []);
+        renderAllAgents(liveData.queues || {});
+    }
+
+    /* RENDER ALERTS BANNER */
+    function renderAlerts(alerts) {
+        const container = document.getElementById("alerts-container");
+        container.innerHTML = "";
+        
+        // Check for new alerts to trigger sound
+        let newAlertFound = false;
+        alerts.forEach(a => {
+            if (!activeAlertIds.has(a.id)) {
+                activeAlertIds.add(a.id);
+                newAlertFound = true;
+            }
+        });
+        if (newAlertFound) playAlertBeep();
+
+        alerts.forEach(a => {
+            const card = document.createElement("div");
+            card.className = "wb-alert-card";
+            card.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fa-solid fa-triangle-exclamation fa-lg" style="color: var(--wb-danger);"></i>
+                    <div>
+                        <strong style="color: #fff;">Queue ${a.queue_num} Alert:</strong>
+                        <span style="color: #fca5a5; margin-left: 0.5rem;">${a.message}</span>
+                    </div>
+                </div>
+                <button onclick="resolveAlert(${a.id})" class="wb-btn wb-btn-sm" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);">
+                    <i class="fa-solid fa-check"></i> Dismiss
+                </button>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function resolveAlert(alertId) {
+        fetch('/call-center/supervisor/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'resolve_alert', alert_id: alertId })
+        }).then(() => syncLive());
+    }
+
+    /* RENDER QUEUE OVERVIEW CARDS */
+    function renderQueueCards(queues) {
+        const grid = document.getElementById("queues-grid");
+        const filterText = (document.getElementById("global-search").value || "").toLowerCase();
+        
+        let html = "";
+        let count = 0;
+
+        for (const [qnum, qdata] of Object.entries(queues)) {
+            const qname = qdata.queue_name || `Queue ${qnum}`;
+            if (filterText && !qnum.toLowerCase().includes(filterText) && !qname.toLowerCase().includes(filterText)) {
+                continue;
+            }
+            count++;
+
+            const waiting = qdata.calls || 0;
+            const sla = qdata.servicelevelperf !== undefined ? qdata.servicelevelperf : 100;
+            let slaColor = "#10b981";
+            if (sla < 80) slaColor = "#ef4444";
+            else if (sla < 90) slaColor = "#f59e0b";
+
+            // Count member states
+            let avail = 0, busy = 0, paused = 0;
+            (qdata.members || []).forEach(m => {
+                if (m.paused || m.status_text === 'Pause') paused++;
+                else if (m.status_text === 'Busy' || m.status_text === 'In Use' || m.state === 2 || m.state === 3) busy++;
+                else if (m.status_text === 'Idle' || m.status_text === 'Available' || m.state === 1) avail++;
+            });
+
+            html += `
+                <div class="wb-card">
+                    <div>
+                        <div class="wb-card-header">
+                            <div>
+                                <div class="wb-card-title">${qname}</div>
+                                <div class="wb-card-sub">Ext: ${qnum} • SLA Target: ${qdata.servicelevel || 30}s</div>
+                            </div>
+                            <span class="wb-badge ${waiting > 0 ? 'badge-busy' : 'badge-available'}">
+                                ${waiting} Waiting
+                            </span>
+                        </div>
+
+                        <div class="wb-donut-wrapper">
+                            <div style="position: relative; width: 85px; height: 85px;">
+                                <svg width="85" height="85" viewBox="0 0 36 36" style="transform: rotate(-90deg); width: 100%; height: 100%;">
+                                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="rgba(255,255,255,0.05)" stroke-width="3.5"/>
+                                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="${slaColor}" stroke-width="3.5" stroke-dasharray="${sla} 100" stroke-dashoffset="0"/>
+                                </svg>
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                    <div style="font-family: 'Orbitron', monospace; font-size: 1.1rem; font-weight: 700; color: #fff;">${sla}%</div>
+                                    <div style="font-size: 0.55rem; color: var(--text-sub);">SLA</div>
+                                </div>
+                            </div>
+                            <div class="wb-metric-box">
+                                <div class="wb-metric-val" style="color: #60a5fa;">${avail}</div>
+                                <div class="wb-metric-label">Available</div>
+                            </div>
+                            <div class="wb-metric-box">
+                                <div class="wb-metric-val" style="color: #fbbf24;">${busy}</div>
+                                <div class="wb-metric-label">On Call</div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center; margin-top: 1rem; background: rgba(0,0,0,0.2); padding: 0.6rem; border-radius: 8px;">
+                            <div>
+                                <div style="font-size: 0.9rem; font-weight: 700; color: #34d399;">${qdata.completed || 0}</div>
+                                <div style="font-size: 0.65rem; color: var(--text-sub);">Ans</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.9rem; font-weight: 700; color: #f87171;">${qdata.abandoned || 0}</div>
+                                <div style="font-size: 0.65rem; color: var(--text-sub);">Abnd</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">${qdata.avg_talk || 0}s</div>
+                                <div style="font-size: 0.65rem; color: var(--text-sub);">Avg Talk</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="openQueueDetail('${qnum}')" class="wb-btn" style="width: 100%; justify-content: center; margin-top: 1.25rem; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4);">
+                        <i class="fa-solid fa-gauge-high"></i> Inspect Detailed Console
+                    </button>
+                </div>
+            `;
+        }
+
+        if (count === 0) {
+            grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: var(--text-sub);">No queues matching filter.</div>`;
+        } else {
+            grid.innerHTML = html;
+        }
+    }
+
+    /* RENDER ACTIVE CALLS TABLE WITH SUPERVISOR ACTIONS */
+    function renderActiveCalls(calls) {
+        const tbody = document.getElementById("live-calls-body");
+        const counter = document.getElementById("call-counter");
+        const filterText = (document.getElementById("global-search").value || "").toLowerCase();
+        
+        let html = "";
+        let activeCount = 0;
+
+        calls.forEach(c => {
+            const caller = c.caller_number || c.caller || "Unknown";
+            const qname = c.queue_name || c.queue || "--";
+            const status = c.status || c.state || "WAITING";
+            const agent = c.agent || "--";
+            const dur = c.duration || c.wait || 0;
+            const callId = c.id || c.call_id || "";
+
+            if (filterText && !caller.toLowerCase().includes(filterText) && !qname.toLowerCase().includes(filterText) && !agent.toLowerCase().includes(filterText)) {
+                return;
+            }
+            activeCount++;
+
+            let badgeClass = "badge-available";
+            if (status === "TALKING" || status === "IN USE") badgeClass = "badge-available";
+            else if (status === "WAITING") badgeClass = "badge-busy";
+            else if (status === "RINGING") badgeClass = "badge-ringing";
+
+            html += `
+                <tr>
+                    <td style="font-weight: 700; font-family: monospace; font-size: 1rem; color: #60a5fa;"><i class="fa-solid fa-phone"></i> ${caller}</td>
+                    <td>${qname}</td>
+                    <td><span class="wb-badge ${badgeClass}">${status} ${c.position > 0 ? `(#${c.position})` : ''}</span></td>
+                    <td style="font-weight: 600;">${agent}</td>
+                    <td><span class="live-timer" data-seconds="${dur}" style="font-family: 'Orbitron', monospace; font-weight: 700;">${formatTime(dur)}</span></td>
+                    <td>
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                            ${agent !== "--" && agent !== "" ? `
+                                <button onclick="triggerChanSpy('${agent}', 'listen')" class="wb-btn wb-btn-sm" title="Silent Monitor">
+                                    <i class="fa-solid fa-headphones"></i> Listen
+                                </button>
+                                <button onclick="triggerChanSpy('${agent}', 'whisper')" class="wb-btn wb-btn-sm wb-btn-purple" title="Whisper Coach">
+                                    <i class="fa-solid fa-user-doctor"></i> Coach
+                                </button>
+                                <button onclick="triggerChanSpy('${agent}', 'barge')" class="wb-btn wb-btn-sm wb-btn-warning" title="Barge In">
+                                    <i class="fa-solid fa-right-to-bracket"></i> Barge
+                                </button>
+                            ` : `<span style="font-size: 0.75rem; color: var(--text-sub); align-self: center;">Waiting for Agent...</span>`}
+                            
+                            <button onclick="openTransferModal('${callId}')" class="wb-btn wb-btn-sm" style="background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4);" title="Transfer Call">
+                                <i class="fa-solid fa-share-nodes"></i> Transfer
+                            </button>
+                            <button onclick="triggerHangup('${callId}')" class="wb-btn wb-btn-sm wb-btn-danger" title="Force Drop Call">
+                                <i class="fa-solid fa-phone-slash"></i> Drop
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        counter.innerText = `${activeCount} Active`;
+        if (activeCount === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-sub); padding: 2.5rem;">No active calls currently in queue.</td></tr>`;
+        } else {
+            tbody.innerHTML = html;
+        }
+    }
+
+    /* RENDER ALL AGENTS MANAGEMENT BOARD */
+    function renderAllAgents(queues) {
+        const grid = document.getElementById("live-agents-grid");
+        const summary = document.getElementById("agents-stats-summary");
+        const filterText = (document.getElementById("global-search").value || "").toLowerCase();
+
+        let html = "";
+        let total = 0, avail = 0, busy = 0, paused = 0;
+        const seenExts = new Set();
+
+        for (const [qnum, qdata] of Object.entries(queues)) {
+            (qdata.members || []).forEach(m => {
+                const ext = m.extension;
+                if (!ext) return;
+                const name = m.name || ext;
+                
+                if (filterText && !ext.toLowerCase().includes(filterText) && !name.toLowerCase().includes(filterText) && !qnum.toLowerCase().includes(filterText)) {
+                    return;
+                }
+
+                // Calculate global status counters
+                if (!seenExts.has(ext)) {
+                    seenExts.add(ext);
+                    total++;
+                    if (m.paused || m.status_text === 'Pause') paused++;
+                    else if (m.status_text === 'Busy' || m.status_text === 'In Use' || m.state === 2 || m.state === 3) busy++;
+                    else if (m.status_text === 'Idle' || m.status_text === 'Available' || m.state === 1) avail++;
+                }
+
+                let badgeClass = "badge-offline";
+                let statusLabel = m.status_text || "Offline";
+                if (m.paused) { badgeClass = "badge-paused"; statusLabel = "Paused"; }
+                else if (statusLabel === "Idle" || statusLabel === "Available" || m.state === 1) { badgeClass = "badge-available"; statusLabel = "Available"; }
+                else if (statusLabel === "Busy" || statusLabel === "In Use" || m.state === 2 || m.state === 3) { badgeClass = "badge-busy"; statusLabel = "On Call"; }
+                else if (statusLabel === "Ringing" || m.state === 6) { badgeClass = "badge-ringing"; statusLabel = "Ringing"; }
+
+                html += `
+                    <div class="wb-agent-card">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <div style="font-weight: 700; color: #fff; font-size: 1rem;">${name}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-sub);">Ext: ${ext} • Q: ${qnum}</div>
+                            </div>
+                            <span class="wb-badge ${badgeClass}">${statusLabel}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-sub); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem;">
+                            <span>Taken: <strong style="color: #fff;">${m.calls_taken || 0}</strong></span>
+                            <span class="live-timer" data-seconds="${m.status_duration || 0}" style="font-family: 'Orbitron', monospace;">${formatTime(m.status_duration || 0)}</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                            ${m.paused ? `
+                                <button onclick="triggerUnpause('${ext}', '${qnum}')" class="wb-btn wb-btn-sm wb-btn-warning" style="flex: 1; justify-content: center;">
+                                    <i class="fa-solid fa-play"></i> Unpause
+                                </button>
+                            ` : `
+                                <button onclick="openPauseModal('${ext}', '${qnum}')" class="wb-btn wb-btn-sm" style="flex: 1; justify-content: center; background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4);">
+                                    <i class="fa-solid fa-pause"></i> Pause
+                                </button>
+                            `}
+                            ${m.status_text === 'Busy' || m.status_text === 'In Use' ? `
+                                <button onclick="triggerChanSpy('${ext}', 'listen')" class="wb-btn wb-btn-sm" title="Listen Call">
+                                    <i class="fa-solid fa-headphones"></i>
+                                </button>
+                            ` : ''}
+                            <button onclick="triggerLogout('${ext}', '${qnum}')" class="wb-btn wb-btn-sm wb-btn-danger" title="Force Logout">
+                                <i class="fa-solid fa-power-off"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        summary.innerHTML = `<span style="color:#34d399;">● ${avail} Avail</span> &nbsp; <span style="color:#fbbf24;">● ${busy} Busy</span> &nbsp; <span style="color:#c4b5fd;">● ${paused} Paused</span> &nbsp; (${total} Total)`;
+        if (html === "") {
+            grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-sub);">No agents monitored matching filter.</div>`;
+        } else {
+            grid.innerHTML = html;
+        }
+    }
+
+    /* REAL-TIME CLIENT-SIDE TIMER (No Jitter) */
+    setInterval(() => {
+        document.querySelectorAll(".live-timer").forEach(el => {
+            let secs = parseInt(el.getAttribute("data-seconds") || "0", 10);
+            secs++;
+            el.setAttribute("data-seconds", secs);
+            el.innerText = formatTime(secs);
+        });
+    }, 1000);
+
+    function formatTime(totalSecs) {
+        if (!totalSecs || totalSecs < 0) return "00:00";
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    /* GLOBAL FILTERING */
+    function applyGlobalFilter() {
+        renderWallboard();
+        if (selectedQueueNum) renderQueueDetail(selectedQueueNum);
+    }
+
+    /* SUPERVISOR CONTROL ACTIONS */
+    function triggerChanSpy(targetExt, mode) {
+        const spyExt = document.getElementById("supervisor_ext").value.trim();
+        if (!spyExt) {
+            alert("Please enter your Supervisor Extension in the toolbar above!");
+            document.getElementById("supervisor_ext").focus();
+            return;
+        }
+        fetch('/call-center/supervisor/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                command: 'chan_spy',
+                spy_ext: spyExt,
+                target: targetExt,
+                spy_mode: mode
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) alert("ChanSpy Error: " + (data.error || "Failed to initiate spy session"));
+            else console.log("ChanSpy originated to " + spyExt);
+        });
+    }
+
+    function triggerHangup(callId) {
+        if (!confirm("Are you sure you want to forcibly drop this call?")) return;
+        fetch('/call-center/supervisor/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'hangup_call', call_id: callId })
+        }).then(() => syncLive());
+    }
+
+    function triggerLogout(agentExt, qnum) {
+        if (!confirm(`Remove Agent ${agentExt} from Queue ${qnum}?`)) return;
+        fetch('/call-center/supervisor/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'logout_agent', agent: agentExt, queue: qnum })
+        }).then(() => syncLive());
+    }
+
+    function triggerUnpause(agentExt, qnum) {
+        fetch('/call-center/supervisor/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'unpause', agent: agentExt, queue: qnum })
+        }).then(() => syncLive());
+    }
+
+    /* MODAL MANAGERS */
+    function openModal(id) { document.getElementById(id).style.display = "flex"; }
+    function closeModal(id) { document.getElementById(id).style.display = "none"; }
+
+    function openTransferModal(callId) {
+        document.getElementById("transfer-channel-val").value = callId;
+        document.getElementById("transfer-channel-label").innerText = callId;
+        document.getElementById("transfer-exten-input").value = "";
+        openModal("transfer-modal");
+    }
+
+    function submitTransferCall() {
+        const callId = document.getElementById("transfer-channel-val").value;
+        const exten = document.getElementById("transfer-exten-input").value.trim();
+        if (!exten) return alert("Please specify target extension or queue!");
+        
+        fetch('/call-center/supervisor/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'transfer_call', channel: callId, exten: exten })
+        })
+        .then(res => res.json())
+        .then(data => {
+            closeModal("transfer-modal");
+            syncLive();
+        });
+    }
+
+    function openPauseModal(agentExt, qnum) {
+        document.getElementById("pause-agent-val").value = agentExt;
+        document.getElementById("pause-queue-val").value = qnum;
+        document.getElementById("pause-agent-label").innerText = agentExt;
+        document.getElementById("pause-queue-label").innerText = qnum;
+        openModal("pause-modal");
+    }
+
+    function submitPauseAgent() {
+        const agentExt = document.getElementById("pause-agent-val").value;
+        const qnum = document.getElementById("pause-queue-val").value;
+        const reason = document.getElementById("pause-reason-select").value;
+        
+        fetch('/call-center/supervisor/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'pause', agent: agentExt, queue: qnum, reason: reason })
+        })
+        .then(res => res.json())
+        .then(data => {
+            closeModal("pause-modal");
+            syncLive();
+        });
+    }
+
+    /* QUEUE DETAIL DRILL-DOWN VIEW */
+    function openQueueDetail(qnum) {
+        selectedQueueNum = qnum;
+        document.getElementById("overview-view").style.display = "none";
+        document.getElementById("detail-view").style.display = "block";
+        renderQueueDetail(qnum);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function closeQueueDetail() {
+        selectedQueueNum = null;
+        document.getElementById("detail-view").style.display = "none";
+        document.getElementById("overview-view").style.display = "block";
+    }
+
+    function renderQueueDetail(qnum) {
+        if (!liveData || !liveData.queues || !liveData.queues[qnum]) return;
+        const qdata = liveData.queues[qnum];
+        const qname = qdata.queue_name || `Queue ${qnum}`;
+        const sla = qdata.servicelevelperf !== undefined ? qdata.servicelevelperf : 100;
+
+        document.getElementById("detail-queue-title").innerText = qname;
+        document.getElementById("detail-queue-sub").innerText = `Queue Number: ${qnum} • SLA Target: ${qdata.servicelevel || 30}s`;
+        document.getElementById("detail-sla-val").innerText = `${sla}%`;
+        document.getElementById("detail-completed-val").innerText = qdata.completed || 0;
+        document.getElementById("detail-abandoned-val").innerText = qdata.abandoned || 0;
+
+        // Update gauge stroke
+        let slaColor = "#10b981";
+        if (sla < 80) slaColor = "#ef4444";
+        else if (sla < 90) slaColor = "#f59e0b";
+        const circle = document.getElementById("detail-gauge-circle");
+        circle.style.stroke = slaColor;
+        circle.setAttribute("stroke-dasharray", `${sla} 100`);
+
+        // Render agents in queue
+        const agGrid = document.getElementById("detail-agents-grid");
+        let agHtml = "";
+        let agCount = 0;
+        (qdata.members || []).forEach(m => {
+            agCount++;
+            const ext = m.extension;
+            const name = m.name || ext;
+            let badgeClass = "badge-offline";
+            let statusLabel = m.status_text || "Offline";
+            if (m.paused) { badgeClass = "badge-paused"; statusLabel = "Paused"; }
+            else if (statusLabel === "Idle" || statusLabel === "Available" || m.state === 1) { badgeClass = "badge-available"; statusLabel = "Available"; }
+            else if (statusLabel === "Busy" || statusLabel === "In Use" || m.state === 2 || m.state === 3) { badgeClass = "badge-busy"; statusLabel = "On Call"; }
+            
+            agHtml += `
+                <div class="wb-agent-card">
+                    <div style="display: flex; justify-content: space-between;">
+                        <div><div style="font-weight: 700; color: #fff;">${name}</div><div style="font-size: 0.75rem; color: var(--text-sub);">Ext: ${ext}</div></div>
+                        <span class="wb-badge ${badgeClass}">${statusLabel}</span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        ${m.paused ? `
+                            <button onclick="triggerUnpause('${ext}', '${qnum}')" class="wb-btn wb-btn-sm wb-btn-warning" style="flex:1; justify-content:center;">Unpause</button>
+                        ` : `
+                            <button onclick="openPauseModal('${ext}', '${qnum}')" class="wb-btn wb-btn-sm" style="flex:1; justify-content:center; background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4);">Pause</button>
+                        `}
+                        <button onclick="triggerLogout('${ext}', '${qnum}')" class="wb-btn wb-btn-sm wb-btn-danger" style="flex:1; justify-content:center;">Logout</button>
+                    </div>
+                </div>
+            `;
+        });
+        document.getElementById("detail-agents-count").innerText = `${agCount} Members`;
+        agGrid.innerHTML = agHtml || `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-sub); padding: 1.5rem;">No agents assigned to this queue.</div>`;
+
+        // Render queue calls
+        const cBody = document.getElementById("detail-calls-body");
+        let cHtml = "";
+        let cCount = 0;
+        (liveData.active_calls || []).forEach(c => {
+            if ((c.queue_id || c.queue) != qnum) return;
+            cCount++;
+            const dur = c.duration || c.wait || 0;
+            const status = c.status || c.state || "WAITING";
+            cHtml += `
+                <tr>
+                    <td style="font-weight: 700; color: #60a5fa;">${c.caller_number || c.caller || "Unknown"}</td>
+                    <td>#${c.position || 0}</td>
+                    <td><span class="wb-badge badge-available">${status}</span></td>
+                    <td>${c.agent || "--"}</td>
+                    <td><span class="live-timer" data-seconds="${dur}" style="font-family: 'Orbitron', monospace;">${formatTime(dur)}</span></td>
+                    <td>
+                        <button onclick="openTransferModal('${c.id || c.call_id}')" class="wb-btn wb-btn-sm" style="background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4);">Transfer</button>
+                        <button onclick="triggerHangup('${c.id || c.call_id}')" class="wb-btn wb-btn-sm wb-btn-danger">Drop Call</button>
+                    </td>
+                </tr>
+            `;
+        });
+        cBody.innerHTML = cCount ? cHtml : `<tr><td colspan="6" style="text-align: center; color: var(--text-sub); padding: 2rem;">No active calls in this queue.</td></tr>`;
+    }
+
+    /* SERVER-SENT EVENTS (SSE) EVENT FEED TICKER */
+    function setupEventStream() {
+        if (!window.EventSource) return;
+        const source = new EventSource('/call-center/live/stream');
+        source.onmessage = function(e) {
+            try {
+                const payload = JSON.parse(e.data);
+                if (payload.event === 'CONNECTED') {
+                    document.getElementById("stream-status").innerHTML = `<i class="fa-solid fa-circle fa-2xs"></i> SSE Connected`;
+                    return;
+                }
+                if (payload.event && payload.data) {
+                    addTickerItem(payload.event, payload.data);
+                    syncLive(); // Re-sync wallboard data on event
+                }
+            } catch (err) {}
+        };
+        source.onerror = function() {
+            document.getElementById("stream-status").innerHTML = `<span style="color: var(--wb-danger);"><i class="fa-solid fa-triangle-exclamation fa-2xs"></i> Stream Reconnecting...</span>`;
+        };
+    }
+
+    function addTickerItem(eventType, data) {
+        const container = document.getElementById("timeline-container");
+        if (container.innerText.includes("Waiting for live queue events")) container.innerHTML = "";
+        
+        const item = document.createElement("div");
+        item.className = "wb-ticker-item";
+        const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+        let msg = typeof data === 'string' ? data : JSON.stringify(data);
+        if (data.message) msg = data.message;
+        
+        item.innerHTML = `
+            <div>
+                <span style="color: var(--wb-cyan); font-weight: 700;">[${eventType}]</span> 
+                <span style="color: #fff; margin-left: 0.5rem;">${msg}</span>
+            </div>
+            <span style="color: var(--text-sub); font-size: 0.75rem;">${timeStr}</span>
+        `;
+        container.prepend(item);
+        if (container.children.length > 30) container.removeChild(container.lastChild);
+    }
+
+    /* INITIALIZE ON LOAD */
+    document.addEventListener("DOMContentLoaded", () => {
+        syncLive();
+        setupEventStream();
+        setInterval(syncLive, 4000); // Background sync every 4s
+    });
+</script>
+{% endblock %}

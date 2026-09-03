@@ -1,0 +1,345 @@
+{% extends 'base.html' %}
+{% block title %}Automatic Cleanup - RCM 7021{% endblock %}
+{% block content %}
+
+
+
+
+<style>
+    .page-hero {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.8) 100%);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .page-title { margin: 0; color: #f8fafc; font-size: 1.8rem; font-weight: 700; }
+    .page-desc { color: #94a3b8; margin-top: 0.5rem; font-size: 0.95rem; }
+    .back-btn { background: var(--border-color); border: 1px solid var(--border-color); color: #cbd5e1; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 600; }
+    .back-btn:hover { background: var(--border-color); color: white; border-color: var(--border-color); }
+    
+    .config-panel {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .section-title {
+        color: #f8fafc;
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .input-group { margin-bottom: 1.5rem; }
+    .input-label { display: block; color: #94a3b8; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .modern-input, .modern-select {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        background: rgba(0,0,0,0.2);
+        color: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        transition: all 0.3s;
+        box-sizing: border-box;
+    }
+    .modern-input:focus, .modern-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+    
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+    
+    /* Custom Checkboxes & Radios */
+    .custom-check-label {
+        display: flex; align-items: center; gap: 10px; color: #e2e8f0; font-size: 1rem; cursor: pointer; margin-bottom: 0.75rem;
+        padding: 0.75rem; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.2s;
+    }
+    .custom-check-label:hover { background: var(--border-color); }
+    
+    .per-cat-row {
+        background: rgba(0,0,0,0.2); padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1rem;
+        display: flex; gap: 1.5rem; align-items: center; border: 1px solid var(--border-color);
+    }
+    .per-cat-title { color: #f8fafc; font-weight: 600; width: 180px; margin: 0; }
+    
+    .save-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white; padding: 1rem 2rem; border: none; border-radius: 8px; cursor: pointer;
+        font-weight: bold; font-size: 1.1rem; width: 100%; transition: all 0.3s; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+    }
+    .save-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6); }
+
+    /* --- Light Mode Fixes --- */
+    [data-theme="light"] .page-hero {
+        background: linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(241, 245, 249, 0.9) 100%);
+    }
+    [data-theme="light"] .page-title,
+    [data-theme="light"] .section-title,
+    [data-theme="light"] .rule-card h4 {
+        color: #0f172a !important;
+    }
+    [data-theme="light"] .page-desc,
+    [data-theme="light"] .rule-desc {
+        color: #475569 !important;
+    }
+    [data-theme="light"] .config-panel {
+        background: #ffffff;
+    }
+    [data-theme="light"] .rule-card {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+    [data-theme="light"] .info-box {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        color: #166534 !important;
+    }
+</style>
+
+
+<div class="page-hero">
+    <div>
+        <h1 class="page-title"><i class="fa-solid fa-robot" style="margin-right: 10px; color: #10b981;"></i> Automatic Cleanup</h1>
+        <p class="page-desc">Configure scheduled tasks and emergency disk space triggers to maintain server health.</p>
+    </div>
+    <a href="/cleanup/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+</div>
+
+<div class="config-panel">
+    <form id="autoConfigForm" onsubmit="saveAutoConfig(event)">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <h3 class="section-title"><i class="fa-regular fa-clock" style="color: #3b82f6;"></i> Scheduled Execution</h3>
+        <div class="grid-3" style="background: rgba(0,0,0,0.15); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 2rem;">
+            <div class="input-group">
+                <label class="input-label">Status</label>
+                <select id="auto_enabled" class="modern-select">
+                    <option value="1" {% if config.enabled == 1 %}selected{% endif %}>🟢 Enabled</option>
+                    <option value="0" {% if config.enabled == 0 %}selected{% endif %}>🔴 Disabled</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">Frequency</label>
+                <select id="schedule_type" class="modern-select">
+                    <option value="daily" {% if config.schedule_type == 'daily' %}selected{% endif %}>Daily</option>
+                    <option value="weekly" {% if config.schedule_type == 'weekly' %}selected{% endif %}>Weekly</option>
+                    <option value="monthly" {% if config.schedule_type == 'monthly' %}selected{% endif %}>Monthly</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">Time (24H Format)</label>
+                <input type="time" id="schedule_time" value="{{ config.schedule_time }}" class="modern-input">
+            </div>
+        </div>
+
+        <h3 class="section-title"><i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i> Emergency Disk Cleanup</h3>
+        <div class="grid-3" style="background: rgba(245, 158, 11, 0.05); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.2); margin-bottom: 2.5rem;">
+            <div class="input-group">
+                <label class="input-label" style="color: #fbbf24;">Emergency Status</label>
+                <select id="disk_trigger_enabled" class="modern-select" style="border-color: rgba(245, 158, 11, 0.3);">
+                    <option value="0" {% if config.disk_trigger_enabled == 0 %}selected{% endif %}>Disabled</option>
+                    <option value="1" {% if config.disk_trigger_enabled == 1 %}selected{% endif %}>Enabled (Recommended)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Trigger When Storage Reaches (%)</label>
+                <input type="number" id="disk_trigger_percent" value="{{ config.disk_trigger_percent|default(90) }}" min="50" max="99" class="modern-input">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Delete Until Storage Drops To (%)</label>
+                <input type="number" id="disk_target_percent" value="{{ config.disk_target_percent|default(75) }}" min="30" max="95" class="modern-input">
+            </div>
+        </div>
+
+        <h3 class="section-title"><i class="fa-solid fa-layer-group" style="color: #8b5cf6;"></i> Categories & Retention Rules</h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+            <label class="custom-check-label"><input type="checkbox" id="chk_cdr" style="transform: scale(1.2);" checked> CDR Records</label>
+            <div style="display:flex; flex-direction:column;"><label class="custom-check-label"><input type="checkbox" id="chk_rec" style="transform: scale(1.2);" checked> Call Recordings</label><label style="margin-left:25px; margin-top:5px; font-size:0.9rem; color:#64748b;"><input type="checkbox" id="chk_rec_ext" style="transform:scale(1.1); margin-right:5px;"> Include External Storage</label></div>
+            <label class="custom-check-label"><input type="checkbox" id="chk_queue" style="transform: scale(1.2);" checked> Queue Statistics</label>
+            <label class="custom-check-label"><input type="checkbox" id="chk_oplog" style="transform: scale(1.2);" checked> Operation Log</label>
+            <label class="custom-check-label" style="grid-column: 1 / -1;"><input type="checkbox" id="chk_dex" style="transform: scale(1.2);"> DEX Phones (Inactive > 30 days)</label>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label class="custom-check-label" style="background: transparent; border: none; padding: 0;">
+                <input type="radio" name="rule_mode" value="global" checked onclick="toggleRuleMode()" style="transform: scale(1.2);"> 
+                <span style="font-weight: 600;">Apply Same Rule To All Selected Categories</span>
+            </label>
+            <label class="custom-check-label" style="background: transparent; border: none; padding: 0;">
+                <input type="radio" name="rule_mode" value="per_category" onclick="toggleRuleMode()" style="transform: scale(1.2);"> 
+                <span style="font-weight: 600;">Configure Specific Rules Per Category</span>
+            </label>
+        </div>
+        
+        <!-- Global Mode -->
+        <div id="mode_global" style="background: rgba(0,0,0,0.15); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 2rem;">
+            <div style="display: flex; gap: 1.5rem;">
+                <div style="flex: 2;">
+                    <label class="input-label">Retention Strategy</label>
+                    <select id="rule_strategy" onchange="toggleGlobalVal()" class="modern-select">
+                        <option value="older_than_days">Older than X Days</option>
+                        <option value="keep_latest_records">Keep Latest X Records/Files</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label id="lbl_global_val" class="input-label">Days</label>
+                    <input type="number" id="rule_val" value="90" class="modern-input">
+                </div>
+            </div>
+        </div>
+
+        <!-- Per Category Mode -->
+        <div id="mode_per_category" style="display: none; margin-bottom: 2rem;">
+            <div class="per-cat-row">
+                <h4 class="per-cat-title"><i class="fa-solid fa-phone" style="color: #60a5fa; margin-right: 8px;"></i> CDR Records</h4>
+                <select id="rule_strat_cdr" class="modern-select" style="flex: 2;"><option value="older_than_days">Older than (days)</option><option value="keep_latest_records">Keep latest (records)</option></select>
+                <input type="number" id="rule_val_cdr" value="180" class="modern-input" style="flex: 1;">
+            </div>
+            <div class="per-cat-row">
+                <h4 class="per-cat-title"><i class="fa-solid fa-microphone" style="color: #34d399; margin-right: 8px;"></i> Call Recordings</h4>
+                <select id="rule_strat_rec" class="modern-select" style="flex: 2;"><option value="older_than_days">Older than (days)</option><option value="keep_latest_records">Keep latest (files)</option></select>
+                <input type="number" id="rule_val_rec" value="90" class="modern-input" style="flex: 1;">
+            </div>
+            <div class="per-cat-row">
+                <h4 class="per-cat-title"><i class="fa-solid fa-users" style="color: #a78bfa; margin-right: 8px;"></i> Queue Stats</h4>
+                <select id="rule_strat_queue" class="modern-select" style="flex: 2;"><option value="older_than_days">Older than (days)</option><option value="keep_latest_records">Keep latest (records)</option></select>
+                <input type="number" id="rule_val_queue" value="180" class="modern-input" style="flex: 1;">
+            </div>
+            <div class="per-cat-row">
+                <h4 class="per-cat-title"><i class="fa-solid fa-list-check" style="color: #fbbf24; margin-right: 8px;"></i> Operation Log</h4>
+                <select id="rule_strat_oplog" class="modern-select" style="flex: 2;"><option value="older_than_days">Older than (days)</option><option value="keep_latest_records">Keep latest (records)</option></select>
+                <input type="number" id="rule_val_oplog" value="30" class="modern-input" style="flex: 1;">
+            </div>
+        </div>
+        
+
+        <!-- Email Alert Config -->
+        <h3 class="section-title" style="margin-top: 2rem;"><i class="fa-solid fa-envelope" style="color: #3b82f6;"></i> Email Notification</h3>
+        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+            <div style="margin-bottom: 10px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:1rem; color:var(--text-main); cursor:pointer;">
+                    <input type="checkbox" id="chk_email_alert" style="width:18px; height:18px;" onchange="document.getElementById('email_addr_container').style.display = this.checked ? 'block' : 'none';">
+                    Send Email Report after cleanup completes
+                </label>
+            </div>
+            <div id="email_addr_container" style="display:none; margin-left: 26px;">
+                <label style="display:block; margin-bottom: 5px; color:var(--text-muted); font-size: 0.9rem;">Recipient Email Address</label>
+                <input type="email" id="email_addr_input" class="modern-input" style="max-width: 400px; width: 100%;" placeholder="admin@example.com">
+            </div>
+        </div>
+        
+        <button type="submit" class="save-btn"><i class="fa-solid fa-floppy-disk" style="margin-right: 8px;"></i> Save Configuration</button>
+    </form>
+</div>
+
+<script>
+function toggleRuleMode() {
+    let isGlobal = document.querySelector('input[name="rule_mode"][value="global"]').checked;
+    document.getElementById('mode_global').style.display = isGlobal ? 'block' : 'none';
+    document.getElementById('mode_per_category').style.display = isGlobal ? 'none' : 'block';
+}
+
+function toggleGlobalVal() {
+    let strategy = document.getElementById('rule_strategy').value;
+    document.getElementById('lbl_global_val').innerText = strategy === 'older_than_days' ? 'Days' : 'Number of Records/Files';
+}
+
+function saveAutoConfig(e) {
+    e.preventDefault();
+    let isGlobal = document.querySelector('input[name="rule_mode"][value="global"]').checked;
+    let rules = {};
+    
+    if (isGlobal) {
+        let strategy = document.getElementById('rule_strategy').value;
+        let value = document.getElementById('rule_val').value;
+        if(document.getElementById('chk_cdr').checked) rules["CDR"] = {strategy: strategy, value: value, enabled: true};
+        if(document.getElementById('chk_rec').checked) rules["Recordings"] = {strategy: strategy, value: value, enabled: true, include_external: document.getElementById('chk_rec_ext') ? document.getElementById('chk_rec_ext').checked : false};
+        if(document.getElementById('chk_queue').checked) rules["Queue Statistics Reports"] = {strategy: strategy, value: value, enabled: true};
+        if(document.getElementById('chk_oplog').checked) rules["Operation Log"] = {strategy: strategy, value: value, enabled: true};
+    } else {
+        if(document.getElementById('chk_cdr').checked) rules["CDR"] = {strategy: document.getElementById('rule_strat_cdr').value, value: document.getElementById('rule_val_cdr').value, enabled: true};
+        if(document.getElementById('chk_rec').checked) rules["Recordings"] = {strategy: document.getElementById('rule_strat_rec').value, value: document.getElementById('rule_val_rec').value, enabled: true, include_external: document.getElementById('chk_rec_ext') ? document.getElementById('chk_rec_ext').checked : false};
+        if(document.getElementById('chk_queue').checked) rules["Queue Statistics Reports"] = {strategy: document.getElementById('rule_strat_queue').value, value: document.getElementById('rule_val_queue').value, enabled: true};
+        if(document.getElementById('chk_oplog').checked) rules["Operation Log"] = {strategy: document.getElementById('rule_strat_oplog').value, value: document.getElementById('rule_val_oplog').value, enabled: true};
+    }
+    
+    if(document.getElementById('chk_dex').checked) {
+        rules["Zero Config Files"] = {strategy: "older_than_days", value: 30, enabled: true};
+    }
+    
+    if(document.getElementById('chk_email_alert').checked) {
+        rules["EmailAlert"] = {
+            enabled: true,
+            email: document.getElementById('email_addr_input').value
+        };
+    }
+    
+    const data = {
+        enabled: parseInt(document.getElementById('auto_enabled').value),
+        schedule_type: document.getElementById('schedule_type').value,
+        schedule_time: document.getElementById('schedule_time').value,
+        disk_trigger_enabled: parseInt(document.getElementById('disk_trigger_enabled').value),
+        disk_trigger_percent: parseInt(document.getElementById('disk_trigger_percent').value),
+        disk_target_percent: parseInt(document.getElementById('disk_target_percent').value),
+        rules: rules
+    };
+    
+    // Change button state
+    const btn = document.querySelector('.save-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    btn.style.opacity = '0.8';
+    
+    fetch('/cleanup/auto', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(r => r.json()).then(res => {
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Saved Successfully!';
+        btn.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+        setTimeout(() => { btn.innerHTML = originalText; btn.style.background = ''; btn.style.opacity = '1'; }, 2000);
+    }).catch(err => {
+        btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Error Saving';
+        btn.style.background = '#ef4444';
+        setTimeout(() => { btn.innerHTML = originalText; btn.style.background = ''; btn.style.opacity = '1'; }, 3000);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    let savedRules = JSON.parse('{{ config.rules_json | safe }}' || '{}');
+    document.getElementById('chk_cdr').checked = !!savedRules["CDR"];
+    document.getElementById('chk_rec').checked = !!savedRules["Recordings"];
+    document.getElementById('chk_queue').checked = !!savedRules["Queue Statistics Reports"] || !!savedRules["Queue_Stats"];
+    document.getElementById('chk_oplog').checked = !!savedRules["Operation Log"] || !!savedRules["Operation_Log"];
+    document.getElementById('chk_dex').checked = !!savedRules["Zero Config Files"] || !!savedRules["Zero_Config"];
+    
+    if (savedRules["EmailAlert"] && savedRules["EmailAlert"].enabled) {
+        document.getElementById('chk_email_alert').checked = true;
+        document.getElementById('email_addr_input').value = savedRules["EmailAlert"].email || '';
+        document.getElementById('email_addr_container').style.display = 'block';
+    }
+    
+    if(savedRules["Recordings"] && savedRules["Recordings"].include_external && document.getElementById('chk_rec_ext')) {
+        document.getElementById('chk_rec_ext').checked = true;
+    }
+
+    if(savedRules["CDR"]) { document.getElementById('rule_strat_cdr').value = savedRules["CDR"].strategy; document.getElementById('rule_val_cdr').value = savedRules["CDR"].value; }
+    if(savedRules["Recordings"]) { document.getElementById('rule_strat_rec').value = savedRules["Recordings"].strategy; document.getElementById('rule_val_rec').value = savedRules["Recordings"].value; }
+    let q_rule = savedRules["Queue Statistics Reports"] || savedRules["Queue_Stats"];
+    if(q_rule) { document.getElementById('rule_strat_queue').value = q_rule.strategy; document.getElementById('rule_val_queue').value = q_rule.value; }
+    let op_rule = savedRules["Operation Log"] || savedRules["Operation_Log"];
+    if(op_rule) { document.getElementById('rule_strat_oplog').value = op_rule.strategy; document.getElementById('rule_val_oplog').value = op_rule.value; }
+});
+</script>
+{% endblock %}

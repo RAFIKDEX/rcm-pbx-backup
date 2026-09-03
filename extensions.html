@@ -1,0 +1,513 @@
+{% extends 'base.html' %}
+
+{% block title %}Extensions - RCM 7021 Management Panel{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Extensions Management</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Manage SIP endpoints, registrations, and extension status</div>
+    </div>
+    
+    <!-- Top Action Buttons -->
+    <div class="action-buttons" style="gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="toggleSelectAll()" id="btn-select-toggle"><i class="fa-solid fa-list-check"></i> Select</button>
+        <button class="btn btn-secondary" id="btn-bulk-edit" style="display: none;" onclick="openBulkEditModal()"><i class="fa-solid fa-user-pen"></i> Bulk Edit</button>
+        <button class="btn btn-danger" id="btn-bulk-delete" style="display: none;" onclick="submitBulkDelete()"><i class="fa-solid fa-trash-can"></i> Bulk Delete</button>
+        <a href="{{ url_for('extensions_bulk_add') }}" class="btn btn-secondary"><i class="fa-solid fa-file-import"></i> Bulk Add</a>
+        <a href="{{ url_for('extensions_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-circle-plus"></i> Add Extension
+        </a>
+    </div>
+</div>
+
+<!-- Search Panel -->
+<div class="panel" style="padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+    <div style="color: var(--primary); font-size: 1.2rem;"><i class="fa-solid fa-magnifying-glass"></i></div>
+    <div style="flex: 1;">
+        <input type="text" id="extension-search" class="form-control" 
+               placeholder="Search by Extension number, Name, or Caller ID number..." 
+               onkeyup="filterExtensionsTable()" style="border: none; background: transparent; padding-left: 0;">
+    </div>
+    <div id="search-count" style="font-size: 0.85rem; color: var(--text-dark); font-weight: bold;"></div>
+</div>
+
+<!-- Extensions Table Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-users-gear" style="color: var(--primary);"></i> Extensions List</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table" id="extensions-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px; display: none;" class="select-col">
+                        <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAllRows(this)">
+                    </th>
+                    <th>Extension Number</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>CC Endpoints</th>
+                    <th>Caller ID Number</th>
+                    <th>Mobile</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not extensions %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-users-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No extensions configured in the system.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for ext in extensions %}
+                <tr class="ext-row" id="row-{{ ext.ext }}" data-ext="{{ ext.ext }}">
+                    <td style="display: none;" class="select-col">
+                        <input type="checkbox" class="select-checkbox" value="{{ ext.ext }}">
+                    </td>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">{{ ext.ext }}</strong></td>
+                    <td>{{ ext.name or '-' }}</td>
+                    <td>
+                        {% if ext.status == 'Registered' %}
+                            <span class="badge badge-registered"><i class="fa-solid fa-circle-check"></i> Registered</span>
+                        {% elif ext.status == 'Busy' %}
+                            <span class="badge badge-busy"><i class="fa-solid fa-phone-flip"></i> Busy</span>
+                        {% elif ext.status == 'Ringing' %}
+                            <span class="badge badge-ringing"><i class="fa-solid fa-phone-volume fa-pulse"></i> Ringing</span>
+                        {% else %}
+                            <span class="badge badge-offline"><i class="fa-solid fa-circle-xmark"></i> Offline</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ ext.reg_count }}</code> dev(s)</td>
+                    <td>{{ ext.callerid_number or '-' }}</td>
+                    <td><span style="font-size: 0.9rem; color: var(--text-muted);">{{ ext.mobile or '-' }}</span></td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            <button onclick="showExtInfo('{{ ext.ext }}')" class="btn btn-info btn-sm" title="Extension Information">
+                                <i class="fa-solid fa-eye"></i> Info
+                            </button>
+                            <a href="{{ url_for('extensions_edit', ext=ext.ext) }}" class="btn btn-secondary btn-sm" title="Edit Extension">
+                                <i class="fa-solid fa-pencil"></i> Edit
+                            </a>
+                            <form action="{{ url_for('extensions_delete', ext=ext.ext) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete extension {{ ext.ext }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm" title="Delete Extension">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Info Modal -->
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 style="color: var(--primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;" id="modalTitle">
+            <i class="fa-solid fa-circle-info"></i> Extension Info
+        </h2>
+        
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <div>
+                <span style="color: var(--text-dark); font-size: 0.8rem; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 0.25rem;">SIP Password (Secret)</span>
+                <div style="display: flex; align-items: center; gap: 0.75rem; background-color: #0b0f19; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <code id="modalSecret" style="font-family: monospace; font-size: 1.05rem; color: #fff; flex: 1;">Loading...</code>
+                    <button class="btn btn-secondary btn-sm" onclick="copySecret()" style="padding: 0.35rem 0.6rem;"><i class="fa-solid fa-copy"></i></button>
+                </div>
+            </div>
+            
+            <div id="modalMobileGroup">
+                <span style="color: var(--text-dark); font-size: 0.8rem; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 0.25rem;">Mobile Number</span>
+                <strong id="modalMobile" style="color: #fff; font-size: 1rem;">-</strong>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border-color);">
+            
+            <div>
+                <span style="color: var(--text-dark); font-size: 0.8rem; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 0.75rem;">Registered Contact IPs</span>
+                <div id="modalContacts" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Edit Modal -->
+<div id="bulkEditModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <span class="close-modal" onclick="closeBulkEditModal()">&times;</span>
+        <h2 style="color: var(--primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-user-pen"></i> Bulk Edit Extensions
+        </h2>
+        <form id="bulkEditForm" onsubmit="submitBulkEdit(event)">
+            <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                Updating <strong id="bulk-edit-count" style="color: #fff;">0</strong> selected extensions. Check settings to apply:
+            </div>
+            
+            <!-- Enable/Disable -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold; margin-bottom: 0.5rem;">
+                    <input type="checkbox" id="bulk_change_enabled" onchange="toggleBulkField(this, 'bulk_enabled')"> Enable / Disable Status
+                </label>
+                <select id="bulk_enabled" class="form-control" disabled>
+                    <option value="on">Enable Extensions</option>
+                    <option value="off">Disable Extensions</option>
+                </select>
+            </div>
+
+            <!-- Voicemail -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold; margin-bottom: 0.5rem;">
+                    <input type="checkbox" id="bulk_change_vm" onchange="toggleBulkField(this, 'bulk_vm_enabled')"> Voicemail Status
+                </label>
+                <select id="bulk_vm_enabled" class="form-control" disabled>
+                    <option value="on">Enable Voicemail</option>
+                    <option value="off">Disable Voicemail</option>
+                </select>
+            </div>
+
+            <!-- Call Recording -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold; margin-bottom: 0.5rem;">
+                    <input type="checkbox" id="bulk_change_record" onchange="toggleBulkField(this, 'bulk_record_mode')"> Call Recording Mode
+                </label>
+                <select id="bulk_record_mode" class="form-control" disabled>
+                    <option value="noo">Disabled (noo)</option>
+                    <option value="in">Inbound Calls (in)</option>
+                    <option value="out">Outbound Calls (out)</option>
+                    <option value="all">All Calls (all)</option>
+                </select>
+            </div>
+
+            <!-- NAT -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold; margin-bottom: 0.5rem;">
+                    <input type="checkbox" id="bulk_change_nat" onchange="toggleBulkField(this, 'bulk_nat')"> NAT Support
+                </label>
+                <select id="bulk_nat" class="form-control" disabled>
+                    <option value="on">Force NAT (on)</option>
+                    <option value="off">No NAT (off)</option>
+                </select>
+            </div>
+
+            <!-- Direct Media -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold; margin-bottom: 0.5rem;">
+                    <input type="checkbox" id="bulk_change_direct" onchange="toggleBulkField(this, 'bulk_direct_media')"> Direct Media Status
+                </label>
+                <select id="bulk_direct_media" class="form-control" disabled>
+                    <option value="on">Enable Direct Media (on)</option>
+                    <option value="off">Disable Direct Media (off)</option>
+                </select>
+            </div>
+
+            <div class="form-actions" style="margin: 0; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeBulkEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-info"><i class="fa-solid fa-floppy-disk"></i> Apply Bulk Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Toggle Select check columns
+    let selectionMode = false;
+    
+    function toggleSelectAll() {
+        selectionMode = !selectionMode;
+        const selectCols = document.querySelectorAll('.select-col');
+        selectCols.forEach(col => {
+            col.style.display = selectionMode ? 'table-cell' : 'none';
+        });
+        
+        const btnSelect = document.getElementById("btn-select-toggle");
+        if (selectionMode) {
+            btnSelect.innerHTML = `<i class="fa-solid fa-xmark"></i> Cancel Select`;
+            btnSelect.classList.remove("btn-secondary");
+            btnSelect.classList.add("btn-danger");
+        } else {
+            btnSelect.innerHTML = `<i class="fa-solid fa-list-check"></i> Select`;
+            btnSelect.classList.remove("btn-danger");
+            btnSelect.classList.add("btn-secondary");
+            // Uncheck all
+            document.getElementById("select-all-checkbox").checked = false;
+            toggleSelectAllRows(document.getElementById("select-all-checkbox"));
+        }
+        updateBulkButtonsVisibility();
+    }
+
+    function toggleSelectAllRows(masterCheckbox) {
+        const checkboxes = document.querySelectorAll('.select-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = masterCheckbox.checked;
+        });
+        updateBulkButtonsVisibility();
+    }
+
+    // Update checkboxes state change
+    document.addEventListener("change", function(e) {
+        if (e.target && e.target.classList.contains("select-checkbox")) {
+            updateBulkButtonsVisibility();
+        }
+    });
+
+    function getSelectedExtensions() {
+        const checked = document.querySelectorAll('.select-checkbox:checked');
+        const list = [];
+        checked.forEach(cb => list.push(cb.value));
+        return list;
+    }
+
+    function updateBulkButtonsVisibility() {
+        const selected = getSelectedExtensions();
+        const bulkEditBtn = document.getElementById("btn-bulk-edit");
+        const bulkDeleteBtn = document.getElementById("btn-bulk-delete");
+        
+        if (selectionMode && selected.length > 0) {
+            bulkEditBtn.style.display = "inline-flex";
+            bulkDeleteBtn.style.display = "inline-flex";
+        } else {
+            bulkEditBtn.style.display = "none";
+            bulkDeleteBtn.style.display = "none";
+        }
+    }
+
+    // Bulk delete handler
+    function submitBulkDelete() {
+        const selected = getSelectedExtensions();
+        if (selected.length === 0) return;
+        if (!confirm(`Are you sure you want to delete ${selected.length} selected extensions?`)) return;
+        
+        fetch('/extensions/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ extensions: selected })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.msg);
+                window.location.reload();
+            } else {
+                alert(data.msg || "Error occurred");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Connection error occurred.");
+        });
+    }
+
+    // Bulk edit modal
+    function openBulkEditModal() {
+        const selected = getSelectedExtensions();
+        if (selected.length === 0) return;
+        document.getElementById("bulk-edit-count").innerText = selected.length;
+        document.getElementById("bulkEditModal").style.display = "block";
+    }
+
+    function closeBulkEditModal() {
+        document.getElementById("bulkEditModal").style.display = "none";
+    }
+
+    function toggleBulkField(checkbox, selectId) {
+        document.getElementById(selectId).disabled = !checkbox.checked;
+    }
+
+    function submitBulkEdit(e) {
+        e.preventDefault();
+        const selected = getSelectedExtensions();
+        if (selected.length === 0) return;
+        
+        const payload = { extensions: selected };
+        
+        if (document.getElementById("bulk_change_enabled").checked) {
+            payload.enabled = document.getElementById("bulk_enabled").value;
+        }
+        if (document.getElementById("bulk_change_vm").checked) {
+            payload.vm_enabled = document.getElementById("bulk_vm_enabled").value;
+        }
+        if (document.getElementById("bulk_change_record").checked) {
+            payload.record_mode = document.getElementById("bulk_record_mode").value;
+        }
+        if (document.getElementById("bulk_change_nat").checked) {
+            payload.nat = document.getElementById("bulk_nat").value;
+        }
+        if (document.getElementById("bulk_change_direct").checked) {
+            payload.direct_media = document.getElementById("bulk_direct_media").value;
+        }
+        
+        if (Object.keys(payload).length <= 1) {
+            alert("Please select at least one setting to change.");
+            return;
+        }
+        
+        fetch('/extensions/bulk-edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.msg);
+                window.location.reload();
+            } else {
+                alert(data.msg || "Error occurred");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Connection error occurred.");
+        });
+    }
+
+    // Dynamic Filter/Search
+    function filterExtensionsTable() {
+        const query = document.getElementById("extension-search").value.toLowerCase().trim();
+        const rows = document.querySelectorAll("#extensions-table tbody .ext-row");
+        let matchedCount = 0;
+        let totalCount = 0;
+        
+        rows.forEach(row => {
+            totalCount++;
+            // Cells: 1=ext, 2=name, 5=callerid
+            const ext = row.cells[1].innerText.toLowerCase();
+            const name = row.cells[2].innerText.toLowerCase();
+            const cid = row.cells[5].innerText.toLowerCase();
+            
+            if (ext.includes(query) || name.includes(query) || cid.includes(query)) {
+                row.style.display = "";
+                matchedCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+        
+        const countDiv = document.getElementById("search-count");
+        if (query) {
+            countDiv.innerText = `Found: ${matchedCount} / ${totalCount}`;
+        } else {
+            countDiv.innerText = "";
+        }
+    }
+
+    function getStatusBadgeHTML(status) {
+        if (status === 'Registered') {
+            return '<span class="badge badge-registered"><i class="fa-solid fa-circle-check"></i> Registered</span>';
+        } else if (status === 'Busy') {
+            return '<span class="badge badge-busy"><i class="fa-solid fa-phone-flip"></i> Busy</span>';
+        } else if (status === 'Ringing') {
+            return '<span class="badge badge-ringing"><i class="fa-solid fa-phone-volume fa-pulse"></i> Ringing</span>';
+        } else {
+            return '<span class="badge badge-offline"><i class="fa-solid fa-circle-xmark"></i> Offline</span>';
+        }
+    }
+
+    function updateExtensionsStatus() {
+        fetch('/api/extensions-status')
+            .then(res => res.json())
+            .then(data => {
+                data.extensions.forEach(ext => {
+                    const row = document.getElementById(`row-${ext.ext}`);
+                    if (row) {
+                        row.cells[3].innerHTML = getStatusBadgeHTML(ext.status);
+                        row.cells[4].innerHTML = `<code>${ext.reg_count}</code> dev(s)`;
+                    }
+                });
+                // Note: we don't re-run filter automatically unless query exists to avoid visual jumpiness
+                if (document.getElementById("extension-search").value.trim()) {
+                    filterExtensionsTable();
+                }
+            })
+            .catch(err => console.error("Error updating extensions status:", err));
+    }
+
+    // Show Extension Info Modal
+    function showExtInfo(ext) {
+        document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-users-gear"></i> Extension ${ext} Details`;
+        document.getElementById('modalSecret').innerText = "Loading...";
+        document.getElementById('modalMobile').innerText = "-";
+        document.getElementById('modalContacts').innerHTML = `<p style="color: var(--text-dark);"><i class="fa-solid fa-spinner fa-spin"></i> Retrieving registration state...</p>`;
+        
+        document.getElementById('infoModal').style.display = "block";
+        
+        fetch(`/extensions/info/${ext}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    closeModal();
+                    return;
+                }
+                
+                document.getElementById('modalSecret').innerText = data.secret;
+                document.getElementById('modalMobile').innerText = data.mobile || '-';
+                
+                const contactsDiv = document.getElementById('modalContacts');
+                if (data.contacts.length === 0) {
+                    contactsDiv.innerHTML = `
+                        <div style="background-color: var(--status-offline-bg); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.1); color: var(--status-offline); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-circle-exclamation"></i> No registered devices found for this endpoint.
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    data.contacts.forEach(c => {
+                        html += `
+                            <div style="background-color: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                                <code style="color: #fff; font-size: 0.95rem; font-family: monospace;">${c.ipport}</code>
+                                <span class="badge badge-registered btn-sm" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">
+                                    <i class="fa-solid fa-circle-check"></i> ${c.status}
+                                </span>
+                            </div>
+                        `;
+                    });
+                    contactsDiv.innerHTML = html;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('modalSecret').innerText = "Error";
+                document.getElementById('modalContacts').innerHTML = `<p style="color: var(--status-offline);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to reach Asterisk API.</p>`;
+            });
+    }
+    
+    function closeModal() {
+        document.getElementById('infoModal').style.display = "none";
+    }
+    
+    function copySecret() {
+        const text = document.getElementById('modalSecret').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("SIP password copied to clipboard!");
+        });
+    }
+    
+    window.onclick = function(event) {
+        const modal = document.getElementById('infoModal');
+        const bulkModal = document.getElementById('bulkEditModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+        if (event.target == bulkModal) {
+            bulkModal.style.display = "none";
+        }
+    }
+
+    // Set polling interval
+    document.addEventListener("DOMContentLoaded", function() {
+        setInterval(updateExtensionsStatus, 1000);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Ring Groups - RCM 7021 IP-PBX{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Ring Groups</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Define groups of extensions that ring simultaneously or sequentially when called</div>
+    </div>
+    <div>
+        <a href="{{ url_for('ringgroup_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Create Ring Group
+        </a>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-people-group" style="color: var(--primary);"></i> Inbound Ring Groups</h2>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Group Number</th>
+                    <th>Group Name</th>
+                    <th>Ring Strategy</th>
+                    <th>Timeout (sec)</th>
+                    <th>Members</th>
+                    <th>Failover Destination</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not groups %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-people-slash" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                        No Ring Groups configured in the system.
+                    </td>
+                </tr>
+                {% endif %}
+                {% for group in groups %}
+                <tr>
+                    <td><strong style="color: #fff; font-size: 1.05rem;">{{ group.id }}</strong></td>
+                    <td>{{ group.name }}</td>
+                    <td><span class="badge badge-gray" style="background-color: rgba(6, 182, 212, 0.1); color: #22d3ee; border-color: rgba(6, 182, 212, 0.2); text-transform: uppercase;">{{ group.strategy }}</span></td>
+                    <td>
+                        {% if group.strategy == 'ordered' %}
+                        <code>{{ group.per_try }}</code>s per member
+                        {% else %}
+                        <code>{{ group.timeout }}</code>s total
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% for m in group.members %}
+                        <span style="font-size: 0.85rem; color: #fff; background: rgba(255,255,255,0.05); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                            {{ m }}
+                        </span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if group.failover %}
+                        <span style="color: var(--text-muted);">Goto extension </span><code>{{ group.failover }}</code>
+                        {% else %}
+                        <span style="color: var(--status-offline);"><i class="fa-solid fa-ban"></i> Hangup</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
+                            <a href="{{ url_for('ringgroup_edit', id=group.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form action="{{ url_for('ringgroup_delete', id=group.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Ring Group {{ group.id }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

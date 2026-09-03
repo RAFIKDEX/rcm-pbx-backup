@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="content-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 style="margin: 0; color: var(--text-main); font-size: 1.8rem; font-weight: 700;"><i class="fa-solid fa-route" style="color: #3b82f6; margin-right: 10px;"></i> Master Storage Strategy</h1>
+        <p style="color: var(--text-muted); margin-top: 0.5rem; font-size: 0.95rem;">Configure exactly where all new call recordings should be saved permanently.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('ext_storage_bp.dashboard') }}" class="neu-button" style="background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.5); color: #64748b; padding: 10px 20px; text-decoration: none; font-weight: bold; transition: all 0.2s;"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+</div>
+
+<form method="POST" action="/external-storage/strategy" style="background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <div style="margin-bottom: 30px;">
+        <h3 style="color: var(--text-main); margin-bottom: 15px;"><i class="fa-solid fa-sliders"></i> Select Operation Mode</h3>
+        
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <!-- Local Mode -->
+            <label class="strategy-option" data-mode="local" style="flex: 1; min-width: 200px; background: var(--bg-main); border: 2px solid {% if strategy.mode == 'local' %}#3b82f6{% else %}var(--border-color){% endif %}; padding: 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onclick="updateUI('local')">
+                <input type="radio" name="mode" value="local" {% if strategy.mode == 'local' %}checked{% endif %} style="display: none;">
+                <h4 style="color: var(--text-main); margin: 0 0 5px;"><i class="fa-solid fa-server" style="color: #64748b;"></i> 1. Local Storage</h4>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Recordings stay on the PBX internal disk.</p>
+            </label>
+            
+            <!-- Static Mode -->
+            <label class="strategy-option" data-mode="static" style="flex: 1; min-width: 200px; background: var(--bg-main); border: 2px solid {% if strategy.mode == 'static' %}#3b82f6{% else %}var(--border-color){% endif %}; padding: 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onclick="updateUI('static')">
+                <input type="radio" name="mode" value="static" {% if strategy.mode == 'static' %}checked{% endif %} style="display: none;">
+                <h4 style="color: var(--text-main); margin: 0 0 5px;"><i class="fa-solid fa-thumbtack" style="color: #3b82f6;"></i> 2. Static Route</h4>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Force all recordings to one specific external provider.</p>
+            </label>
+            
+            <!-- Dynamic Mode -->
+            <label class="strategy-option" data-mode="dynamic" style="flex: 1; min-width: 200px; background: var(--bg-main); border: 2px solid {% if strategy.mode == 'dynamic' %}#3b82f6{% else %}var(--border-color){% endif %}; padding: 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onclick="updateUI('dynamic')">
+                <input type="radio" name="mode" value="dynamic" {% if strategy.mode == 'dynamic' %}checked{% endif %} style="display: none;">
+                <h4 style="color: var(--text-main); margin: 0 0 5px;"><i class="fa-solid fa-list-ol" style="color: #10b981;"></i> 3. Dynamic Priority</h4>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Try providers in order (e.g. USB -> NAS -> Drive -> Local).</p>
+            </label>
+        </div>
+    </div>
+
+    <!-- Static Config Section -->
+    <div id="static_config" style="display: {% if strategy.mode == 'static' %}block{% else %}none{% endif %}; background: rgba(59,130,246,0.05); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(59,130,246,0.2);">
+        <h4 style="color: #3b82f6; margin-top: 0;">Static Route Configuration</h4>
+        <label style="display: block; color: var(--text-muted); margin-bottom: 10px;">Select the permanent destination for all recordings:</label>
+        <select name="static_provider_id" style="width: 100%; padding: 10px; background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px;">
+            <option value="">-- Choose Provider --</option>
+            {% for p in providers %}
+            <option value="{{ p.id }}" {% if strategy.static_provider_id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.provider_type }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Dynamic Config Section -->
+    <div id="dynamic_config" style="display: {% if strategy.mode == 'dynamic' %}block{% else %}none{% endif %}; background: rgba(16,185,129,0.05); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(16,185,129,0.2);">
+        <h4 style="color: #10b981; margin-top: 0;">Dynamic Priority Configuration</h4>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">The system will attempt to save the recording to the first available provider. If it fails, it will try the next one. Local is always the final fallback.</p>
+        
+        <div style="display: flex; gap: 10px; flex-direction: column;">
+            {% for i in range(1, 4) %}
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span style="color: #10b981; font-weight: bold; width: 20px;">{{ i }}.</span>
+                <select name="dynamic_order[]" style="flex: 1; padding: 10px; background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px;">
+                    <option value="">-- Skip / None --</option>
+                    {% for p in providers %}
+                    <option value="{{ p.id }}" {% if dynamic_order|length >= i and dynamic_order[i-1] == p.id|string %}selected{% endif %}>{{ p.name }} ({{ p.provider_type }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+            <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px; opacity: 0.6;">
+                <span style="color: var(--text-muted); font-weight: bold; width: 20px;">4.</span>
+                <input type="text" disabled value="Fallback: Local Storage" style="flex: 1; padding: 10px; background: var(--bg-main); color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 6px;">
+            </div>
+        </div>
+    </div>
+
+    <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+        <input type="checkbox" id="keep_local" name="keep_local" value="1" {% if strategy.keep_local == 1 %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
+        <label for="keep_local" style="color: var(--text-main); margin: 0; cursor: pointer;">
+            <strong>Keep a Local Copy</strong><br>
+            <span style="color: var(--text-muted); font-size: 0.85rem;">If enabled, files are copied to external storage but the original is kept on the PBX disk. (Not recommended if you want to save space).</span>
+        </label>
+    </div>
+    
+    <button type="submit" class="neu-button btn-primary" style="padding: 12px 25px; border-radius: 6px; font-size: 1.1rem; width: 100%;"><i class="fa-solid fa-floppy-disk"></i> Save Strategy</button>
+</form>
+
+<script>
+function updateUI(mode) {
+    document.querySelectorAll('.strategy-option').forEach(el => {
+        el.style.borderColor = 'var(--border-color)';
+    });
+    
+    // The event.currentTarget works if the onclick is inline on the element, 
+    // but a safer approach is to find it via data attribute
+    document.querySelector(`.strategy-option[data-mode="${mode}"]`).style.borderColor = '#3b82f6';
+    
+    document.getElementById('static_config').style.display = (mode === 'static') ? 'block' : 'none';
+    document.getElementById('dynamic_config').style.display = (mode === 'dynamic') ? 'block' : 'none';
+}
+</script>
+{% endblock %}

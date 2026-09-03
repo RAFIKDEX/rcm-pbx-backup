@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+
+{% block title %}Survey Analytics: {{ survey.name }}{% endblock %}
+
+{% block content %}
+<div class="q-studio">
+    <!-- Header Card -->
+    <div class="q-header-card">
+        <div>
+            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; background: linear-gradient(to right, #c084fc, #a855f7, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fa-solid fa-chart-pie" style="margin-right: 0.5rem;"></i>
+                Survey Analytics: {{ survey.name }}
+            </h1>
+            <div style="color: #94a3b8; font-size: 0.95rem; margin-top: 0.4rem;">
+                Analyze customer satisfaction trends, agent performance, and response breakdowns.
+            </div>
+        </div>
+        <a href="{{ url_for('survey_list') }}" class="q-btn q-btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Studio
+        </a>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="q-section">
+        <form method="GET" action="" style="display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap;">
+            <div class="q-group" style="flex: 1; min-width: 200px; margin: 0;">
+                <label class="q-label"><i class="fa-solid fa-clock-rotate-left"></i> Time Filter</label>
+                <div style="position: relative;">
+                    <select name="time_filter" class="q-input" onchange="this.form.submit()" style="appearance: none; padding-right: 2rem;">
+                        <option value="today" {% if time_filter == 'today' %}selected{% endif %}>Today</option>
+                        <option value="7days" {% if time_filter == '7days' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="30days" {% if time_filter == '30days' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="custom" {% if time_filter == 'custom' %}selected{% endif %}>Custom Range</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;"></i>
+                </div>
+            </div>
+            {% if time_filter == 'custom' %}
+            <div class="q-group" style="flex: 1; min-width: 150px; margin: 0;">
+                <label class="q-label">Start Date</label>
+                <input type="text" name="start" value="{{ start }}" class="q-input" placeholder="YYYY-MM-DD HH:MM">
+            </div>
+            <div class="q-group" style="flex: 1; min-width: 150px; margin: 0;">
+                <label class="q-label">End Date</label>
+                <input type="text" name="end" value="{{ end }}" class="q-input" placeholder="YYYY-MM-DD HH:MM">
+            </div>
+            <button type="submit" class="q-btn q-btn-primary" style="height: 44px; padding: 0 1.5rem;">
+                <i class="fa-solid fa-filter"></i> Apply
+            </button>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Queue Performance -->
+        <div class="q-section dashboard-card">
+            <div class="q-section-title" style="color: #6ee7b7; border-color: rgba(16, 185, 129, 0.2);">
+                <i class="fa-solid fa-users-viewfinder" style="color: #10b981; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);"></i> 
+                Queue Performance
+            </div>
+            <div class="table-container">
+                <table class="q-table">
+                    <thead>
+                        <tr>
+                            <th>Queue</th>
+                            <th style="text-align: center;">Responses (1-5)</th>
+                            <th style="text-align: center;">Zero Ratings</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set qs = {} %}
+                        {% for qr in queue_ratings %}
+                            {% if qr.queue not in qs %}{% set _ = qs.update({qr.queue: {'1_5': 0, '0': 0}}) %}{% endif %}
+                            {% if qr.rating > 0 %}
+                                {% set _ = qs[qr.queue].update({'1_5': qs[qr.queue]['1_5'] + qr.count}) %}
+                            {% else %}
+                                {% set _ = qs[qr.queue].update({'0': qs[qr.queue]['0'] + qr.count}) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for q, stats in qs.items() %}
+                        <tr>
+                            <td style="font-weight: 700;">
+                                <a href="javascript:void(0)" onclick="drilldown('queue', '{{ q }}')" class="drill-link">{{ q }}</a>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge-success">{{ stats['1_5'] }}</span>
+                            </td>
+                            <td style="text-align: center;">
+                                {% if stats['0'] > 0 %}
+                                    <span class="badge-danger">{{ stats['0'] }}</span>
+                                {% else %}
+                                    <span style="color: #475569;">0</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="empty-cell">No queue data in this period</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Agent Performance -->
+        <div class="q-section dashboard-card">
+            <div class="q-section-title" style="color: #60a5fa; border-color: rgba(59, 130, 246, 0.2);">
+                <i class="fa-solid fa-headset" style="color: #3b82f6; background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3);"></i> 
+                Agent Performance
+            </div>
+            <div class="table-container">
+                <table class="q-table">
+                    <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th style="text-align: center;">Avg Rating</th>
+                            <th style="text-align: center;">Total (1-5)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set as = {} %}
+                        {% for ar in agent_ratings %}
+                            {% if ar.agent not in as %}{% set _ = as.update({ar.agent: {'sum': 0, 'count': 0}}) %}{% endif %}
+                            {% if ar.rating > 0 %}
+                                {% set _ = as[ar.agent].update({'sum': as[ar.agent]['sum'] + (ar.rating * ar.count), 'count': as[ar.agent]['count'] + ar.count}) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for a, stats in as.items() %}
+                        {% set avg = (stats.sum / stats.count) if stats.count > 0 else 0 %}
+                        <tr>
+                            <td style="font-weight: 700;">
+                                <a href="javascript:void(0)" onclick="drilldown('agent', '{{ a }}')" class="drill-link">{{ a }}</a>
+                            </td>
+                            <td style="text-align: center;">
+                                {% if stats.count > 0 %}
+                                <div class="rating-bar-container">
+                                    <div class="rating-bar-fill {% if avg >= 4 %}good{% elif avg >= 2.5 %}avg{% else %}poor{% endif %}" style="width: {{ (avg / 5) * 100 }}%;"></div>
+                                </div>
+                                <span style="font-weight:bold; font-size: 0.85rem; margin-left: 0.5rem;">{{ "%.1f"|format(avg) }}</span>
+                                {% else %}
+                                <span style="color: #475569;">-</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">{{ stats.count }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="empty-cell">No agent data in this period</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Question Breakdown -->
+        <div class="q-section dashboard-card" style="grid-column: 1 / -1;">
+            <div class="q-section-title" style="color: #fbbf24; border-color: rgba(245, 158, 11, 0.2);">
+                <i class="fa-solid fa-list-check" style="color: #f59e0b; background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);"></i> 
+                Question Score Breakdown
+            </div>
+            <div class="table-container">
+                <table class="q-table">
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th style="text-align: center; width: 60px;"><a href="javascript:void(0)" onclick="drilldown('rating', '0')" class="drill-link-score score-0">0</a></th>
+                            <th style="text-align: center; width: 60px;"><a href="javascript:void(0)" onclick="drilldown('rating', '1')" class="drill-link-score score-1">1</a></th>
+                            <th style="text-align: center; width: 60px;"><a href="javascript:void(0)" onclick="drilldown('rating', '2')" class="drill-link-score score-2">2</a></th>
+                            <th style="text-align: center; width: 60px;"><a href="javascript:void(0)" onclick="drilldown('rating', '3')" class="drill-link-score score-3">3</a></th>
+                            <th style="text-align: center; width: 60px;"><a href="javascript:void(0)" onclick="drilldown('rating', '4')" class="drill-link-score score-4">4</a></th>
+                            <th style="text-align: center; width: 60px;"><a href="javascript:void(0)" onclick="drilldown('rating', '5')" class="drill-link-score score-5">5</a></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in survey.questions %}
+                        <tr>
+                            <td style="font-weight: 700;">
+                                <a href="javascript:void(0)" onclick="drilldown('question', '{{ q.question_number }}')" class="drill-link">
+                                    Question {{ q.question_number }}
+                                </a>
+                            </td>
+                            {% for r in range(6) %}
+                                {% set count = namespace(val=0) %}
+                                {% for qr in question_ratings %}
+                                    {% if qr.question_number == q.question_number and qr.rating == r %}
+                                        {% set count.val = qr.count %}
+                                    {% endif %}
+                                {% endfor %}
+                                <td style="text-align: center;">
+                                    {% if count.val > 0 %}
+                                    <div class="heat-cell {% if r == 0 %}heat-0{% elif r <= 2 %}heat-low{% elif r == 3 %}heat-mid{% else %}heat-high{% endif %}">
+                                        {{ count.val }}
+                                    </div>
+                                    {% else %}
+                                    <span style="color: #475569;">0</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Drilldown Modal -->
+<div id="drilldown-modal" class="modal-backdrop">
+    <div class="modal-window">
+        <div class="modal-header">
+            <h2 id="drilldown-title" style="margin: 0; color: #f8fafc; font-size: 1.25rem;">
+                <i class="fa-solid fa-magnifying-glass-chart" style="color: #60a5fa; margin-right: 0.5rem;"></i>
+                Detailed Responses
+            </h2>
+            <button onclick="document.getElementById('drilldown-modal').style.display='none'" class="btn-close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body" style="padding: 0;">
+            <table class="q-table" style="width: 100%; border: none;">
+                <thead style="background: rgba(15, 23, 42, 0.8);">
+                    <tr>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Queue</th>
+                        <th>Agent</th>
+                        <th>Q#</th>
+                        <th style="text-align: center;">Score</th>
+                        <th>0 Reason (Audio File)</th>
+                    </tr>
+                </thead>
+                <tbody id="drilldown-body">
+                    <!-- Populated via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function drilldown(type, value) {
+        let url = "{{ url_for('survey_drilldown', survey_id=survey.id) }}?";
+        if (type === 'queue') url += 'queue=' + encodeURIComponent(value);
+        if (type === 'agent') url += 'agent=' + encodeURIComponent(value);
+        if (type === 'rating') url += 'rating=' + encodeURIComponent(value);
+        if (type === 'question') url += 'question=' + encodeURIComponent(value);
+        
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('drilldown-body');
+                tbody.innerHTML = '';
+                
+                if (data.results.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="empty-cell" style="padding: 3rem;">No responses found for this filter.</td></tr>`;
+                } else {
+                    data.results.forEach(row => {
+                        const tr = document.createElement('tr');
+                        
+                        let scoreBadge = '';
+                        if (row.rating == 0) scoreBadge = `<span class="score-badge score-0">0</span>`;
+                        else if (row.rating <= 2) scoreBadge = `<span class="score-badge score-low">${row.rating}</span>`;
+                        else if (row.rating == 3) scoreBadge = `<span class="score-badge score-mid">${row.rating}</span>`;
+                        else scoreBadge = `<span class="score-badge score-high">${row.rating}</span>`;
+                        
+                        tr.innerHTML = `
+                            <td style="color: #94a3b8; font-size: 0.85rem;">${row.timestamp}</td>
+                            <td style="font-weight: 600;">${row.customer_number || '-'}</td>
+                            <td>${row.queue || '-'}</td>
+                            <td>${row.agent || '-'}</td>
+                            <td>Q${row.question_number}</td>
+                            <td style="text-align: center;">${scoreBadge}</td>
+                            <td style="font-family: monospace; font-size: 0.8rem; color: #cbd5e1; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${row.reason || ''}">
+                                ${row.reason ? `<i class="fa-solid fa-voicemail" style="color:#f87171; margin-right:0.3rem;"></i>${row.reason}` : '-'}
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+                
+                let tTitle = "Detailed Responses";
+                if (type === 'queue') tTitle += " &mdash; Queue: <span style='color:#6ee7b7'>" + value + "</span>";
+                if (type === 'agent') tTitle += " &mdash; Agent: <span style='color:#60a5fa'>" + value + "</span>";
+                if (type === 'rating') tTitle += " &mdash; Score: <span style='color:#fbbf24'>" + value + "</span>";
+                if (type === 'question') tTitle += " &mdash; Question: <span style='color:#c084fc'>" + value + "</span>";
+                
+                document.getElementById('drilldown-title').innerHTML = `<i class="fa-solid fa-magnifying-glass-chart" style="color: #60a5fa; margin-right: 0.5rem;"></i>` + tTitle;
+                document.getElementById('drilldown-modal').style.display = 'flex';
+            });
+    }
+</script>
+
+<style>
+    .q-studio { max-width: 1200px; margin: 0 auto; padding-bottom: 3rem; }
+    .q-header-card {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .q-section {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 1.5rem;
+    }
+    .dashboard-card {
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .q-section-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .q-section-title i {
+        width: 32px; height: 32px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .q-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #94a3b8;
+        margin-bottom: 0.4rem;
+        display: inline-block;
+    }
+    .q-input {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding: 0.65rem 1rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.2s;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .q-input:focus { border-color: var(--q-primary, #3b82f6); box-shadow: 0 0 0 3px rgba(59,130,246,0.25); }
+    
+    .q-table { width: 100%; text-align: left; border-collapse: collapse; }
+    .q-table th { 
+        padding: 0.75rem 1rem; 
+        color: #94a3b8; 
+        font-size: 0.85rem; 
+        text-transform: uppercase; 
+        letter-spacing: 0.05em; 
+        border-bottom: 1px solid rgba(255,255,255,0.1); 
+    }
+    .q-table td { 
+        padding: 0.85rem 1rem; 
+        border-bottom: 1px solid rgba(255,255,255,0.05); 
+        vertical-align: middle;
+    }
+    .q-table tr:hover td { background: rgba(255,255,255,0.02); }
+    
+    .empty-cell { text-align: center; color: #64748b; font-style: italic; padding: 2rem !important; }
+    
+    .drill-link { color: #f8fafc; text-decoration: none; border-bottom: 1px dashed rgba(255,255,255,0.3); transition: all 0.2s; }
+    .drill-link:hover { color: #38bdf8; border-color: #38bdf8; }
+    
+    .drill-link-score { display: block; width: 100%; height: 100%; text-decoration: none; font-weight: bold; }
+    .drill-link-score.score-0 { color: #ef4444; }
+    .drill-link-score.score-1, .drill-link-score.score-2 { color: #f97316; }
+    .drill-link-score.score-3 { color: #eab308; }
+    .drill-link-score.score-4, .drill-link-score.score-5 { color: #10b981; }
+    .drill-link-score:hover { transform: scale(1.1); }
+    
+    .badge-success { background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: bold; font-size: 0.85rem; }
+    .badge-danger { background: rgba(239, 68, 68, 0.15); color: #f87171; padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: bold; font-size: 0.85rem; }
+    
+    .rating-bar-container { display: inline-block; width: 80px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; vertical-align: middle; }
+    .rating-bar-fill { height: 100%; border-radius: 4px; }
+    .rating-bar-fill.good { background: #10b981; }
+    .rating-bar-fill.avg { background: #f59e0b; }
+    .rating-bar-fill.poor { background: #ef4444; }
+    
+    .heat-cell { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; }
+    .heat-0 { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .heat-low { background: rgba(249, 115, 22, 0.2); color: #fdba74; }
+    .heat-mid { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+    .heat-high { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+    
+    .q-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+        color: #fff; border: none; padding: 0.65rem 1.25rem; border-radius: 10px;
+        font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .q-btn:hover { transform: translateY(-1px); }
+    .q-btn-primary { background: #3b82f6; }
+    .q-btn-primary:hover { background: #2563eb; }
+    .q-btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); color: #e2e8f0; }
+    .q-btn-secondary:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+    
+    .modal-backdrop {
+        display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;
+        padding: 2rem; animation: fadeIn 0.2s ease-out;
+    }
+    .modal-window {
+        background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+        width: 100%; max-width: 1100px; max-height: 85vh; display: flex; flex-direction: column;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); overflow: hidden;
+    }
+    .modal-header {
+        padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.08);
+        display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.4);
+    }
+    .modal-body { overflow-y: auto; flex: 1; }
+    .btn-close {
+        background: rgba(255,255,255,0.1); border: none; color: #94a3b8; width: 32px; height: 32px;
+        border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s;
+    }
+    .btn-close:hover { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    
+    .score-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-weight: bold; font-size: 0.8rem; }
+    .score-badge.score-0 { background: #ef4444; color: white; }
+    .score-badge.score-low { background: #f97316; color: white; }
+    .score-badge.score-mid { background: #eab308; color: white; }
+    .score-badge.score-high { background: #10b981; color: white; }
+    
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+{% endblock %}

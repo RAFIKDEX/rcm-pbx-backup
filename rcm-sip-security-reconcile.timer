@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer for RCM SIP Security Background Reconciliation
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=60s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

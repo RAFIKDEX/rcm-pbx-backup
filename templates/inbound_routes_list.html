@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}Inbound Routes - RCM 7021{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Inbound Call Routes</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">Route incoming calls by trunk, DID, caller ID, and time rules</div>
+    </div>
+    <div class="action-buttons" style="gap: 0.75rem;">
+        {% if has_permission('inbound_routes', 'export') %}
+        <a href="{{ url_for('inbound_routes_export') }}" class="btn btn-secondary" style="text-decoration: none;" title="Export inbound routes to Excel">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+        {% endif %}
+        {% if can_create('inbound_routes') %}
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('{{ url_for('inbound_routes_import') }}')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+        <a href="{{ url_for('inbound_route_add') }}" class="btn btn-info" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add Inbound Route
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel" style="padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 250px;">
+        <div style="color: var(--primary); font-size: 1.2rem;"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div style="flex: 1;">
+            <input type="text" id="inbound-search" class="form-control"
+                   placeholder="Search inbound routes by name, trunk, DID, or caller ID..."
+                   onkeyup="loadInboundRoutesTable(1)" style="border: none; background: transparent; padding-left: 0;">
+        </div>
+        <div id="search-count" style="font-size: 0.85rem; color: var(--text-dark); font-weight: bold;"></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <label for="per_page" style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold;">Rows per page:</label>
+        <select id="per_page" onchange="loadInboundRoutesTable(1)" class="form-control-inline" style="width: 80px; padding: 0.25rem 0.5rem; border-radius: 4px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+            <option value="10" selected>10</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+            <option value="70">70</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-header">
+        <h2><i class="fa-solid fa-phone-volume" style="color: var(--primary);"></i> Inbound Routing Rules</h2>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Route Identifier</th>
+                    <th>Trunks</th>
+                    <th>DID Pattern</th>
+                    <th>Caller ID</th>
+                    <th>Destination</th>
+                    <th style="text-align: center;">Record</th>
+                    <th style="text-align: center;">Dial Trunk</th>
+                    {% if can_view('inbound_routes') or can_edit('inbound_routes') or can_delete('inbound_routes') %}
+                    <th style="width: 150px; text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody id="inbound-routes-tbody">
+                <tr>
+                    <td colspan="{{ 8 if (can_view('inbound_routes') or can_edit('inbound_routes') or can_delete('inbound_routes')) else 7 }}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                        Loading inbound routes...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="pagination-footer" class="form-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; display: flex; border-top: 1px solid var(--border-color)"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const INBOUND_CAN_VIEW = {{ 'true' if can_view('inbound_routes') else 'false' }};
+    const INBOUND_CAN_EDIT = {{ 'true' if can_edit('inbound_routes') else 'false' }};
+    const INBOUND_CAN_DELETE = {{ 'true' if can_delete('inbound_routes') else 'false' }};
+
+    let current_page = 1;
+
+    function formatList(items, emptyText, icon) {
+        if (items && items.length > 0) {
+            return items.map(item => `<span class="badge badge-registered" style="margin-right: 0.25rem; margin-bottom: 0.25rem;"><i class="fa-solid ${icon}"></i> ${item}</span>`).join('');
+        }
+        return `<span style="color: var(--text-muted); font-size: 0.9rem;">${emptyText}</span>`;
+    }
+
+    function formatDestination(route) {
+        const rulesCount = route.rules ? route.rules.length : 0;
+        const destType = route.default_dest_type || 'hangup';
+        const destValue = route.default_dest_val || '';
+        const label = destValue ? `${destType}: ${destValue}` : destType;
+        const rulesBadge = rulesCount > 0
+            ? `<span class="badge badge-registered" style="margin-right: 0.25rem;"><i class="fa-solid fa-clock"></i> ${rulesCount} rule${rulesCount === 1 ? '' : 's'}</span>`
+            : '';
+        return `${rulesBadge}<span class="badge badge-registered"><i class="fa-solid fa-share"></i> ${label}</span>`;
+    }
+
+    function loadInboundRoutesTable(page = 1) {
+        current_page = page;
+        const limit = document.getElementById("per_page").value;
+        const q = document.getElementById("inbound-search").value.trim();
+
+        const colspanVal = (INBOUND_CAN_VIEW || INBOUND_CAN_EDIT || INBOUND_CAN_DELETE) ? 8 : 7;
+        const tbody = document.getElementById("inbound-routes-tbody");
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="${colspanVal}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                    Loading inbound routes...
+                </td>
+            </tr>
+        `;
+
+        fetch(`/api/inbound-routes-list?page=${page}&limit=${limit}&q=${encodeURIComponent(q)}`)
+            .then(res => res.json())
+            .then(data => {
+                tbody.innerHTML = "";
+                if (data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="${colspanVal}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                                <i class="fa-solid fa-route" style="font-size: 2.5rem; color: var(--text-dark); margin-bottom: 1rem; display: block;"></i>
+                                No inbound routes found.
+                            </td>
+                        </tr>
+                    `;
+                    updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadInboundRoutesTable');
+                    return;
+                }
+
+                data.data.forEach(route => {
+                    const tr = document.createElement("tr");
+                    const disabledBadge = route.enabled === false
+                        ? `<span class="badge badge-registered" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); margin-left: 0.5rem;">Disabled</span>`
+                        : '';
+                    const recordBadge = route.auto_record
+                        ? `<span class="badge badge-registered" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-microphone"></i> On</span>`
+                        : `<span class="badge badge-registered" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3);">Off</span>`;
+                    const dialTrunkEnabled = route.enable_dial_trunk && route.dial_trunk_permission_ext;
+                    const dialTrunkBadge = dialTrunkEnabled
+                        ? `<span class="badge badge-registered" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-right-left"></i> Ext ${route.dial_trunk_permission_ext}</span>`
+                        : `<span class="badge badge-registered" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3);">Disabled</span>`;
+                    const viewAction = INBOUND_CAN_VIEW ? `
+                                <button type="button" class="list-action-btn list-action-info" onclick="showNotification('Inbound route details: ${route.name} (DID: ${route.did_pattern || 'Any'})', 'info')" title="View" aria-label="View inbound route"><i class="fa-solid fa-eye"></i></button>` : '';
+                    const editAction = INBOUND_CAN_EDIT ? `
+                                <a href="/inbound-routes/edit/${route.id}" class="list-action-btn list-action-edit" title="Edit" aria-label="Edit inbound route"><i class="fa-solid fa-pen-to-square"></i></a>` : '';
+                    const deleteAction = INBOUND_CAN_DELETE ? `
+                                <form action="/inbound-routes/delete/${route.id}" method="POST" onsubmit="return confirm('Are you sure you want to delete this route?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="list-action-btn list-action-delete" title="Delete" aria-label="Delete inbound route"><i class="fa-solid fa-trash"></i></button>
+                                </form>` : '';
+
+                    let actionsCell = "";
+                    if (INBOUND_CAN_VIEW || INBOUND_CAN_EDIT || INBOUND_CAN_DELETE) {
+                        actionsCell = `
+                        <td style="text-align: right;">
+                            <div class="list-row-actions">
+                                ${viewAction}
+                                ${editAction}
+                                ${deleteAction}
+                            </div>
+                        </td>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td>
+                            <strong style="color: var(--text-main);">${route.name}</strong>
+                            ${disabledBadge}
+                        </td>
+                        <td>${formatList(route.trunks, 'Any Trunk', 'fa-server')}</td>
+                        <td>${formatList(route.did_patterns, 'Any DID', 'fa-phone')}</td>
+                        <td>${route.cid_pattern ? `<code>${route.cid_pattern}</code>` : `<span style="color: var(--text-muted); font-size: 0.9rem;">Any Caller ID</span>`}</td>
+                        <td>${formatDestination(route)}</td>
+                        <td style="text-align: center;">${recordBadge}</td>
+                        <td style="text-align: center;">${dialTrunkBadge}</td>
+                        ${actionsCell}
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                updatePaginationFooter(data.total_rows, data.current_page, data.limit, 'loadInboundRoutesTable');
+                document.getElementById("search-count").innerText = q ? `Found: ${data.total_rows} total` : "";
+            })
+            .catch(err => console.error("Error loading inbound routes:", err));
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        loadInboundRoutesTable(1);
+    });
+</script>
+{% endblock %}

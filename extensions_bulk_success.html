@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Creation Success - RCM 7021{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Premium Animated Checkmark SVG */
+    .success-icon-container {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .checkmark-svg {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: block;
+        stroke-width: 3;
+        stroke: var(--status-registered);
+        stroke-miterlimit: 10;
+        box-shadow: inset 0px 0px 0px var(--status-registered);
+        animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s forwards;
+        margin: 0 auto;
+    }
+
+    .checkmark-circle {
+        stroke-dasharray: 166;
+        stroke-dashoffset: 166;
+        stroke-width: 3;
+        stroke-miterlimit: 10;
+        stroke: var(--status-registered);
+        fill: none;
+        animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .checkmark-check {
+        transform-origin: 50% 50%;
+        stroke-dasharray: 48;
+        stroke-dashoffset: 48;
+        stroke: var(--status-registered);
+        animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+    }
+
+    @keyframes stroke {
+        100% {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @keyframes scale {
+        0%, 100% {
+            transform: none;
+        }
+        50% {
+            transform: scale3d(1.1, 1.1, 1);
+        }
+    }
+
+    @keyframes fill {
+        100% {
+            box-shadow: inset 0px 0px 0px 40px rgba(16, 185, 129, 0.1);
+        }
+    }
+
+    /* Scrollable credentials card */
+    .credentials-card {
+        background-color: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.25);
+        margin-bottom: 2rem;
+    }
+
+    .credentials-scroll {
+        max-height: 380px;
+        overflow-y: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background-color: #0b0f19;
+    }
+
+    /* Scrollbar styling for a polished look */
+    .credentials-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+    .credentials-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .credentials-scroll::-webkit-scrollbar-thumb {
+        background: #1e293b;
+        border-radius: 4px;
+    }
+    .credentials-scroll::-webkit-scrollbar-thumb:hover {
+        background: #334155;
+    }
+
+    .pwd-display {
+        font-family: monospace;
+        letter-spacing: 0.5px;
+        font-size: 0.95rem;
+    }
+
+    .action-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-panel">
+    <div>
+        <h1>Extensions Created Successfully</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">RCM 7021 PBX bulk generation completed</div>
+    </div>
+    <div>
+        <a href="{{ url_for('extensions') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Extensions List
+        </a>
+    </div>
+</div>
+
+<div class="panel" style="max-width: 850px; margin-left: auto; margin-right: auto; padding: 2.5rem 3rem;">
+    <!-- Animated Checkmark -->
+    <div class="success-icon-container">
+        <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+        <h2 style="color: #fff; margin-top: 1.25rem;">Bulk Creation Complete</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.5rem;">
+            Successfully generated extensions in the range: <strong style="color: var(--primary);">{{ data.range }}</strong> ({{ data.created|length }} endpoints)
+        </p>
+    </div>
+
+    <!-- Actions & Scrollable list -->
+    <div class="credentials-card">
+        <div class="action-header">
+            <h3 style="color: #fff; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-key" style="color: var(--primary);"></i> Security Credentials
+            </h3>
+            <div style="display: flex; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="togglePasswords()">
+                    <i class="fa-solid fa-eye" id="eye-icon"></i> Show Passwords
+                </button>
+                <a href="{{ url_for('extensions_bulk_export_csv') }}" class="btn btn-info btn-sm">
+                    <i class="fa-solid fa-file-csv"></i> Export CSV
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="downloadCredentialsTxt()">
+                    <i class="fa-solid fa-file-lines"></i> Download Credentials (.txt)
+                </button>
+            </div>
+        </div>
+
+        <div class="credentials-scroll">
+            <table class="table" style="margin-bottom: 0;">
+                <thead>
+                    <tr>
+                        <th style="padding: 0.8rem 1rem;">Extension</th>
+                        <th style="padding: 0.8rem 1rem;">SIP Password</th>
+                        <th style="padding: 0.8rem 1rem;">Voicemail PIN</th>
+                        <th style="padding: 0.8rem 1rem; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in data.created %}
+                    <tr>
+                        <td style="font-weight: 600; color: #fff; padding: 0.8rem 1rem;">
+                            {{ item.ext }}
+                        </td>
+                        <td style="padding: 0.8rem 1rem;">
+                            <span class="pwd-display pwd-masked" data-secret="{{ item.secret }}">••••••••••</span>
+                        </td>
+                        <td style="padding: 0.8rem 1rem; font-family: monospace;">
+                            {{ item.vm_password }}
+                        </td>
+                        <td style="padding: 0.8rem 1rem; text-align: center;">
+                            <span class="badge badge-registered">
+                                <i class="fa-solid fa-check"></i> {{ item.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Final actions -->
+    <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem;">
+        <a href="{{ url_for('extensions') }}" class="btn btn-secondary" style="min-width: 160px;">
+            Done
+        </a>
+        <a href="{{ url_for('extensions_bulk_add') }}" class="btn btn-info" style="min-width: 160px;">
+            <i class="fa-solid fa-plus-circle"></i> Add More
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let passwordsShown = false;
+
+    function togglePasswords() {
+        const displays = document.querySelectorAll('.pwd-display');
+        const eyeIcon = document.getElementById('eye-icon');
+        passwordsShown = !passwordsShown;
+
+        displays.forEach(span => {
+            const secret = span.getAttribute('data-secret');
+            if (passwordsShown) {
+                span.innerText = secret;
+                span.classList.remove('pwd-masked');
+            } else {
+                span.innerText = '••••••••••';
+                span.classList.add('pwd-masked');
+            }
+        });
+
+        if (passwordsShown) {
+            eyeIcon.classList.remove('fa-eye');
+            eyeIcon.classList.add('fa-eye-slash');
+        } else {
+            eyeIcon.classList.remove('fa-eye-slash');
+            eyeIcon.classList.add('fa-eye');
+        }
+    }
+
+    function downloadCredentialsTxt() {
+        const range = "{{ data.range }}";
+        let text = "==================================================\n";
+        text += "RCM 7021 IP-PBX - Generated Extension Credentials\n";
+        text += "Range: " + range + "\n";
+        text += "Created At: " + new Date().toLocaleString() + "\n";
+        text += "==================================================\n\n";
+        text += String.prototype.padEnd.call("Extension", 15) + String.prototype.padEnd.call("SIP Password", 20) + String.prototype.padEnd.call("Voicemail PIN", 15) + "Status\n";
+        text += "--------------------------------------------------------------------------------\n";
+        
+        {% for item in data.created %}
+        text += String.prototype.padEnd.call("{{ item.ext }}", 15) + 
+                String.prototype.padEnd.call("{{ item.secret }}", 20) + 
+                String.prototype.padEnd.call("{{ item.vm_password }}", 15) + 
+                "{{ item.status }}\n";
+        {% endfor %}
+        
+        text += "\n==================================================\n";
+        text += "Confidential. Keep this file in a secure location.\n";
+
+        const blob = new Blob([text], { type: 'text/plain' });
+        const anchor = document.createElement('a');
+        anchor.download = "rcm_bulk_credentials_" + range.replace(/\s+/g, '') + ".txt";
+        anchor.href = window.URL.createObjectURL(blob);
+        anchor.click();
+        window.URL.revokeObjectURL(anchor.href);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}DEX Config | RCM 7021{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dex.css') }}">{% endblock %}
+{% block content %}
+<main class="dex-page dex-config-page">
+  <header class="dex-page-head">
+    <div><div class="dex-eyebrow"><i class="fa-solid fa-layer-group"></i> DEX</div><h1>Config</h1><p>Phone localization, web login, and contacts.</p></div>
+  </header>
+
+  <form method="post" class="dex-config-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="dex-config-layout">
+      <section class="dex-card dex-config-card">
+        <div class="dex-config-title"><div><h2>Localization</h2><p>Phone date, time, and NTP settings.</p></div><i class="fa-solid fa-globe dex-muted-icon"></i></div>
+        <div class="dex-grid dex-config-fields">
+          <label class="dex-switch dex-config-wide"><input type="checkbox" name="sntp_enabled" {% if config.sntp_enabled %}checked{% endif %}><span></span>Enable NTP</label>
+          <div class="dex-config-wide"><label class="dex-label" for="dex-primary-ntp">NTP Server</label><input id="dex-primary-ntp" class="form-control" name="primary_ntp" value="{{ config.primary_ntp or '192.168.99.223' }}"></div>
+          <div><label class="dex-label" for="dex-timezone">Time Zone</label><input id="dex-timezone" class="form-control" name="timezone" value="{{ config.timezone or '12' }}" inputmode="numeric"></div>
+          <div><label class="dex-label" for="dex-time-format">Time Format</label><select id="dex-time-format" class="form-control" name="time_format">
+            <option value="0" {% if (config.time_format or '0')|string == '0' %}selected{% endif %}>0 - 24-hour</option>
+            <option value="1" {% if config.time_format|string == '1' %}selected{% endif %}>1 - 12-hour</option>
+          </select></div>
+          <div class="dex-config-wide"><label class="dex-label" for="dex-date-format">Date Format</label><select id="dex-date-format" class="form-control" name="date_format">
+            <option value="1" {% if (config.date_format or '6')|string == '1' %}selected{% endif %}>1 - DD MMM WW</option>
+            <option value="2" {% if config.date_format|string == '2' %}selected{% endif %}>2 - MMM DD WW</option>
+            <option value="3" {% if config.date_format|string == '3' %}selected{% endif %}>3 - WW DD MMM</option>
+            <option value="4" {% if config.date_format|string == '4' %}selected{% endif %}>4 - WW MMM DD</option>
+            <option value="5" {% if config.date_format|string == '5' %}selected{% endif %}>5 - DD MM YY</option>
+            <option value="6" {% if (config.date_format or '6')|string == '6' %}selected{% endif %}>6 - DD MM YYYY</option>
+            <option value="7" {% if config.date_format|string == '7' %}selected{% endif %}>7 - MM DD YY</option>
+            <option value="8" {% if config.date_format|string == '8' %}selected{% endif %}>8 - MM DD YYYY</option>
+            <option value="9" {% if config.date_format|string == '9' %}selected{% endif %}>9 - YY MM DD</option>
+            <option value="10" {% if config.date_format|string == '10' %}selected{% endif %}>10 - YYYY MM DD</option>
+          </select></div>
+        </div>
+        <input type="hidden" name="timezone_name" value="{{ config.timezone_name or 'UTC+3' }}">
+        <input type="hidden" name="date_separator" value="1">
+      </section>
+
+      <section class="dex-card dex-config-card">
+        <div class="dex-config-title"><div><h2>Web Login</h2><p>Phone administrator credentials.</p></div><i class="fa-solid fa-lock dex-muted-icon"></i></div>
+        <div class="dex-grid dex-config-fields">
+          <div class="dex-config-wide"><label class="dex-label" for="dex-mmi-password">Admin Password</label><input id="dex-mmi-password" class="form-control" type="text" name="mmi_password" autocomplete="off" value="{{ config.mmi_password or '' }}" placeholder="Set phone administrator password"></div>
+        </div>
+      </section>
+
+      <section class="dex-card dex-config-card">
+        <div class="dex-config-title"><div><h2>Contacts</h2><p>LDAP title shown on the phone.</p></div><i class="fa-solid fa-address-book dex-muted-icon"></i></div>
+        <div class="dex-grid dex-config-fields">
+          <div class="dex-config-wide"><label class="dex-label" for="dex-ldap-title">Display Title</label><input id="dex-ldap-title" class="form-control" name="ldap_title" value="{{ config.ldap_title or 'FCM' }}"></div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="dex-config-footer"><span><i class="fa-solid fa-shield-halved"></i> Empty password fields keep the current value.</span><div class="dex-modal-actions"><button class="dex-btn" name="save_mode" value="save">Save changes</button><button class="dex-btn dex-btn-primary" name="save_mode" value="reprovision">Save + Re-provision All</button></div></footer>
+  </form>
+</main>
+{% endblock %}
