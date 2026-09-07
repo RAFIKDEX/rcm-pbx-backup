@@ -2291,6 +2291,11 @@ def check_number_conflict(num):
                 return True, f"Number is used by Speed Dial '{sd.get('description') or sd.get('speed_dial_num') or num}'"
     except Exception:
         pass
+    try:
+        if db.get_trunk(num):
+            return True, f"Number is used by Trunk '{num}'"
+    except Exception:
+        pass
     return False, ""
 
 def check_trunk_in_use(trunk_name):
@@ -4001,6 +4006,11 @@ def trunks_add():
             
         if db.get_trunk(name):
             flash(f"Trunk {name} already exists.", "danger")
+            return redirect(url_for('trunks_add'))
+            
+        conflict, reason = check_number_conflict(name)
+        if conflict:
+            flash(f"Cannot add trunk {name}: {reason}.", "danger")
             return redirect(url_for('trunks_add'))
 
         trunk_data, errors = parse_trunk_form(name)
