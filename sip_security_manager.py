@@ -181,13 +181,29 @@ def remove_blacklist(id, username):
         
     return True, "Removed."
 
-def get_events():
+def get_events(page=1, limit=50, search=''):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT * FROM sip_security_events ORDER BY created_at DESC LIMIT 1000")
+    query = "SELECT * FROM sip_security_events"
+    count_query = "SELECT COUNT(*) FROM sip_security_events"
+    params = []
+    
+    if search:
+        search_clause = " WHERE ip_address LIKE ? OR event_type LIKE ? OR description LIKE ?"
+        query += search_clause
+        count_query += search_clause
+        params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+        
+    c.execute(count_query, params)
+    total_count = c.fetchone()[0]
+    
+    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, (page - 1) * limit])
+    
+    c.execute(query, params)
     rows = [dict(r) for r in c.fetchall()]
     conn.close()
-    return rows
+    return rows, total_count
 
 def generate_jail_config(settings, whitelists):
     if not settings.get('enabled'):
