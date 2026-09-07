@@ -54,11 +54,83 @@
         padding: 0.25rem 0.6rem;
         border-radius: 20px;
     }
-    .log-toolbar {
-        display: grid;
-        grid-template-columns: minmax(260px, 1.5fr) minmax(170px, 1fr) minmax(150px, 1fr) minmax(110px, 0.5fr) auto auto;
+        .log-toolbar {
+        display: flex;
+        flex-wrap: wrap;
         gap: 1rem;
         align-items: center;
+        background: rgba(0, 0, 0, 0.15);
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+    }
+    .filter-control { 
+        position: relative; 
+        flex: 1 1 180px; 
+        min-width: 150px;
+    }
+    .search-control {
+        flex: 2 1 300px;
+    }
+    .filter-control .control-icon {
+        position: absolute;
+        left: 1.2rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 1.1rem;
+        pointer-events: none;
+        transition: color 0.2s;
+        z-index: 2;
+    }
+    .filter-control input,
+    .filter-control select {
+        width: 100%;
+        min-height: 48px;
+        padding: 0.5rem 1rem 0.5rem 2.8rem;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #f8fafc;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.2s;
+        appearance: none;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        position: relative;
+        z-index: 1;
+    }
+    .filter-control input::placeholder {
+        color: #64748b;
+        font-weight: 400;
+    }
+    .filter-control select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        background-size: 1.2rem;
+        padding-right: 2.5rem;
+        cursor: pointer;
+    }
+    .filter-control input:focus,
+    .filter-control select:focus {
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2), inset 0 2px 4px rgba(0,0,0,0.1);
+        background: rgba(15, 23, 42, 0.9);
+    }
+    .filter-control input:focus + .control-icon,
+    .filter-control select:focus + .control-icon {
+        color: #0ea5e9;
+    }
+    .btn-apply {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    }
+    .btn-apply:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
     }
     .filter-control { position: relative; }
     .filter-control label {
@@ -407,11 +479,9 @@
     .empty-log h3 { color: #f8fafc; margin: 0; font-size: 1.25rem; font-weight: 800; }
 
     @media (max-width: 1024px) {
-        .log-toolbar { grid-template-columns: 1fr 1fr; }
         .filter-actions { justify-content: stretch; }
     }
     @media (max-width: 640px) {
-        .log-toolbar { grid-template-columns: 1fr; }
         .log-filter-head { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
         .header-panel { flex-direction: column; align-items: flex-start; gap: 1rem; }
     }
@@ -439,44 +509,34 @@
     </div>
     <form method="get" class="log-toolbar">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="filter-control">
+        <div class="filter-control search-control">
+            <input type="text" name="search" value="{{ filters.search }}" placeholder="Smart Search (User, IP, changes...)" autocomplete="off">
             <i class="fa-solid fa-magnifying-glass control-icon"></i>
-            <label>Smart Search</label>
-            <input type="text" name="search" value="{{ filters.search }}" placeholder="Search user, action, detail, IP, changes...">
         </div>
         <div class="filter-control">
-            <i class="fa-solid fa-layer-group control-icon"></i>
-            <label>Module</label>
             <select name="module">
                 <option value="">All Modules</option>
                 {% for module in modules %}
-                <option value="{{ module }}" {% if filters.module == module %}selected{% endif %}>{{ module }}</option>
+                <option value="{{ module }}" {% if filters.module == module|lower %}selected{% endif %}>{{ module }}</option>
                 {% endfor %}
             </select>
+            <i class="fa-solid fa-layer-group control-icon"></i>
         </div>
         <div class="filter-control">
-            <i class="fa-solid fa-circle-check control-icon"></i>
-            <label>Result</label>
             <select name="result">
                 <option value="">All Results</option>
-                {% for result in facets.results %}
-                <option value="{{ result }}" {% if filters.result == result %}selected{% endif %}>{{ result }}</option>
-                {% endfor %}
+                <option value="success" {% if filters.result == 'success' %}selected{% endif %}>Success</option>
+                <option value="failed" {% if filters.result == 'failed' %}selected{% endif %}>Failed</option>
+                <option value="error" {% if filters.result == 'error' %}selected{% endif %}>Error</option>
             </select>
+            <i class="fa-solid fa-circle-check control-icon"></i>
         </div>
-        <div class="filter-control">
-            <i class="fa-solid fa-list-ol control-icon"></i>
-            <label>Limit</label>
-            <select name="limit">
-                {% for item in [10, 30, 50, 80, 100, 150, 200] %}
-                <option value="{{ item }}" {% if limit == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
+        <div style="display: flex; gap: 0.5rem; flex: 1 1 auto; justify-content: flex-end;">
+            <button class="btn btn-apply" type="submit" style="min-height: 48px; padding: 0 1.5rem; font-weight: 600;"><i class="fa-solid fa-check"></i> Search</button>
+            <a href="{{ url_for('pbx_operation_log') }}" class="btn" style="min-height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 0 1rem;" title="Clear all filters">
+                <i class="fa-solid fa-rotate-left"></i>
+            </a>
         </div>
-        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-check"></i> Apply</button>
-        <a href="{{ url_for('pbx_operation_log') }}" class="filter-reset" title="Clear all filters">
-            <i class="fa-solid fa-rotate-left"></i> Reset
-        </a>
     </form>
     {% if filters.search or filters.module or filters.result %}
     <div class="active-filter-chips">
