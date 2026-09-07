@@ -2889,9 +2889,10 @@ def sync_queue_dialplan(queues):
         route_lines.append(f"exten => {num},1,Goto(queue-{num},{num},1)")
 
         context_lines.append(f"[queue-{num}]")
-        # Queue entry is not an answered call; Queue() answers when an agent
-        # actually connects the caller.
-        context_lines.append(f"exten => {num},1,NoOp(RCM queue entry - agent answer determines disposition)")
+        # Queue entry usually needs to be Answered so the caller can hear
+        # Music on Hold, Welcome Prompts, and Position Announcements reliably.
+        context_lines.append(f"exten => {num},1,NoOp(RCM queue entry)")
+        context_lines.append(" same => n,Answer()")
         if replace_cid == "on":
             context_lines.append(f" same => n,Set(CALLERID(name)={display_name_val})")
         if enable_welcome == "on" and custom_prompt and welcome_mode == "before":
