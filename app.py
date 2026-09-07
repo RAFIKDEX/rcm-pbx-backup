@@ -5171,9 +5171,9 @@ def pbx_operation_log():
         page = 1
         
     filters = {
-        "module": request.args.get("module", "").strip(),
-        "action": request.args.get("action", "").strip(),
-        "result": request.args.get("result", "").strip(),
+        "module": request.args.get("module", "").strip().lower(),
+        "action": request.args.get("action", "").strip().lower(),
+        "result": request.args.get("result", "").strip().lower(),
         "search": request.args.get("search", "").strip(),
     }
     

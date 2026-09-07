@@ -2733,8 +2733,17 @@ def get_pbx_operation_logs(limit=200, module="", action="", result="", search=""
             continue
         if result and log_result.lower() != result:
             continue
-        if search and search not in haystack:
-            continue
+        if search:
+            # Smart Search: all words must be present in the haystack
+            words = search.split()
+            match = True
+            for w in words:
+                if w not in haystack:
+                    match = False
+                    break
+            if not match:
+                continue
+                
         filtered.append(log)
         if len(filtered) >= limit:
             break
