@@ -3145,12 +3145,12 @@ def extensions_add():
         ext = request.form.get('ext', '').strip()
         if not ext or not ext.isdigit() or int(ext) < 100 or int(ext) > 6299:
             flash("Extension number must be between 100 and 6299.", "danger")
-            return redirect(url_for('extensions_add'))
+            return render_extension_form(extension=request.form)
             
         conflict, reason = check_number_conflict(ext)
         if conflict:
             flash(f"Cannot add extension {ext}: {reason}.", "danger")
-            return redirect(url_for('extensions_add'))
+            return render_extension_form(extension=request.form)
             
         # Parse Follow Me dynamic list
         followme_numbers = request.form.getlist('fm_number[]')
@@ -3168,7 +3168,7 @@ def extensions_add():
         email = request.form.get('email', '').strip()
         if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             flash("Invalid email format.", "danger")
-            return redirect(url_for('extensions_add'))
+            return render_extension_form(extension=request.form)
 
         extension_features, feature_errors = parse_extension_features_form()
         if feature_errors:
@@ -3303,21 +3303,23 @@ def extensions_edit(ext):
                 followme_list.append({"number": n.strip(), "ring": ring_value})
                     
         email = request.form.get('email', '').strip()
+        form_data = dict(request.form)
+        form_data['ext'] = ext
         if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             flash("Invalid email format.", "danger")
-            return redirect(url_for('extensions_edit', ext=ext))
+            return render_extension_form(extension=form_data)
 
         extension_features, feature_errors = parse_extension_features_form()
         if feature_errors:
             flash(" ".join(feature_errors), "danger")
-            return redirect(url_for('extensions_edit', ext=ext))
+            return render_extension_form(extension=form_data)
         selected_spy_extensions = parse_allowed_spy_extensions_form()
         previous_spy_extensions = db.get_spy_permissions_for_target(ext)
 
         max_contacts, field_error = parse_int_form_field('max_contacts', 'Concurrent Registrations', 3, 1, 10000)
         if field_error:
             flash(field_error, "danger")
-            return redirect(url_for('extensions_edit', ext=ext))
+            return render_extension_form(extension=form_data)
         max_expiration, field_error = parse_int_form_field('max_expiration', 'Max Expiration', 120, 30, 86400)
         if field_error:
             flash(field_error, "danger")
@@ -4000,23 +4002,25 @@ def api_trunks_status():
 def trunks_add():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
+        trunk_data, errors = parse_trunk_form(name)
+        trunk_data['name'] = name # ensure name is set even if empty for the template
+
         if not name or not re.match(r'^[A-Za-z0-9_-]+$', name):
             flash("Trunk name must contain only letters, numbers, dashes, and underscores.", "danger")
-            return redirect(url_for('trunks_add'))
+            return render_template('trunk_form.html', trunk=trunk_data, is_edit=False)
             
         if db.get_trunk(name):
             flash(f"Trunk {name} already exists.", "danger")
-            return redirect(url_for('trunks_add'))
+            return render_template('trunk_form.html', trunk=trunk_data, is_edit=False)
             
         conflict, reason = check_number_conflict(name)
         if conflict:
             flash(f"Cannot add trunk {name}: {reason}.", "danger")
-            return redirect(url_for('trunks_add'))
+            return render_template('trunk_form.html', trunk=trunk_data, is_edit=False)
 
-        trunk_data, errors = parse_trunk_form(name)
         if errors:
             flash(" ".join(errors), "danger")
-            return redirect(url_for('trunks_add'))
+            return render_template('trunk_form.html', trunk=trunk_data, is_edit=False)
         
         db.add_trunk(trunk_data)
         run_asterisk_sync("Trunk config sync", asterisk_helper.write_trunk_configs, trunk_data)
@@ -4028,7 +4032,7 @@ def trunks_add():
         flash(f"Trunk {name} added successfully.", "success")
         return redirect(url_for('trunks'))
         
-    return render_template('trunk_form.html', trunk=None)
+    return render_template('trunk_form.html', trunk=None, is_edit=False)
 
 @app.route('/trunks/edit/<name>', methods=['GET', 'POST'])
 @require_csrf
@@ -4041,9 +4045,10 @@ def trunks_edit(name):
         
     if request.method == 'POST':
         trunk_data, errors = parse_trunk_form(name)
+        trunk_data['name'] = name # keep name same for edit display
         if errors:
             flash(" ".join(errors), "danger")
-            return redirect(url_for('trunks_edit', name=name))
+            return render_template('trunk_form.html', trunk=trunk_data, is_edit=True)
             
         changes = audit_changes(existing, trunk_data, ["enabled", "type", "server_addr", "register_mode", "transport", "context", "qualify", "nat"])
         db.update_trunk(name, trunk_data)
@@ -4056,7 +4061,7 @@ def trunks_edit(name):
         flash(f"Trunk {name} updated successfully.", "success")
         return redirect(url_for('trunks'))
         
-    return render_template('trunk_form.html', trunk=existing)
+    return render_template('trunk_form.html', trunk=existing, is_edit=True)
 
 @app.route('/trunks/delete/<name>', methods=['POST'])
 @require_csrf
