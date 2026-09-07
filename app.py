@@ -5161,18 +5161,42 @@ def pbx_operation_log():
         flash("You are not authorized to view PBX operation logs.", "danger")
         return redirect(url_for('dashboard'))
     try:
-        limit = int(request.args.get("limit", 200))
+        limit = int(request.args.get("limit", 20))
     except (TypeError, ValueError):
-        limit = 200
+        limit = 20
+        
+    try:
+        page = int(request.args.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+        
     filters = {
         "module": request.args.get("module", "").strip(),
         "action": request.args.get("action", "").strip(),
         "result": request.args.get("result", "").strip(),
         "search": request.args.get("search", "").strip(),
     }
+    
+    # Get all logs without limiting to calculate pagination
+    all_logs = db.get_pbx_operation_logs(limit=999999, **filters)
+    total_count = len(all_logs)
+    
+    import math
+    total_pages = math.ceil(total_count / limit) if total_count > 0 else 1
+    if page > total_pages:
+        page = total_pages
+    if page < 1:
+        page = 1
+        
+    offset = (page - 1) * limit
+    paginated_logs = all_logs[offset:offset + limit]
+
     return render_template(
         'pbx_operation_log.html',
-        logs=db.get_pbx_operation_logs(limit=limit, **filters),
+        logs=paginated_logs,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count,
         limit=limit,
         filters=filters,
         facets=db.get_pbx_operation_log_facets(),
