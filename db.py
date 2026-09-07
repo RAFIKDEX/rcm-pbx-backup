@@ -4901,7 +4901,7 @@ def cleanup_reporting_scope_references(group, item_id):
 # ==============================================================================
 
 def get_all_surveys():
-    conn = _get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT * FROM surveys ORDER BY created_at DESC")
     rows = c.fetchall()
@@ -4915,7 +4915,7 @@ def get_all_surveys():
     return surveys
 
 def get_survey(survey_id):
-    conn = _get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,))
     row = c.fetchone()
@@ -4929,7 +4929,7 @@ def get_survey(survey_id):
     return survey
 
 def add_survey(name, recordings):
-    conn = _get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     c.execute("INSERT INTO surveys (name) VALUES (?)", (name,))
     survey_id = c.lastrowid
@@ -4941,7 +4941,7 @@ def add_survey(name, recordings):
     return survey_id
 
 def update_survey(survey_id, name, recordings):
-    conn = _get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     c.execute("UPDATE surveys SET name = ? WHERE id = ?", (name, survey_id))
     c.execute("DELETE FROM survey_questions WHERE survey_id = ?", (survey_id,))
@@ -4952,7 +4952,7 @@ def update_survey(survey_id, name, recordings):
     conn.close()
 
 def delete_survey(survey_id):
-    conn = _get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     c.execute("PRAGMA foreign_keys = ON")
     c.execute("DELETE FROM surveys WHERE id = ?", (survey_id,))
