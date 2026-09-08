@@ -1742,6 +1742,7 @@ def write_extension_configs(data, reload=True):
     webrtc_ep_keys["webrtc"] = "yes"
     webrtc_ep_keys["dtls_auto_generate_cert"] = "yes"
     webrtc_ep_keys["auth"] = f"{ext}_webrtc"
+    webrtc_ep_keys["aors"] = f"{ext}_webrtc"
     if "transport" in webrtc_ep_keys:
         del webrtc_ep_keys["transport"]
     update_section(EP_FILE, f"{ext}_webrtc", webrtc_ep_keys, remove_ep_keys)
@@ -1761,6 +1762,17 @@ def write_extension_configs(data, reload=True):
     update_section(AUTH_FILE, f"{ext}_webrtc", webrtc_auth_keys)
 
     # 3. pjsip.gui.aor.conf
+    # 3b. WebRTC AOR
+    webrtc_aor_keys = {
+        "type": "aor",
+        "rcm_max_contacts": "1",
+        "max_contacts": "1" if enabled else "0",
+        "remove_existing": "yes",
+        "qualify_frequency": "0",  # Disable qualify to avoid transport mismatch errors if behind NAT, or just rely on websocket ping
+        "maximum_expiration": str(max_expiration)
+    }
+    update_section(AOR_FILE, f"{ext}_webrtc", webrtc_aor_keys)
+
     actual_max = max_contacts if enabled else 0
     new_aor_keys = {
         "type": "aor",
