@@ -2425,7 +2425,7 @@ def check_auth():
     if app.config.get('TESTING') and not request.headers.get('X-Enforce-Security') and not request.environ.get('enforce_security'):
         return
     # List of endpoints that don't require login
-    open_endpoints = ['login', 'static', 'global_favicon', 'global_logo_png', 'forgot_password', 'forgot_password_verify', 'forgot_password_reset']
+    open_endpoints = ['login', 'static', 'global_favicon', 'global_logo_png', 'forgot_password', 'forgot_password_verify', 'forgot_password_reset', 'dexterphone']
     if 'logged_in' not in session and request.endpoint not in open_endpoints:
         if request.path.startswith('/api/') or request.path.startswith('/extensions/info') or request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({"error": "Unauthorized"}), 401
@@ -2555,7 +2555,7 @@ def forgot_password_verify():
         success, verify_err = db.verify_otp(username, otp)
         if success:
             session['reset_otp_verified'] = True
-            return redirect(url_for('forgot_password_reset'))
+            return redirect(url_for('forgot_password_reset', 'dexterphone'))
         else:
             error = verify_err
             
@@ -14333,6 +14333,11 @@ def survey_drilldown(survey_id):
     
     return jsonify({'results': results})
 
+
+
+@app.route('/dexterphone')
+def dexterphone():
+    return render_template('dexterphone.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

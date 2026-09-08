@@ -1736,6 +1736,15 @@ def write_extension_configs(data, reload=True):
         pass
 
     update_section(EP_FILE, ext, new_ep_keys, remove_ep_keys)
+    
+    # 1b. WebRTC Endpoint
+    webrtc_ep_keys = dict(new_ep_keys)
+    webrtc_ep_keys["webrtc"] = "yes"
+    webrtc_ep_keys["dtls_auto_generate_cert"] = "yes"
+    webrtc_ep_keys["auth"] = f"{ext}_webrtc"
+    if "transport" in webrtc_ep_keys:
+        del webrtc_ep_keys["transport"]
+    update_section(EP_FILE, f"{ext}_webrtc", webrtc_ep_keys, remove_ep_keys)
 
     # 2. pjsip.gui.auth.conf
     new_auth_keys = {
@@ -1745,6 +1754,11 @@ def write_extension_configs(data, reload=True):
         "password": secret
     }
     update_section(AUTH_FILE, ext, new_auth_keys)
+    
+    # 2b. WebRTC Auth
+    webrtc_auth_keys = dict(new_auth_keys)
+    webrtc_auth_keys["username"] = f"{ext}_webrtc"
+    update_section(AUTH_FILE, f"{ext}_webrtc", webrtc_auth_keys)
 
     # 3. pjsip.gui.aor.conf
     actual_max = max_contacts if enabled else 0
