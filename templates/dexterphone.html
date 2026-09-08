@@ -1,118 +1,227 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTER Phone Web Client</title>
-    <!-- Use Tailwind for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>DEXTER Phone</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/glass_theme.css') }}">
+    
     <!-- SIP.js from local static folder -->
     <script src="/static/js/sip.min.js"></script>
+    
     <style>
-        :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --danger: #ef4444;
-            --danger-hover: #dc2828;
-            --success: #22c55e;
-            --success-hover: #16a34a;
-            --border: #334155;
-        }
-        [data-theme="light"] {
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --text: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-        }
         body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            margin: 0;
+            padding: 20px;
         }
-        .app-container {
+
+        .phone-container {
+            position: relative;
+            z-index: 10;
             width: 100%;
-            max-width: 400px;
-            height: 100vh;
-            max-height: 800px;
-            background-color: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 360px;
+            height: 700px;
+            max-height: 90vh;
+        }
+
+        .phone-card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            height: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            position: relative;
         }
-        @media (max-width: 400px) {
-            .app-container {
-                border-radius: 0;
-                border: none;
-                max-height: 100vh;
-            }
+
+        .phone-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
         }
-        /* Dialpad Grid */
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            padding: 1.5rem;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .form-control {
+            width: 100%;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
+            color: var(--text-main);
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 1rem;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger-glow);
+            color: #f87171;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-warning {
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.4);
+            color: #facc15;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Dialpad */
         .dialpad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            padding: 20px;
+            gap: 15px;
+            margin-top: auto;
+            margin-bottom: 20px;
         }
         .dial-btn {
-            background-color: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
             border-radius: 50%;
             aspect-ratio: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 300;
             cursor: pointer;
             transition: all 0.2s;
-            user-select: none;
         }
         .dial-btn:hover, .dial-btn:active {
-            background-color: var(--primary);
+            background: var(--primary);
             color: white;
             border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
         }
         .dial-btn .sub {
             font-size: 10px;
             color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-top: -2px;
+        }
+        .dial-btn:hover .sub { color: rgba(255,255,255,0.8); }
+
+        .number-display {
+            font-size: 36px;
+            font-weight: 300;
+            text-align: center;
+            min-height: 54px;
             letter-spacing: 2px;
-            text-transform: uppercase;
+            margin-bottom: 20px;
+            color: var(--text-main);
+            word-break: break-all;
         }
-        .dial-btn:hover .sub, .dial-btn:active .sub {
-            color: rgba(255,255,255,0.7);
+
+        .action-btn {
+            border-radius: 50%;
+            width: 64px;
+            height: 64px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.2s;
         }
+        .action-btn:active { transform: scale(0.9); }
+        .btn-call { background: var(--success); box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4); }
+        .btn-hangup { background: var(--danger); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+        .btn-back { background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); }
+        .btn-back:hover { background: rgba(255,255,255,0.1); }
+
         /* Call Controls */
         .call-controls {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            padding: 20px;
+            gap: 15px;
+            margin-top: auto;
+            margin-bottom: 30px;
         }
         .control-btn {
-            background-color: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
             border-radius: 50%;
             aspect-ratio: 1;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             font-size: 20px;
@@ -120,331 +229,242 @@
             transition: all 0.2s;
         }
         .control-btn.active {
-            background-color: white;
+            background: white;
             color: black;
         }
-        .control-btn:hover {
-            background-color: rgba(255,255,255,0.1);
-        }
-        .action-btn {
-            border-radius: 50%;
-            aspect-ratio: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.1s;
-            border: none;
-        }
-        .action-btn:active {
-            transform: scale(0.95);
-        }
-        .btn-green { background-color: var(--success); box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4); }
-        .btn-green:hover { background-color: var(--success-hover); }
-        .btn-red { background-color: var(--danger); box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4); }
-        .btn-red:hover { background-color: var(--danger-hover); }
-        
-        /* Screens */
-        .screen {
-            display: none;
-            flex-direction: column;
-            height: 100%;
-            width: 100%;
-        }
-        .screen.active {
-            display: flex;
-        }
-        
-        /* Inputs */
-        .input-group {
-            margin-bottom: 16px;
-        }
-        .input-group label {
-            display: block;
-            margin-bottom: 6px;
-            color: var(--text-muted);
-            font-size: 13px;
-        }
-        .input-group input {
-            width: 100%;
-            background-color: rgba(0,0,0,0.2);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 12px 16px;
-            border-radius: 12px;
-            outline: none;
-            font-size: 15px;
-            transition: border-color 0.2s;
-        }
-        .input-group input:focus {
-            border-color: var(--primary);
-        }
-        .btn-primary {
-            width: 100%;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 15px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .btn-primary:hover {
-            background-color: var(--primary-hover);
-        }
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        /* Navbar */
-        .navbar {
+        .control-btn:hover { background: rgba(255,255,255,0.1); }
+
+        /* Bottom Nav */
+        .bottom-nav {
             display: flex;
             justify-content: space-around;
-            padding: 12px 0;
-            border-top: 1px solid var(--border);
-            background-color: var(--surface);
+            padding: 15px 0 5px 0;
+            border-top: 1px solid var(--border-color);
+            margin-top: auto;
         }
         .nav-item {
             color: var(--text-muted);
-            font-size: 20px;
+            font-size: 22px;
             cursor: pointer;
             transition: color 0.2s;
-            padding: 8px 16px;
         }
-        .nav-item.active {
-            color: var(--primary);
-        }
+        .nav-item.active { color: var(--primary); }
+        .nav-item:hover { color: var(--text-main); }
 
-        /* Number Display */
-        .number-display {
-            font-size: 32px;
-            font-weight: 300;
-            text-align: center;
-            min-height: 48px;
-            letter-spacing: 2px;
-            padding: 0 20px;
-            margin-top: auto;
-            margin-bottom: 10px;
-            word-break: break-all;
-        }
-        
-        /* History Item */
         .history-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 20px;
-            border-bottom: 1px solid var(--border);
-        }
-        .history-icon {
-            width: 32px;
-            font-size: 14px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
         }
         .incoming { color: var(--success); }
         .outgoing { color: var(--primary); }
         .missed { color: var(--danger); }
         
         #remote-audio { display: none; }
+        
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,0,0,0.2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot-green { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .dot-red { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
     </style>
 </head>
 <body>
 
+    <!-- Background Animations -->
+    <div class="uiverse-bg-container">
+        <div id="stars"></div>
+        <div id="stars2"></div>
+        <div id="stars3"></div>
+    </div>
+    <div class="glow-blob glow-blob-1"></div>
+    <div class="glow-blob glow-blob-2"></div>
+
     <audio id="remote-audio" autoplay></audio>
-    <!-- We don't have remote mp3s for ringtones, we can use base64 or just native AudioContext but using standard ones is fine -->
 
-    <div class="app-container">
-        
-        <!-- LOGIN SCREEN -->
-        <div id="screen-login" class="screen active p-6">
-            <div class="text-center mt-8 mb-10">
-                <div class="text-blue-500 text-5xl mb-4"><i class="fa-solid fa-phone-flip"></i></div>
-                <h1 class="text-2xl font-bold">DEXTER Phone</h1>
-                <p class="text-[var(--text-muted)] text-sm">WebRTC Client</p>
-            </div>
+    <div class="phone-container">
+        <div class="phone-card">
             
-            <form id="login-form" onsubmit="event.preventDefault(); connectSIP();">
-                <div class="input-group">
-                    <label>Extension</label>
-                    <input type="text" id="sip-extension" placeholder="e.g. 1001" required value="">
-                </div>
-                <div class="input-group">
-                    <label>Password</label>
-                    <input type="password" id="sip-password" placeholder="********" required value="">
-                </div>
-                <div class="input-group">
-                    <label>Server (IP or Domain)</label>
-                    <input type="text" id="sip-server" placeholder="192.168.99.223" required value="">
+            <!-- LOGIN SCREEN -->
+            <div id="screen-login" class="screen active">
+                <div style="text-align: center; margin: 40px 0 30px 0;">
+                    <div style="color: var(--primary); font-size: 48px; margin-bottom: 15px;">
+                        <i class="fa-solid fa-phone-flip"></i>
+                    </div>
+                    <h1 style="font-family: 'Orbitron', sans-serif; font-size: 24px; color: var(--text-main);">DEXTER Phone</h1>
+                    <p style="color: var(--text-muted); font-size: 13px; margin-top: 5px;">WebRTC Client</p>
                 </div>
                 
-                <div id="login-error" class="text-[var(--danger)] text-sm text-center mb-4 hidden"></div>
-                
-                <button type="submit" id="btn-connect" class="btn-primary mt-4">
-                    Connect
-                </button>
-            </form>
-        </div>
-
-        <!-- MAIN SCREEN (DIALPAD) -->
-        <div id="screen-main" class="screen">
-            <div class="px-6 py-4 border-b border-[var(--border)] flex justify-between items-center">
-                <div>
-                    <span id="status-indicator" class="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-                    <span id="status-text" class="text-sm font-semibold text-green-500">Registered</span>
+                <div id="mic-warning" class="alert-warning" style="display: none;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>
+                        <strong>Microphone Blocked!</strong><br>
+                        Your browser blocks mics on non-HTTPS sites. Type this in a new tab: 
+                        <code style="display:block; background:#000; padding:4px; margin-top:4px; font-size:10px; word-break:break-all;">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>
+                        Enable it, enter <strong>http://192.168.99.223</strong>, and relaunch Chrome.
+                    </div>
                 </div>
-                <div class="text-sm font-semibold" id="my-extension-display">1001</div>
+
+                <div id="login-error" class="alert-danger" style="display: none;">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span id="login-error-text"></span>
+                </div>
+                
+                <form id="login-form" onsubmit="event.preventDefault(); connectSIP();">
+                    <div class="form-group">
+                        <label>Extension Number</label>
+                        <input type="text" id="sip-extension" class="form-control" placeholder="e.g. 1001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="sip-password" class="form-control" placeholder="********" required>
+                    </div>
+                    
+                    <button type="submit" id="btn-connect" class="btn-primary" style="margin-top: 10px;">
+                        <i class="fa-solid fa-bolt"></i> Connect
+                    </button>
+                </form>
             </div>
-            
-            <div class="flex-1 flex flex-col">
+
+            <!-- MAIN SCREEN (DIALPAD) -->
+            <div id="screen-main" class="screen">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="status-pill">
+                        <div class="dot dot-green" id="status-indicator"></div>
+                        <span id="status-text" style="color: var(--text-main);">Registered</span>
+                    </div>
+                    <div style="font-family: 'JetBrains Mono', monospace; color: var(--primary); font-weight: bold;" id="my-extension-display">1001</div>
+                </div>
+                
                 <div class="number-display" id="dial-input"></div>
                 
                 <div class="dialpad">
-                    <button class="dial-btn" onclick="appendDial('1')">1<span class="sub">&nbsp;</span></button>
-                    <button class="dial-btn" onclick="appendDial('2')">2<span class="sub">ABC</span></button>
-                    <button class="dial-btn" onclick="appendDial('3')">3<span class="sub">DEF</span></button>
-                    <button class="dial-btn" onclick="appendDial('4')">4<span class="sub">GHI</span></button>
-                    <button class="dial-btn" onclick="appendDial('5')">5<span class="sub">JKL</span></button>
-                    <button class="dial-btn" onclick="appendDial('6')">6<span class="sub">MNO</span></button>
-                    <button class="dial-btn" onclick="appendDial('7')">7<span class="sub">PQRS</span></button>
-                    <button class="dial-btn" onclick="appendDial('8')">8<span class="sub">TUV</span></button>
-                    <button class="dial-btn" onclick="appendDial('9')">9<span class="sub">WXYZ</span></button>
-                    <button class="dial-btn" onclick="appendDial('*')">*<span class="sub">&nbsp;</span></button>
-                    <button class="dial-btn" onclick="appendDial('0')">0<span class="sub">+</span></button>
-                    <button class="dial-btn" onclick="appendDial('#')">#<span class="sub">&nbsp;</span></button>
+                    <button class="dial-btn" onclick="appendDial('1')">1<div class="sub">&nbsp;</div></button>
+                    <button class="dial-btn" onclick="appendDial('2')">2<div class="sub">ABC</div></button>
+                    <button class="dial-btn" onclick="appendDial('3')">3<div class="sub">DEF</div></button>
+                    <button class="dial-btn" onclick="appendDial('4')">4<div class="sub">GHI</div></button>
+                    <button class="dial-btn" onclick="appendDial('5')">5<div class="sub">JKL</div></button>
+                    <button class="dial-btn" onclick="appendDial('6')">6<div class="sub">MNO</div></button>
+                    <button class="dial-btn" onclick="appendDial('7')">7<div class="sub">PQRS</div></button>
+                    <button class="dial-btn" onclick="appendDial('8')">8<div class="sub">TUV</div></button>
+                    <button class="dial-btn" onclick="appendDial('9')">9<div class="sub">WXYZ</div></button>
+                    <button class="dial-btn" onclick="appendDial('*')">*<div class="sub">&nbsp;</div></button>
+                    <button class="dial-btn" onclick="appendDial('0')">0<div class="sub">+</div></button>
+                    <button class="dial-btn" onclick="appendDial('#')">#<div class="sub">&nbsp;</div></button>
                 </div>
                 
-                <div class="flex justify-center gap-8 mb-6 mt-2">
-                    <button class="action-btn btn-green w-16 h-16" onclick="makeCall()">
+                <div style="display: flex; justify-content: center; gap: 30px;">
+                    <button class="action-btn btn-call" onclick="makeCall()">
                         <i class="fa-solid fa-phone"></i>
                     </button>
-                    <button class="action-btn bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] w-16 h-16" onclick="backspaceDial()">
+                    <button class="action-btn btn-back" onclick="backspaceDial()">
                         <i class="fa-solid fa-delete-left"></i>
                     </button>
                 </div>
-            </div>
-            
-            <div class="navbar">
-                <div class="nav-item active" onclick="switchTab('main')"><i class="fa-solid fa-tty"></i></div>
-                <div class="nav-item" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                <div class="nav-item" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i></div>
-            </div>
-        </div>
-
-        <!-- HISTORY SCREEN -->
-        <div id="screen-history" class="screen">
-            <div class="px-6 py-4 border-b border-[var(--border)]">
-                <h2 class="font-bold">Call History</h2>
-            </div>
-            <div class="flex-1 overflow-y-auto" id="history-list">
-                <!-- History items injected here -->
-                <div class="text-center text-[var(--text-muted)] mt-10 text-sm">No recent calls</div>
-            </div>
-            
-            <div class="navbar mt-auto">
-                <div class="nav-item" onclick="switchTab('main')"><i class="fa-solid fa-tty"></i></div>
-                <div class="nav-item active" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                <div class="nav-item" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i></div>
-            </div>
-        </div>
-        
-        <!-- SETTINGS SCREEN -->
-        <div id="screen-settings" class="screen">
-            <div class="px-6 py-4 border-b border-[var(--border)]">
-                <h2 class="font-bold">Settings</h2>
-            </div>
-            <div class="flex-1 p-6 overflow-y-auto">
-                <button class="btn-primary bg-[var(--danger)] hover:bg-[var(--danger-hover)]" onclick="disconnectSIP()">
-                    <i class="fa-solid fa-right-from-bracket mr-2"></i> Disconnect & Logout
-                </button>
-            </div>
-            
-            <div class="navbar mt-auto">
-                <div class="nav-item" onclick="switchTab('main')"><i class="fa-solid fa-tty"></i></div>
-                <div class="nav-item" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                <div class="nav-item active" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i></div>
-            </div>
-        </div>
-
-        <!-- ACTIVE CALL SCREEN -->
-        <div id="screen-call" class="screen bg-slate-900 absolute top-0 left-0 w-full h-full z-50">
-            <div class="text-center mt-12 mb-auto">
-                <div class="text-white text-sm font-semibold opacity-70 mb-2" id="call-state">CALLING...</div>
-                <div class="text-white text-4xl font-light" id="call-target">1002</div>
-                <div class="text-white text-lg mt-2 font-mono" id="call-timer">00:00</div>
-            </div>
-            
-            <div class="call-controls mb-8 mt-auto">
-                <button class="control-btn" id="btn-mute" onclick="toggleMute()">
-                    <i class="fa-solid fa-microphone-slash"></i>
-                </button>
-                <button class="control-btn" id="btn-keypad" onclick="alert('DTMF keypad not implemented in this minimal demo UI')">
-                    <i class="fa-solid fa-grip"></i>
-                </button>
-                <button class="control-btn" id="btn-hold" onclick="toggleHold()">
-                    <i class="fa-solid fa-pause"></i>
-                </button>
-            </div>
-            
-            <div class="flex justify-center mb-12">
-                <button class="action-btn btn-red w-16 h-16" onclick="endCall()">
-                    <i class="fa-solid fa-phone-slash"></i>
-                </button>
-            </div>
-        </div>
-        
-        <!-- INCOMING CALL SCREEN -->
-        <div id="screen-incoming" class="screen bg-slate-900 absolute top-0 left-0 w-full h-full z-50">
-            <div class="text-center mt-12 mb-auto">
-                <div class="text-green-400 text-sm font-semibold mb-2 animate-pulse">INCOMING CALL</div>
-                <div class="text-white text-4xl font-light" id="incoming-target">1002</div>
-            </div>
-            
-            <div class="flex justify-around mb-12 w-full px-12 mt-auto">
-                <div class="text-center">
-                    <button class="action-btn btn-red w-16 h-16 mb-2 mx-auto" onclick="rejectCall()">
-                        <i class="fa-solid fa-phone-slash"></i>
-                    </button>
-                    <span class="text-white text-xs opacity-70">Decline</span>
+                
+                <div class="bottom-nav">
+                    <div class="nav-item active" onclick="switchTab('main')"><i class="fa-solid fa-tty"></i></div>
+                    <div class="nav-item" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                    <div class="nav-item" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i></div>
                 </div>
-                <div class="text-center">
-                    <button class="action-btn btn-green w-16 h-16 mb-2 mx-auto animate-bounce" onclick="answerCall()">
-                        <i class="fa-solid fa-phone"></i>
+            </div>
+
+            <!-- HISTORY SCREEN -->
+            <div id="screen-history" class="screen">
+                <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text-main);">Call History</h2>
+                <div style="flex: 1; overflow-y: auto; padding-right: 5px;" id="history-list"></div>
+                
+                <div class="bottom-nav">
+                    <div class="nav-item" onclick="switchTab('main')"><i class="fa-solid fa-tty"></i></div>
+                    <div class="nav-item active" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                    <div class="nav-item" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i></div>
+                </div>
+            </div>
+            
+            <!-- SETTINGS SCREEN -->
+            <div id="screen-settings" class="screen">
+                <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text-main);">Settings</h2>
+                <div style="flex: 1;">
+                    <button class="btn-primary" style="background: linear-gradient(135deg, var(--danger) 0%, #991b1b 100%); margin-top: 20px;" onclick="disconnectSIP()">
+                        <i class="fa-solid fa-right-from-bracket"></i> Disconnect & Logout
                     </button>
-                    <span class="text-white text-xs opacity-70">Answer</span>
+                </div>
+                
+                <div class="bottom-nav">
+                    <div class="nav-item" onclick="switchTab('main')"><i class="fa-solid fa-tty"></i></div>
+                    <div class="nav-item" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                    <div class="nav-item active" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i></div>
+                </div>
+            </div>
+
+            <!-- ACTIVE CALL SCREEN -->
+            <div id="screen-call" class="screen" style="position: absolute; top:0; left:0; z-index: 50; background: var(--bg-dark);">
+                <div style="text-align: center; margin-top: 40px;">
+                    <div id="call-state" style="color: var(--primary); font-size: 14px; font-weight: 600; margin-bottom: 10px; letter-spacing: 1px;">CALLING...</div>
+                    <div id="call-target" style="font-size: 42px; font-weight: 300; color: var(--text-main);">1002</div>
+                    <div id="call-timer" style="font-family: 'JetBrains Mono', monospace; font-size: 18px; color: var(--text-muted); margin-top: 10px;">00:00</div>
+                </div>
+                
+                <div class="call-controls">
+                    <button class="control-btn" id="btn-mute" onclick="toggleMute()"><i class="fa-solid fa-microphone-slash"></i></button>
+                    <button class="control-btn" id="btn-keypad" onclick="alert('Keypad mode coming soon')"><i class="fa-solid fa-grip"></i></button>
+                    <button class="control-btn" id="btn-hold" onclick="toggleHold()"><i class="fa-solid fa-pause"></i></button>
+                </div>
+                
+                <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+                    <button class="action-btn btn-hangup" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i></button>
+                </div>
+            </div>
+            
+            <!-- INCOMING CALL SCREEN -->
+            <div id="screen-incoming" class="screen" style="position: absolute; top:0; left:0; z-index: 50; background: var(--bg-dark);">
+                <div style="text-align: center; margin-top: 40px;">
+                    <div style="color: var(--success); font-size: 14px; font-weight: 600; margin-bottom: 10px; letter-spacing: 1px; animation: pulse 1s infinite;">INCOMING CALL</div>
+                    <div id="incoming-target" style="font-size: 42px; font-weight: 300; color: var(--text-main);">1002</div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-around; margin-top: auto; margin-bottom: 40px; padding: 0 20px;">
+                    <div style="text-align: center;">
+                        <button class="action-btn btn-hangup" onclick="rejectCall()" style="margin-bottom: 10px;"><i class="fa-solid fa-phone-slash"></i></button>
+                        <span style="color: var(--text-muted); font-size: 12px;">Decline</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="action-btn btn-call" onclick="answerCall()" style="margin-bottom: 10px; animation: bounce 2s infinite;"><i class="fa-solid fa-phone"></i></button>
+                        <span style="color: var(--text-muted); font-size: 12px;">Answer</span>
+                    </div>
                 </div>
             </div>
         </div>
-
     </div>
 
     <script>
-        // Use basic web audio API to generate tones so we don't rely on external URLs that might be blocked
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playTone(freq1, freq2, duration, type='sine') {
             const osc1 = audioCtx.createOscillator();
             const osc2 = freq2 ? audioCtx.createOscillator() : null;
             const gain = audioCtx.createGain();
-            
             osc1.type = type;
             osc1.frequency.value = freq1;
             osc1.connect(gain);
-            
             if (osc2) {
                 osc2.type = type;
                 osc2.frequency.value = freq2;
                 osc2.connect(gain);
             }
-            
             gain.connect(audioCtx.destination);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
             osc1.start();
             if (osc2) osc2.start();
-            
             setTimeout(() => {
                 osc1.stop();
                 if (osc2) osc2.stop();
@@ -454,58 +474,40 @@
         let ringInterval;
         function playRingtone() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            ringInterval = setInterval(() => {
-                playTone(440, 480, 2000, 'square');
-            }, 4000);
+            ringInterval = setInterval(() => { playTone(440, 480, 2000, 'square'); }, 4000);
             playTone(440, 480, 2000, 'square');
         }
-        
-        function stopRingtone() {
-            clearInterval(ringInterval);
-        }
+        function stopRingtone() { clearInterval(ringInterval); }
         
         let ringbackInterval;
         function playRingback() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            ringbackInterval = setInterval(() => {
-                playTone(440, 480, 2000);
-            }, 4000);
+            ringbackInterval = setInterval(() => { playTone(440, 480, 2000); }, 4000);
             playTone(440, 480, 2000);
         }
-        function stopRingback() {
-            clearInterval(ringbackInterval);
-        }
+        function stopRingback() { clearInterval(ringbackInterval); }
 
-
-        // SIP.js Globals
         let userAgent = null;
         let activeSession = null;
         let callTimerInt = null;
         let callSeconds = 0;
         let historyData = [];
 
-        // UI Elements
         const dialInput = document.getElementById('dial-input');
         const remoteAudio = document.getElementById('remote-audio');
         
-        // --- UI Logic ---
-        
         function switchTab(tab) {
-            document.querySelectorAll('.screen:not(.absolute)').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.screen:not([style*="absolute"])').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            
             document.getElementById('screen-' + tab).classList.add('active');
             event.currentTarget.classList.add('active');
-            
             if (tab === 'history') renderHistory();
         }
         
         function appendDial(digit) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            playTone(440 + (Math.random()*100), null, 150); // fake dtmf beep sound for UI
-            if (dialInput.innerText.length < 15) {
-                dialInput.innerText += digit;
-            }
+            playTone(440 + (Math.random()*100), null, 100);
+            if (dialInput.innerText.length < 15) dialInput.innerText += digit;
             if (activeSession && activeSession.state === SIP.SessionState.Established) {
                 try {
                     const dtmf = new SIP.Infoer(activeSession, 'application/dtmf-relay');
@@ -519,16 +521,8 @@
         }
         
         function showScreen(screenId) {
-            document.querySelectorAll('.screen.absolute').forEach(el => el.classList.remove('active'));
-            if (screenId) {
-                document.getElementById(screenId).classList.add('active');
-            }
-        }
-        
-        function setStatus(text, colorClass) {
-            document.getElementById('status-text').innerText = text;
-            document.getElementById('status-text').className = `text-sm font-semibold text-${colorClass}-500`;
-            document.getElementById('status-indicator').className = `inline-block w-2 h-2 rounded-full bg-${colorClass}-500 mr-2`;
+            document.querySelectorAll('.screen[style*="absolute"]').forEach(el => el.classList.remove('active'));
+            if (screenId) document.getElementById(screenId).classList.add('active');
         }
         
         function addHistory(number, type, timeStr, duration) {
@@ -540,25 +534,24 @@
             const list = document.getElementById('history-list');
             list.innerHTML = '';
             if (historyData.length === 0) {
-                list.innerHTML = '<div class="text-center text-[var(--text-muted)] mt-10 text-sm">No recent calls</div>';
+                list.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: 40px; font-size: 14px;">No recent calls</div>';
                 return;
             }
             historyData.forEach(item => {
-                const icon = item.type === 'incoming' ? '<i class="fa-solid fa-arrow-down-left incoming"></i>' : 
-                             item.type === 'outgoing' ? '<i class="fa-solid fa-arrow-up-right outgoing"></i>' : 
-                             '<i class="fa-solid fa-phone-slash missed"></i>';
+                const color = item.type === 'incoming' ? 'var(--success)' : item.type === 'outgoing' ? 'var(--primary)' : 'var(--danger)';
+                const icon = item.type === 'incoming' ? 'fa-arrow-down-left' : item.type === 'outgoing' ? 'fa-arrow-up-right' : 'fa-phone-slash';
                 list.innerHTML += `
                     <div class="history-item">
-                        <div class="flex items-center gap-3">
-                            <div class="history-icon">${icon}</div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="color: ${color};"><i class="fa-solid ${icon}"></i></div>
                             <div>
-                                <div class="font-semibold text-[var(--text)]">${item.number}</div>
-                                <div class="text-xs text-[var(--text-muted)]">${item.type.charAt(0).toUpperCase() + item.type.slice(1)}</div>
+                                <div style="font-weight: 600; color: var(--text-main);">${item.number}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); text-transform: capitalize;">${item.type}</div>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <div class="text-xs text-[var(--text-muted)]">${item.timeStr}</div>
-                            <div class="text-xs font-mono text-[var(--text)]">${item.duration || ''}</div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 11px; color: var(--text-muted);">${item.timeStr}</div>
+                            <div style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text-main);">${item.duration || ''}</div>
                         </div>
                     </div>
                 `;
@@ -575,7 +568,6 @@
                 document.getElementById('call-timer').innerText = `${m}:${s}`;
             }, 1000);
         }
-        
         function stopTimer() {
             clearInterval(callTimerInt);
             const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
@@ -583,54 +575,56 @@
             return `${m}:${s}`;
         }
 
-        // --- SIP Logic ---
+        async function checkMicPermission() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                stream.getTracks().forEach(t => t.stop());
+                document.getElementById('mic-warning').style.display = 'none';
+                return true;
+            } catch (e) {
+                if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                    document.getElementById('mic-warning').style.display = 'flex';
+                }
+                return false;
+            }
+        }
+        
+        // Auto check mic on load to show warning early
+        checkMicPermission();
 
         async function connectSIP() {
             const ext = document.getElementById('sip-extension').value;
             const pw = document.getElementById('sip-password').value;
-            let srv = document.getElementById('sip-server').value;
-            if (!srv.includes(':')) srv += ':8088';
+            let srv = window.location.hostname; // Auto detect!
             
             const btn = document.getElementById('btn-connect');
             const err = document.getElementById('login-error');
-            btn.innerText = 'Connecting...';
+            const errText = document.getElementById('login-error-text');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Connecting...';
             btn.disabled = true;
-            err.classList.add('hidden');
+            err.style.display = 'none';
             
-            try {
-                await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            } catch (e) {
-                err.innerText = "Microphone permission denied.";
-                err.classList.remove('hidden');
-                btn.innerText = 'Connect';
+            const hasMic = await checkMicPermission();
+            if (!hasMic) {
+                errText.innerText = "Microphone permission is required.";
+                err.style.display = 'flex';
+                btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Connect';
                 btn.disabled = false;
                 return;
             }
 
             const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsServer = `${wsProtocol}://${srv}/ws`;
-            const uri = SIP.UserAgent.makeURI(`sip:${ext}@${srv.split(':')[0]}`);
+            const wsServer = `${wsProtocol}://${srv}:8088/ws`;
+            const uri = SIP.UserAgent.makeURI(`sip:${ext}_webrtc@${srv}`);
             
-            const transportOptions = {
-                server: wsServer,
-                connectionTimeout: 10,
-                keepAliveInterval: 30
-            };
-            
-            // PBX trick: We generated a secondary endpoint/auth for each user appending _webrtc
-            const authUsername = `${ext}_webrtc`;
-
             const uaOptions = {
                 uri: uri,
-                authorizationUsername: authUsername,
+                authorizationUsername: `${ext}_webrtc`,
                 authorizationPassword: pw,
-                transportOptions: transportOptions,
+                transportOptions: { server: wsServer },
                 contactName: ext,
-                noAnswerTimeout: 60,
                 sessionDescriptionHandlerFactoryOptions: {
-                    peerConnectionOptions: {
-                        rtcConfiguration: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-                    }
+                    peerConnectionOptions: { rtcConfiguration: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] } }
                 }
             };
             
@@ -640,39 +634,31 @@
                 
                 userAgent.delegate = {
                     onConnect: () => {
-                        registerer.register()
-                            .then(() => {
-                                document.getElementById('screen-login').classList.remove('active');
-                                document.getElementById('screen-main').classList.add('active');
-                                document.getElementById('my-extension-display').innerText = ext;
-                                setStatus('Registered', 'green');
-                                localStorage.setItem('dexter_ext', ext);
-                                localStorage.setItem('dexter_srv', document.getElementById('sip-server').value);
-                            })
-                            .catch(e => {
-                                err.innerText = "Registration Failed: " + e.message;
-                                err.classList.remove('hidden');
-                                btn.innerText = 'Connect';
-                                btn.disabled = false;
-                                userAgent.stop();
-                            });
+                        registerer.register().then(() => {
+                            document.getElementById('screen-login').classList.remove('active');
+                            document.getElementById('screen-main').classList.add('active');
+                            document.getElementById('my-extension-display').innerText = ext;
+                            localStorage.setItem('dexter_ext', ext);
+                        }).catch(e => {
+                            errText.innerText = "Registration Failed: " + e.message;
+                            err.style.display = 'flex';
+                            btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Connect';
+                            btn.disabled = false;
+                            userAgent.stop();
+                        });
                     },
                     onDisconnect: (error) => {
-                        setStatus('Disconnected', 'red');
                         if (error) {
-                            err.innerText = "Connection lost.";
-                            err.classList.remove('hidden');
+                            errText.innerText = "Connection lost.";
+                            err.style.display = 'flex';
                             document.getElementById('screen-main').classList.remove('active');
                             document.getElementById('screen-login').classList.add('active');
-                            btn.innerText = 'Connect';
+                            btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Connect';
                             btn.disabled = false;
                         }
                     },
                     onInvite: (invitation) => {
-                        if (activeSession) {
-                            invitation.reject();
-                            return;
-                        }
+                        if (activeSession) { invitation.reject(); return; }
                         activeSession = invitation;
                         const caller = invitation.remoteIdentity.uri.user;
                         document.getElementById('incoming-target').innerText = caller;
@@ -693,25 +679,20 @@
                 await userAgent.start();
                 
             } catch (error) {
-                err.innerText = "Error: " + error.message;
-                err.classList.remove('hidden');
-                btn.innerText = 'Connect';
+                errText.innerText = "Error: " + error.message;
+                err.style.display = 'flex';
+                btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Connect';
                 btn.disabled = false;
             }
         }
         
         function disconnectSIP() {
-            if (userAgent) {
-                userAgent.stop();
-                userAgent = null;
-            }
+            if (userAgent) { userAgent.stop(); userAgent = null; }
             document.getElementById('screen-settings').classList.remove('active');
             document.getElementById('screen-login').classList.add('active');
-            document.getElementById('btn-connect').innerText = 'Connect';
+            document.getElementById('btn-connect').innerHTML = '<i class="fa-solid fa-bolt"></i> Connect';
             document.getElementById('btn-connect').disabled = false;
         }
-
-        // --- Call Controls ---
 
         function setupSessionEvents(session, targetNum) {
             session.stateChange.addListener((state) => {
@@ -723,7 +704,6 @@
                     stopRingback();
                     document.getElementById('call-state').innerText = 'CONNECTED';
                     startTimer();
-                    
                     const pc = session.sessionDescriptionHandler.peerConnection;
                     const remoteStream = new MediaStream();
                     pc.getReceivers().forEach((receiver) => {
@@ -745,22 +725,15 @@
         function makeCall() {
             const target = dialInput.innerText.trim();
             if (!target || !userAgent) return;
-            
             const targetURI = SIP.UserAgent.makeURI(`sip:${target}@${userAgent.configuration.uri.host}`);
             const inviter = new SIP.Inviter(userAgent, targetURI, {
-                sessionDescriptionHandlerOptions: {
-                    constraints: { audio: true, video: false }
-                }
+                sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } }
             });
-            
             activeSession = inviter;
             setupSessionEvents(inviter, target);
-            
             document.getElementById('call-target').innerText = target;
             showScreen('screen-call');
-            
             inviter.invite().catch(e => {
-                console.error(e);
                 showScreen(null);
                 activeSession = null;
                 alert('Call failed: ' + e.message);
@@ -770,19 +743,14 @@
         function answerCall() {
             if (!activeSession) return;
             stopRingtone();
-            
             const caller = activeSession.remoteIdentity.uri.user;
             document.getElementById('call-target').innerText = caller;
             showScreen('screen-call');
-            
             activeSession.accept({
-                sessionDescriptionHandlerOptions: {
-                    constraints: { audio: true, video: false }
-                }
+                sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } }
             }).then(() => {
                 setupSessionEvents(activeSession, caller);
             }).catch(e => {
-                console.error(e);
                 showScreen(null);
                 activeSession = null;
             });
@@ -802,9 +770,7 @@
                 if (activeSession.state === SIP.SessionState.Establishing) {
                     if (activeSession instanceof SIP.Inviter) activeSession.cancel();
                     else activeSession.reject();
-                } else {
-                    activeSession.bye();
-                }
+                } else activeSession.bye();
             }
         }
         
@@ -813,17 +779,15 @@
             const pc = activeSession.sessionDescriptionHandler.peerConnection;
             const btn = document.getElementById('btn-mute');
             let isMuted = false;
-            
             pc.getSenders().forEach((sender) => {
                 if (sender.track && sender.track.kind === 'audio') {
                     sender.track.enabled = !sender.track.enabled;
                     isMuted = !sender.track.enabled;
                 }
             });
-            
             if (isMuted) {
                 btn.classList.add('active');
-                btn.innerHTML = '<i class="fa-solid fa-microphone-slash text-red-500"></i>';
+                btn.innerHTML = '<i class="fa-solid fa-microphone-slash" style="color: var(--danger);"></i>';
             } else {
                 btn.classList.remove('active');
                 btn.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
@@ -834,21 +798,19 @@
         function toggleHold() {
             if (!activeSession) return;
             const btn = document.getElementById('btn-hold');
-            
             const options = {
                 sessionDescriptionHandlerModifiers: [
-                    (sessionDescription) => {
+                    (sd) => {
                         if (isHeld) {
-                            sessionDescription.sdp = sessionDescription.sdp.replace(/a=sendonly/g, 'a=sendrecv');
-                            sessionDescription.sdp = sessionDescription.sdp.replace(/a=inactive/g, 'a=sendrecv');
+                            sd.sdp = sd.sdp.replace(/a=sendonly/g, 'a=sendrecv');
+                            sd.sdp = sd.sdp.replace(/a=inactive/g, 'a=sendrecv');
                         } else {
-                            sessionDescription.sdp = sessionDescription.sdp.replace(/a=sendrecv/g, 'a=sendonly');
+                            sd.sdp = sd.sdp.replace(/a=sendrecv/g, 'a=sendonly');
                         }
-                        return Promise.resolve(sessionDescription);
+                        return Promise.resolve(sd);
                     }
                 ]
             };
-            
             activeSession.invite(options).then(() => {
                 isHeld = !isHeld;
                 if (isHeld) {
@@ -861,12 +823,8 @@
             });
         }
 
-        // Auto-fill previous login
         if (localStorage.getItem('dexter_ext')) {
             document.getElementById('sip-extension').value = localStorage.getItem('dexter_ext');
-        }
-        if (localStorage.getItem('dexter_srv')) {
-            document.getElementById('sip-server').value = localStorage.getItem('dexter_srv');
         }
     </script>
 </body>
