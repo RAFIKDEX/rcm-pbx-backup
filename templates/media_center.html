@@ -125,7 +125,7 @@
     .media-btn-download {
         background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(6, 182, 212, 0.18) 100%);
         border: 1px solid rgba(52, 211, 153, 0.45);
-        color: #34d399;
+        color: var(--text-main);
         font-weight: 600;
         font-size: 0.82rem;
         padding: 0.42rem 0.95rem;
@@ -148,7 +148,7 @@
 
     .media-btn-download:hover {
         background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-        border-color: #6ee7b7;
+        border-color: var(--text-main);
         color: var(--text-main); !important;
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
@@ -193,12 +193,12 @@
     .media-action-btn.btn-play {
         background: rgba(0, 173, 181, 0.14);
         border-color: rgba(0, 173, 181, 0.35);
-        color: #00cbd3;
+        color: var(--text-main);
     }
     .media-action-btn.btn-play:hover {
         background: linear-gradient(135deg, #00cbd3 0%, #008f96 100%);
-        border-color: #00cbd3;
-        color: #0b0f19 !important;
+        border-color: var(--text-main);
+        color: var(--text-main) !important;
         box-shadow: 0 5px 16px rgba(0, 173, 181, 0.4);
     }
 
@@ -206,11 +206,11 @@
     .media-action-btn.btn-download {
         background: rgba(16, 185, 129, 0.14);
         border-color: rgba(16, 185, 129, 0.35);
-        color: #34d399;
+        color: var(--text-main);
     }
     .media-action-btn.btn-download:hover {
         background: linear-gradient(135deg, #34d399 0%, #059669 100%);
-        border-color: #34d399;
+        border-color: var(--text-main);
         color: var(--text-main); !important;
         box-shadow: 0 5px 16px rgba(16, 185, 129, 0.4);
     }
@@ -219,11 +219,11 @@
     .media-action-btn.btn-edit {
         background: rgba(148, 163, 184, 0.12);
         border-color: rgba(148, 163, 184, 0.28);
-        color: #cbd5e1;
+        color: var(--text-muted);
     }
     .media-action-btn.btn-edit:hover {
         background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        border-color: #60a5fa;
+        border-color: var(--text-main);
         color: var(--text-main); !important;
         box-shadow: 0 5px 16px rgba(59, 130, 246, 0.4);
     }
@@ -232,11 +232,11 @@
     .media-action-btn.btn-delete {
         background: rgba(239, 68, 68, 0.14);
         border-color: rgba(239, 68, 68, 0.35);
-        color: #f87171;
+        color: var(--text-main);
     }
     .media-action-btn.btn-delete:hover {
         background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
-        border-color: #f87171;
+        border-color: var(--text-main);
         color: var(--text-main); !important;
         box-shadow: 0 5px 16px rgba(239, 68, 68, 0.4);
     }
@@ -248,14 +248,14 @@
         gap: 0.45rem;
         background: rgba(0, 173, 181, 0.14);
         border-color: rgba(0, 173, 181, 0.35);
-        color: #00cbd3;
+        color: var(--text-main);
         font-weight: 600;
         font-size: 0.82rem;
     }
     .media-action-btn.btn-tracks:hover {
         background: linear-gradient(135deg, #00cbd3 0%, #008f96 100%);
-        border-color: #00cbd3;
-        color: #0b0f19 !important;
+        border-color: var(--text-main);
+        color: var(--text-main) !important;
         box-shadow: 0 5px 16px rgba(0, 173, 181, 0.4);
     }
 
@@ -386,7 +386,7 @@
 
     .audio-player-sub {
         font-size: 0.82rem;
-        color: #99f6e4;
+        color: var(--text-main);
     }
 
     /* Equalizer Waves Animation */
@@ -435,7 +435,7 @@
     .audio-player-close:hover {
         background: rgba(239, 68, 68, 0.2);
         border-color: rgba(239, 68, 68, 0.4);
-        color: #f87171;
+        color: var(--text-main);
     }
 
     /* Tabs Navigation */
@@ -541,15 +541,15 @@
         letter-spacing: 0.5px;
     }
 
-    .badge-general { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.25); }
-    .badge-ivr { background: rgba(99, 102, 241, 0.14); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
-    .badge-announcement { background: rgba(20, 184, 166, 0.14); color: #5eead4; border: 1px solid rgba(20, 184, 166, 0.3); }
-    .badge-queue { background: rgba(244, 63, 94, 0.14); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
-    .badge-ring_group { background: rgba(234, 179, 8, 0.14); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.3); }
+    .badge-general { background: rgba(148, 163, 184, 0.12); color: var(--text-muted); border: 1px solid rgba(148, 163, 184, 0.25); }
+    .badge-ivr { background: rgba(99, 102, 241, 0.14); color: var(--text-main); border: 1px solid rgba(99, 102, 241, 0.3); }
+    .badge-announcement { background: rgba(20, 184, 166, 0.14); color: var(--text-main); border: 1px solid rgba(20, 184, 166, 0.3); }
+    .badge-queue { background: rgba(244, 63, 94, 0.14); color: var(--text-main); border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-ring_group { background: rgba(234, 179, 8, 0.14); color: var(--text-main); border: 1px solid rgba(234, 179, 8, 0.3); }
 
     .badge-ok {
         background: rgba(16, 185, 129, 0.12);
-        color: #34d399;
+        color: var(--text-main);
         border: 1px solid rgba(16, 185, 129, 0.3);
         padding: 0.35rem 0.75rem;
         border-radius: 8px;
@@ -562,7 +562,7 @@
 
     .badge-bad {
         background: rgba(239, 68, 68, 0.12);
-        color: #f87171;
+        color: var(--text-main);
         border: 1px solid rgba(239, 68, 68, 0.3);
         padding: 0.35rem 0.75rem;
         border-radius: 8px;
@@ -641,19 +641,19 @@
     <div class="studio-card">
         <div class="studio-card-icon"><i class="fa-solid fa-folder-tree"></i></div>
         <div class="studio-card-title">MOH CLASSES</div>
-        <div class="studio-card-value" style="color: #60a5fa;">{{ moh_classes|length }}</div>
+        <div class="studio-card-value" style="color: var(--text-main);">{{ moh_classes|length }}</div>
         <div class="studio-card-desc">Hold music directories</div>
     </div>
     <div class="studio-card">
         <div class="studio-card-icon"><i class="fa-solid fa-music"></i></div>
         <div class="studio-card-title">MOH TRACKS</div>
-        <div class="studio-card-value" style="color: #34d399;">{{ total_tracks }}</div>
+        <div class="studio-card-value" style="color: var(--text-main);">{{ total_tracks }}</div>
         <div class="studio-card-desc">Converted WAV audio files</div>
     </div>
     <div class="studio-card">
         <div class="studio-card-icon"><i class="fa-solid fa-hard-drive"></i></div>
         <div class="studio-card-title">STORAGE DIRECTORY</div>
-        <div class="studio-card-value" style="color: #e2e8f0; font-size: 1.45rem;">en/rcm</div>
+        <div class="studio-card-value" style="color: var(--text-main); font-size: 1.45rem;">en/rcm</div>
         <div class="studio-card-desc">/var/lib/asterisk/sounds/</div>
     </div>
 </div>
@@ -854,7 +854,7 @@
                         <td>
                             <strong style="color: var(--text-main);">{{ p.name }}</strong>
                         </td>
-                        <td class="text-center" style="font-family: monospace; color:#94a3b8;">
+                        <td class="text-center" style="font-family: monospace; color: var(--text-muted);">
                             {{ p.get('duration', '00:00') }}
                         </td>
                         <td class="text-center text-muted" style="font-size: 0.85rem;">
@@ -888,7 +888,7 @@
                     {% else %}
                     <tr>
                         <td colspan="5" class="text-center text-muted" style="padding: 2rem;">
-                            <i class="fa-solid fa-face-frown-open" style="font-size: 2rem; margin-bottom: 0.5rem; color:#475569;"></i><br>
+                            <i class="fa-solid fa-face-frown-open" style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-main);"></i><br>
                             No Survey Prompts uploaded yet.<br>
                             Click the button below to upload a new survey prompt.<br><br>
                             <button type="button" class="media-btn-upload" onclick="document.getElementById('prompt_type').value='survey'; document.getElementById('uploadPromptModal').style.display='block';" style="margin-top: 0.5rem;">
@@ -1012,7 +1012,7 @@
                     <tr>
                         <td>
                             <div style="display: flex; align-items: center;">
-                                <div class="prompt-icon-box" style="background: rgba(96, 165, 250, 0.1); color: #60a5fa;">
+                                <div class="prompt-icon-box" style="background: rgba(96, 165, 250, 0.1); color: var(--text-main);">
                                     <i class="fa-solid fa-folder-music"></i>
                                 </div>
                                 <div>
@@ -1074,7 +1074,7 @@
             </div>
             
             <div class="form-group">
-                <label for="prompt_type">Used For Category <span style="color:#ff4a4a;">*</span></label>
+                <label for="prompt_type">Used For Category <span style="color: var(--text-main);">*</span></label>
                 <select id="prompt_type" name="type" class="form-control">
                     <option value="general">General</option>
                     <option value="ivr">IVR</option>
@@ -1087,7 +1087,7 @@
             </div>
             
             <div class="form-group">
-                <label for="prompt_file">Select Audio File <span style="color:#ff4a4a;">*</span></label>
+                <label for="prompt_file">Select Audio File <span style="color: var(--text-main);">*</span></label>
                 <input type="file" id="prompt_file" name="audio" class="form-control" accept="audio/*,.wav,.mp3,.gsm,.ogg,.m4a,.aac,.flac,.wma" required multiple style="padding: 0.75rem;">
                 <span style="font-size: 0.8rem; color: var(--text-muted);">Audio is automatically converted to Asterisk WAV: 8 kHz, mono, 16-bit PCM.</span>
             </div>
@@ -1120,7 +1120,7 @@
             </div>
 
             <div class="form-group">
-                <label for="edit_prompt_type">Used For Category <span style="color:#ff4a4a;">*</span></label>
+                <label for="edit_prompt_type">Used For Category <span style="color: var(--text-main);">*</span></label>
                 <select id="edit_prompt_type" name="type" class="form-control" required>
                     <option value="general">General</option>
                     <option value="ivr">IVR</option>
@@ -1152,7 +1152,7 @@
         <form action="{{ url_for('media_moh_class_create') }}" method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
-                <label for="moh_name">Class Name <span style="color:#ff4a4a;">*</span></label>
+                <label for="moh_name">Class Name <span style="color: var(--text-main);">*</span></label>
                 <input type="text" id="moh_name" name="name" class="form-control" placeholder="e.g. sales_hold" required>
                 <span style="font-size: 0.8rem; color: var(--text-muted);">Lowercase letters, numbers, and underscores only.</span>
             </div>

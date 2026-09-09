@@ -33,7 +33,7 @@
                     <span class="q-badge">
                         <i class="fa-solid fa-list-ol" style="margin-right: 4px;"></i> {{ survey.questions|length }} Qs
                     </span>
-                    <span class="q-badge" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1)); color: #60a5fa; border-color: rgba(59, 130, 246, 0.3);">
+                    <span class="q-badge" style=" color: #60a5fa; border-color: rgba(59, 130, 246, 0.3);">
                         <i class="fa-solid fa-check-to-slot" style="margin-right: 4px;"></i> Active
                     </span>
                 </div>
@@ -99,7 +99,7 @@
     
     /* Header Styles */
     .q-header-card {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+        
         border: 1px solid var(--border-color);
         border-radius: 20px;
         padding: 2.5rem;
@@ -128,15 +128,15 @@
     .header-icon-wrap {
         width: 64px; height: 64px;
         border-radius: 16px;
-        background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+        
         display: flex; justify-content: center; align-items: center;
         font-size: 2rem; color: white;
         box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
     }
     .header-title {
         margin: 0; font-size: 2rem; font-weight: 800;
-        background: linear-gradient(to right, #f8fafc, #cbd5e1);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        
+        
         letter-spacing: -0.5px;
     }
     .header-subtitle {
@@ -161,7 +161,7 @@
     }
     .survey-card::before {
         content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
-        background: linear-gradient(to right, #3b82f6, #8b5cf6);
+        
         opacity: 0; transition: opacity 0.3s;
     }
     .survey-card:hover {
@@ -191,7 +191,7 @@
         font-size: 0.9rem;
     }
     .q-badge {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+        
         color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);
         padding: 0.35rem 0.75rem; border-radius: 999px;
         font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
@@ -229,7 +229,7 @@
         z-index: 1;
     }
     .btn-glow-success {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;
+         color: white;
         box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
     }
     .btn-glow-success:hover {
@@ -262,7 +262,7 @@
     /* Empty State */
     .empty-state {
         grid-column: 1 / -1;
-        background: linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.2) 100%);
+        
         border: 2px dashed rgba(148, 163, 184, 0.2);
         border-radius: 20px; padding: 5rem 2rem;
         text-align: center; display: flex; flex-direction: column; align-items: center;

@@ -7,7 +7,7 @@
 
 <style>
     .page-hero {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.8) 100%);
+        
         border: 1px solid rgba(16, 185, 129, 0.2);
         border-radius: 16px;
         padding: 2rem;
@@ -16,10 +16,10 @@
         justify-content: space-between;
         align-items: center;
     }
-    .page-title { margin: 0; color: #f8fafc; font-size: 1.8rem; font-weight: 700; }
-    .page-desc { color: #94a3b8; margin-top: 0.5rem; font-size: 0.95rem; }
-    .back-btn { background: var(--border-color); border: 1px solid var(--border-color); color: #cbd5e1; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 600; }
-    .back-btn:hover { background: var(--border-color); color: white; border-color: var(--border-color); }
+    .page-title { margin: 0; color: var(--text-main); font-size: 1.8rem; font-weight: 700; }
+    .page-desc { color: var(--text-muted); margin-top: 0.5rem; font-size: 0.95rem; }
+    .back-btn { background: var(--border-color); border: 1px solid var(--border-color); color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 600; }
+    .back-btn:hover { background: var(--border-color); color: var(--text-main); border-color: var(--border-color); }
     
     .config-panel {
         background: var(--bg-dark);
@@ -30,7 +30,7 @@
     }
     
     .section-title {
-        color: #f8fafc;
+        color: var(--text-main);
         font-size: 1.2rem;
         font-weight: 600;
         margin-bottom: 1.5rem;
@@ -42,12 +42,12 @@
     }
     
     .input-group { margin-bottom: 1.5rem; }
-    .input-label { display: block; color: #94a3b8; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .input-label { display: block; color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
     .modern-input, .modern-select {
         width: 100%;
         padding: 0.8rem 1rem;
         background: rgba(0,0,0,0.2);
-        color: white;
+        color: var(--text-main);
         border: 1px solid var(--border-color);
         border-radius: 8px;
         transition: all 0.3s;
@@ -59,7 +59,7 @@
     
     /* Custom Checkboxes & Radios */
     .custom-check-label {
-        display: flex; align-items: center; gap: 10px; color: #e2e8f0; font-size: 1rem; cursor: pointer; margin-bottom: 0.75rem;
+        display: flex; align-items: center; gap: 10px; color: var(--text-main); font-size: 1rem; cursor: pointer; margin-bottom: 0.75rem;
         padding: 0.75rem; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.2s;
     }
     .custom-check-label:hover { background: var(--border-color); }
@@ -68,18 +68,18 @@
         background: rgba(0,0,0,0.2); padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1rem;
         display: flex; gap: 1.5rem; align-items: center; border: 1px solid var(--border-color);
     }
-    .per-cat-title { color: #f8fafc; font-weight: 600; width: 180px; margin: 0; }
+    .per-cat-title { color: var(--text-main); font-weight: 600; width: 180px; margin: 0; }
     
     .save-btn {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white; padding: 1rem 2rem; border: none; border-radius: 8px; cursor: pointer;
+        
+        color: var(--text-main); padding: 1rem 2rem; border: none; border-radius: 8px; cursor: pointer;
         font-weight: bold; font-size: 1.1rem; width: 100%; transition: all 0.3s; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
     }
     .save-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6); }
 
     /* --- Light Mode Fixes --- */
     [data-theme="light"] .page-hero {
-        background: linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(241, 245, 249, 0.9) 100%);
+        
     }
     [data-theme="light"] .page-title,
     [data-theme="light"] .section-title,
@@ -95,7 +95,7 @@
     }
     [data-theme="light"] .rule-card {
         background: #f8fafc;
-        border-color: #cbd5e1;
+        border-color: var(--text-muted);
     }
     [data-theme="light"] .info-box {
         background: #f0fdf4;
@@ -165,7 +165,7 @@
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
             <label class="custom-check-label"><input type="checkbox" id="chk_cdr" style="transform: scale(1.2);" checked> CDR Records</label>
-            <div style="display:flex; flex-direction:column;"><label class="custom-check-label"><input type="checkbox" id="chk_rec" style="transform: scale(1.2);" checked> Call Recordings</label><label style="margin-left:25px; margin-top:5px; font-size:0.9rem; color:#64748b;"><input type="checkbox" id="chk_rec_ext" style="transform:scale(1.1); margin-right:5px;"> Include External Storage</label></div>
+            <div style="display:flex; flex-direction:column;"><label class="custom-check-label"><input type="checkbox" id="chk_rec" style="transform: scale(1.2);" checked> Call Recordings</label><label style="margin-left:25px; margin-top:5px; font-size:0.9rem; color: var(--text-muted);"><input type="checkbox" id="chk_rec_ext" style="transform:scale(1.1); margin-right:5px;"> Include External Storage</label></div>
             <label class="custom-check-label"><input type="checkbox" id="chk_queue" style="transform: scale(1.2);" checked> Queue Statistics</label>
             <label class="custom-check-label"><input type="checkbox" id="chk_oplog" style="transform: scale(1.2);" checked> Operation Log</label>
             <label class="custom-check-label" style="grid-column: 1 / -1;"><input type="checkbox" id="chk_dex" style="transform: scale(1.2);"> DEX Phones (Inactive > 30 days)</label>

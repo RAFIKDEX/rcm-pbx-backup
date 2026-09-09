@@ -15,9 +15,9 @@
         margin: 0;
         font-size: 1.8rem;
         font-weight: 800;
-        background: linear-gradient(90deg, #fff, #94a3b8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        
+        
+        
     }
     .log-filter-panel {
         margin-bottom: 1.5rem;
@@ -41,13 +41,13 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        color: #f8fafc;
+        color: var(--text-main);
         font-weight: 800;
         font-size: 1.05rem;
     }
     .log-filter-title i { color: #0ea5e9; }
     .log-filter-meta {
-        color: #94a3b8;
+        color: var(--text-muted);
         font-size: 0.85rem;
         font-weight: 600;
         background: var(--border-color);
@@ -77,7 +77,7 @@
         left: 1.2rem;
         top: 50%;
         transform: translateY(-50%);
-        color: #94a3b8;
+        color: var(--text-muted);
         font-size: 1.1rem;
         pointer-events: none;
         transition: color 0.2s;
@@ -91,7 +91,7 @@
         border-radius: 8px;
         background: rgba(15, 23, 42, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #f8fafc;
+        color: var(--text-main);
         font-size: 0.95rem;
         outline: none;
         transition: all 0.2s;
@@ -101,7 +101,7 @@
         z-index: 1;
     }
     .filter-control input::placeholder {
-        color: #64748b;
+        color: var(--text-muted);
         font-weight: 400;
     }
     .filter-control select {
@@ -123,9 +123,9 @@
         color: #0ea5e9;
     }
     .btn-apply {
-        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        
         border: none;
-        color: white;
+        color: var(--text-main);
         box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
     }
     .btn-apply:hover {
@@ -137,7 +137,7 @@
         position: absolute;
         top: 0.4rem;
         left: 2.5rem;
-        color: #94a3b8;
+        color: var(--text-muted);
         font-size: 0.65rem;
         font-weight: 800;
         text-transform: uppercase;
@@ -161,7 +161,7 @@
         border-radius: 10px;
         background: var(--bg-dark);
         border: 1px solid var(--border-color);
-        color: #f8fafc;
+        color: var(--text-main);
         font-size: 0.9rem;
         outline: none;
         transition: all 0.2s;
@@ -194,12 +194,12 @@
         cursor: pointer;
     }
     .btn-primary {
-        background: linear-gradient(135deg, #0ea5e9, #0284c7);
-        color: white;
+        
+        color: var(--text-main);
         box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
     }
     .btn-primary:hover {
-        background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+        
         box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
         transform: translateY(-1px);
     }
@@ -211,7 +211,7 @@
         min-height: 52px;
         padding: 0 1.25rem;
         border-radius: 10px;
-        color: #94a3b8;
+        color: var(--text-muted);
         text-decoration: none;
         border: 1px solid var(--border-color);
         background: var(--border-color);
@@ -269,7 +269,7 @@
     }
     .log-table th {
         background: var(--border-color);
-        color: #94a3b8;
+        color: var(--text-muted);
         font-size: 0.75rem;
         font-weight: 800;
         text-transform: uppercase;
@@ -286,14 +286,14 @@
     
     .log-time {
         white-space: nowrap;
-        color: #cbd5e1;
+        color: var(--text-muted);
         font-weight: 600;
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         font-size: 0.85rem;
     }
-    .log-time i { color: #64748b; margin-right: 4px; }
+    .log-time i { color: var(--text-muted); margin-right: 4px; }
     .log-user {
-        color: #f8fafc;
+        color: var(--text-main);
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -316,19 +316,19 @@
     }
     .log-action {
         font-weight: 800;
-        color: #f1f5f9;
+        color: var(--text-main);
         font-size: 0.9rem;
     }
     .details-cell {
         max-width: 350px;
         overflow-wrap: break-word;
-        color: #94a3b8;
+        color: var(--text-muted);
         font-size: 0.85rem;
         line-height: 1.5;
     }
     .ip-cell {
         white-space: nowrap;
-        color: #94a3b8;
+        color: var(--text-muted);
         font-family: ui-monospace, SFMono-Regular, monospace;
         font-size: 0.8rem;
     }
@@ -368,7 +368,7 @@
         background: var(--bg-dark);
     }
     .change-setting {
-        color: #f8fafc;
+        color: var(--text-main);
         font-weight: 700;
         font-size: 0.75rem;
         margin-bottom: 0.4rem;
@@ -457,7 +457,7 @@
 
     .empty-log {
         padding: 4rem 2rem;
-        color: #94a3b8;
+        color: var(--text-muted);
         text-align: center;
         display: flex;
         flex-direction: column;
@@ -476,7 +476,7 @@
         border-radius: 50%;
         margin-bottom: 0.5rem;
     }
-    .empty-log h3 { color: #f8fafc; margin: 0; font-size: 1.25rem; font-weight: 800; }
+    .empty-log h3 { color: var(--text-main); margin: 0; font-size: 1.25rem; font-weight: 800; }
 
     @media (max-width: 1024px) {
         .filter-actions { justify-content: stretch; }
@@ -490,12 +490,12 @@
 <div class="header-panel">
     <div>
         <h1>Operation Log</h1>
-        <div style="font-size: 0.9rem; color: #94a3b8; margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
             <i class="fa-solid fa-shield-halved" style="color: #0ea5e9;"></i>
             Complete audit trail with full data integrity
         </div>
     </div>
-    <a href="{{ url_for('pbx_settings') }}" class="btn btn-secondary" style="text-decoration: none; background: var(--border-color); border: 1px solid var(--border-color); color: white;">
+    <a href="{{ url_for('pbx_settings') }}" class="btn btn-secondary" style="text-decoration: none; background: var(--border-color); border: 1px solid var(--border-color); color: var(--text-main);">
         <i class="fa-solid fa-sliders"></i> Global Settings
     </a>
 </div>
@@ -533,7 +533,7 @@
         </div>
         <div style="display: flex; gap: 0.5rem; flex: 1 1 auto; justify-content: flex-end;">
             <button class="btn btn-apply" type="submit" style="min-height: 48px; padding: 0 1.5rem; font-weight: 600;"><i class="fa-solid fa-check"></i> Search</button>
-            <a href="{{ url_for('pbx_operation_log') }}" class="btn" style="min-height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 0 1rem;" title="Clear all filters">
+            <a href="{{ url_for('pbx_operation_log') }}" class="btn" style="min-height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 0 1rem;" title="Clear all filters">
                 <i class="fa-solid fa-rotate-left"></i>
             </a>
         </div>
@@ -581,7 +581,7 @@
                     </td>
                     <td class="log-action">{{ log.action or '-' }}</td>
                     <td class="details-cell">{{ log.details or log.message or '-' }}</td>
-                    <td class="ip-cell"><i class="fa-solid fa-network-wired" style="color: #64748b; margin-right:4px;"></i>{{ log.ip_address or log.ip or '-' }}</td>
+                    <td class="ip-cell"><i class="fa-solid fa-network-wired" style="color: var(--text-muted); margin-right:4px;"></i>{{ log.ip_address or log.ip or '-' }}</td>
                     <td>
                         <span class="result-pill {% if result_key in ['success'] %}result-success{% elif result_key in ['started'] %}result-started{% elif result_key in ['failed', 'failure', 'error'] %}result-failed{% elif result_key in ['rejected'] %}result-rejected{% else %}result-other{% endif %}">
                             {% if result_key in ['success'] %}<i class="fa-solid fa-circle-check"></i>
@@ -639,7 +639,7 @@
                             </details>
                             {% endif %}
                         {% else %}
-                        <span style="color: #64748b; font-style: italic;">No changes recorded</span>
+                        <span style="color: var(--text-muted); font-style: italic;">No changes recorded</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -652,33 +652,33 @@
     <!-- Pagination Controls -->
     {% if total_pages > 1 %}
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
-        <div style="color: #94a3b8; font-size: 0.85rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem;">
             Showing <b>{{ (page - 1) * limit + 1 }}</b> to <b>{{ (page - 1) * limit + logs|length }}</b> of <b>{{ total_count }}</b> operations
         </div>
         <div style="display: flex; gap: 0.25rem;">
             <!-- Prev Button -->
             {% if page > 1 %}
-            <button class="btn btn-secondary" style="min-height: 36px; padding: 0 0.75rem; border-radius: 6px; background: var(--border-color); color: #e2e8f0; border: 1px solid var(--border-color);" onclick="goToPage({{ page - 1 }})">
+            <button class="btn btn-secondary" style="min-height: 36px; padding: 0 0.75rem; border-radius: 6px; background: var(--border-color); color: var(--text-main); border: 1px solid var(--border-color);" onclick="goToPage({{ page - 1 }})">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
             {% else %}
-            <button class="btn btn-secondary" style="min-height: 36px; padding: 0 0.75rem; border-radius: 6px; background: var(--border-color); color: #475569; border: 1px solid var(--border-color); cursor: not-allowed;" disabled>
+            <button class="btn btn-secondary" style="min-height: 36px; padding: 0 0.75rem; border-radius: 6px; background: var(--border-color); color: var(--text-muted); border: 1px solid var(--border-color); cursor: not-allowed;" disabled>
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
             {% endif %}
             
             <!-- Page Indicator -->
-            <div style="display: flex; align-items: center; justify-content: center; min-width: 40px; color: #f8fafc; font-weight: 700; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: 6px; padding: 0 0.5rem; font-size: 0.9rem;">
+            <div style="display: flex; align-items: center; justify-content: center; min-width: 40px; color: var(--text-main); font-weight: 700; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: 6px; padding: 0 0.5rem; font-size: 0.9rem;">
                 {{ page }}
             </div>
             
             <!-- Next Button -->
             {% if page < total_pages %}
-            <button class="btn btn-secondary" style="min-height: 36px; padding: 0 0.75rem; border-radius: 6px; background: var(--border-color); color: #e2e8f0; border: 1px solid var(--border-color);" onclick="goToPage({{ page + 1 }})">
+            <button class="btn btn-secondary" style="min-height: 36px; padding: 0 0.75rem; border-radius: 6px; background: var(--border-color); color: var(--text-main); border: 1px solid var(--border-color);" onclick="goToPage({{ page + 1 }})">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
             {% else %}
-            <button class="btn btn-secondary" style="min-height: 36px; padding: 0 0.75rem; border-radius: 6px; background: var(--border-color); color: #475569; border: 1px solid var(--border-color); cursor: not-allowed;" disabled>
+            <button class="btn btn-secondary" style="min-height: 36px; padding: 0 0.75rem; border-radius: 6px; background: var(--border-color); color: var(--text-muted); border: 1px solid var(--border-color); cursor: not-allowed;" disabled>
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
             {% endif %}
@@ -703,7 +703,7 @@
             <h3>No Operations Found</h3>
             <p style="margin-top: 0.5rem;">Try adjusting your filters or search terms.</p>
         </div>
-        <a href="{{ url_for('pbx_operation_log') }}" class="btn btn-secondary" style="border: 1px solid var(--border-color); background: var(--border-color); color: #e2e8f0;">
+        <a href="{{ url_for('pbx_operation_log') }}" class="btn btn-secondary" style="border: 1px solid var(--border-color); background: var(--border-color); color: var(--text-main);">
             <i class="fa-solid fa-rotate-left"></i> Reset Filters
         </a>
     </div>

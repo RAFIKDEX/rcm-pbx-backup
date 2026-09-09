@@ -278,7 +278,7 @@
         border-radius: 8px;
         border: 1px solid var(--border-color);
         background: var(--panel-dark);
-        color: #cbd5e1;
+        color: var(--text-muted);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -433,7 +433,7 @@
     .pm-tab {
         border: 1px solid transparent;
         background: transparent;
-        color: #cbd5e1;
+        color: var(--text-muted);
         border-radius: 7px;
         padding: 0.55rem 1rem;
         font-size: 0.9rem;
@@ -526,7 +526,7 @@
         border-radius: 8px;
         background: var(--bg-dark);
         border: 1px solid var(--border-color);
-        color: #cbd5e1;
+        color: var(--text-muted);
         font-size: 0.82rem;
         font-weight: 500;
         cursor: pointer;
@@ -629,7 +629,7 @@
         border: 1px solid rgba(56, 189, 248, 0.22);
         border-radius: 9px;
         background: rgba(14, 165, 233, 0.06);
-        color: #cbd5e1;
+        color: var(--text-muted);
         font-size: 0.8rem;
     }
 
@@ -767,7 +767,7 @@
                     <tr>
                         <td colspan="4" style="text-align:center; padding: 3.5rem 1rem; color: var(--pm-text-muted);">
                             <div style="font-size: 2.2rem; margin-bottom: 0.5rem; color: rgba(255,255,255,0.2);"><i class="fa-solid fa-shield-slash"></i></div>
-                            <div style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1;">No privileges found</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-muted);">No privileges found</div>
                             <p style="margin-top: 0.25rem; font-size: 0.88rem;">Try adjusting your search query or add a new role.</p>
                         </td>
                     </tr>
@@ -874,7 +874,7 @@
                 <div id="scopesTab" style="display:none;">
                     <div style="padding: 0.85rem 1.1rem; background: var(--panel-dark); border: 1px solid var(--pm-border); border-radius: 10px; margin-bottom: 1rem; display:flex; align-items:center; gap:0.75rem;">
                         <i class="fa-solid fa-chart-line fa-lg" style="color: var(--pm-primary);"></i>
-                        <p class="pm-sub" style="margin:0; font-size:0.86rem; color:#cbd5e1;">Reporting Data Scope controls which CDR, recording, Queue Live, and Queue Statistics data this role can access.</p>
+                        <p class="pm-sub" style="margin:0; font-size:0.86rem; color: var(--text-muted);">Reporting Data Scope controls which CDR, recording, Queue Live, and Queue Statistics data this role can access.</p>
                     </div>
                     {% for st in available_scopes %}
                     <div class="pm-scope-card reporting-scope-card" data-scope-type="{{ st.id }}">
@@ -953,7 +953,7 @@
             </div>
             <div class="pm-modal-body">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <p style="color: #cbd5e1; font-size: 0.96rem; line-height: 1.5;">Are you sure you want to permanently delete role <strong id="delete_priv_name_display" style="color: var(--text-main);"></strong>?</p>
+                <p style="color: var(--text-muted); font-size: 0.96rem; line-height: 1.5;">Are you sure you want to permanently delete role <strong id="delete_priv_name_display" style="color: var(--text-main);"></strong>?</p>
                 <p style="color: #fca5a5; font-size: 0.85rem; margin-top: 0.5rem; background: rgba(239,68,68,0.12); padding: 0.7rem; border-radius: 8px; border: 1px solid rgba(239,68,68,0.25);">
                     <i class="fa-solid fa-circle-exclamation"></i> Note: Roles currently assigned to active user accounts are protected by the server and cannot be deleted until users are reassigned.
                 </p>

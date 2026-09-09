@@ -41,7 +41,7 @@
     </div>
     
     <div style="margin-top: 20px;">
-        <button type="submit" style="background: #10b981; color: white; padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1.1rem;"><i class="fa-solid fa-check"></i> Save & Activate Policy</button>
+        <button type="submit" style=" color: white; padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1.1rem;"><i class="fa-solid fa-check"></i> Save & Activate Policy</button>
     </div>
 </form>
 
@@ -49,7 +49,7 @@
     <h3 style="color: white; margin: 0;">Active Policies</h3>
     <form method="POST" action="/external-storage/policies/run_now">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" style="background: #f59e0b; color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fa-solid fa-bolt"></i> Run Engine Now</button>
+        <button type="submit" style=" color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fa-solid fa-bolt"></i> Run Engine Now</button>
     </form>
 </div>
 <table style="width: 100%; text-align: left; border-collapse: collapse; background: var(--bg-dark); border-radius: 12px; overflow: hidden;">
@@ -74,7 +74,7 @@
             <td style="padding: 1rem;">
                 <form method="POST" action="/external-storage/policies/delete/{{ pol.id }}" style="display:inline;" onsubmit="return confirm('Stop and delete this policy?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-trash"></i> Delete</button>
+                    <button type="submit" style=" color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-trash"></i> Delete</button>
                 </form>
             </td>
         </tr>

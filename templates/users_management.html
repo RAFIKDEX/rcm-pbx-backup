@@ -364,7 +364,7 @@
         border-radius: 8px;
         border: 1px solid var(--border-color);
         background: var(--panel-dark);
-        color: #cbd5e1;
+        color: var(--text-muted);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -515,7 +515,7 @@
         background: var(--panel-dark);
         border: 1px solid var(--border-color);
         border-left: 0;
-        color: #cbd5e1;
+        color: var(--text-muted);
         padding: 0 0.85rem;
         display: inline-flex;
         align-items: center;
@@ -615,7 +615,7 @@
     }
 
     .activity-details {
-        color: #cbd5e1;
+        color: var(--text-muted);
         font-size: 0.86rem;
         line-height: 1.4;
     }
@@ -741,7 +741,7 @@
                         </td>
                         <td>
                             {% if u.email %}
-                            <a href="mailto:{{ u.email }}" style="color: #cbd5e1; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+                            <a href="mailto:{{ u.email }}" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
                                 <i class="fa-regular fa-envelope" style="color: var(--um-primary);"></i> {{ u.email }}
                             </a>
                             {% else %}
@@ -795,7 +795,7 @@
                     <tr>
                         <td colspan="6" style="text-align:center; padding: 3.5rem 1rem; color: var(--um-text-muted);">
                             <div style="font-size: 2.2rem; margin-bottom: 0.5rem; color: rgba(255,255,255,0.2);"><i class="fa-solid fa-user-slash"></i></div>
-                            <div style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1;">No users found</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-muted);">No users found</div>
                             <p style="margin-top: 0.25rem; font-size: 0.88rem;">Try adjusting your search criteria or filters.</p>
                         </td>
                     </tr>
@@ -954,7 +954,7 @@
             </div>
             <div class="um-modal-body">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <p style="color: #cbd5e1; font-size: 0.96rem; line-height: 1.5;">Are you sure you want to permanently delete user account <strong id="delete_username_display" style="color: var(--text-main);"></strong>?</p>
+                <p style="color: var(--text-muted); font-size: 0.96rem; line-height: 1.5;">Are you sure you want to permanently delete user account <strong id="delete_username_display" style="color: var(--text-main);"></strong>?</p>
                 <p style="color: #fca5a5; font-size: 0.85rem; margin-top: 0.5rem; background: rgba(239,68,68,0.12); padding: 0.7rem; border-radius: 8px; border: 1px solid rgba(239,68,68,0.25);">
                     <i class="fa-solid fa-circle-exclamation"></i> This action will remove the user, terminate active sessions, and revoke credentials immediately. This cannot be undone.
                 </p>
@@ -1063,7 +1063,7 @@
             </div>
             <div class="um-modal-body">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <p style="color: #cbd5e1; font-size: 0.96rem;">Are you sure you want to terminate all active sessions for <strong id="revoke_username_display" style="color: var(--text-main);"></strong>?</p>
+                <p style="color: var(--text-muted); font-size: 0.96rem;">Are you sure you want to terminate all active sessions for <strong id="revoke_username_display" style="color: var(--text-main);"></strong>?</p>
                 <p class="um-sub" style="margin-top: 0.5rem;">The user will be immediately logged out from all devices and required to authenticate again.</p>
             </div>
             <div class="um-modal-foot">

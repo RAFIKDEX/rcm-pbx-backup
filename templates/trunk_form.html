@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{% if trunk %}Edit Trunk - RCM 7021{% else %}Add Trunk - RCM 7021{% endif %}{% endblock %}
+{% block title %}{% if is_edit %}Edit Trunk - RCM 7021{% else %}Add Trunk - RCM 7021{% endif %}{% endblock %}
 
 
 {% block content %}
@@ -14,7 +14,7 @@
 
 <div class="header-panel">
     <div>
-        <h1>{% if trunk %}Edit Trunk ({{ trunk.name }}){% else %}Add SIP Trunk{% endif %}</h1>
+        <h1>{% if is_edit %}Edit Trunk ({{ trunk.name }}){% else %}Add SIP Trunk{% endif %}</h1>
         <p class="text-muted">Configure SIP trunk connection details and advanced routing</p>
     </div>
 </div>
@@ -53,7 +53,7 @@
                         <label for="name">Trunk Name <span class="text-danger">*</span></label>
                         <input type="text" id="name" name="name" class="form-control" required pattern="[A-Za-z0-9_]+" 
                                title="Letters, numbers and underscores only"
-                               value="{{ trunk.name if trunk else '' }}" {% if trunk %}readonly{% endif %} placeholder="e.g. Provider_A">
+                               value="{{ trunk.name if trunk else '' }}" {% if is_edit %}readonly{% endif %} placeholder="e.g. Provider_A">
                     </div>
                     <div class="form-group">
                         <label for="type">Trunk Type</label>

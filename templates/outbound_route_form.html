@@ -28,7 +28,7 @@
                 <label for="name">Route Name <span class="tooltip-container">!<span class="tooltip-text">A unique route identifier (letters, digits, dashes, underscores only).</span></span> <span style="color: #ff4a4a;">*</span></label>
                 <input type="text" id="name" name="name" class="form-control" placeholder="e.g. international_route" required
                        pattern="^[a-zA-Z0-9_-]+$" title="Only alphanumeric characters, dashes, and underscores are allowed."
-                       value="{% if route %}{{ route.name }}{% endif %}" {% if route %}readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+                       value="{% if route %}{{ route.name }}{% endif %}" {% if route %}readonly style=" color: #888;"{% endif %}>
             </div>
             <div class="form-group">
                 <label for="description">Route Description</label>

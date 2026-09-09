@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/png" href="/Logo.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - RCM 7021 IP-PBX Control Panel</title>
@@ -252,8 +253,18 @@
             color: var(--text-muted);
         }
     </style>
+
+    <!-- Glass Theme -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/glass_theme.css') }}?v=1.7">
 </head>
+
 <body>
+    <div class="uiverse-bg-container">
+        <div id="stars"></div>
+        <div id="stars2"></div>
+        <div id="stars3"></div>
+    </div>
+
     <!-- Glow blobs -->
     <div class="glow-blob glow-blob-1"></div>
     <div class="glow-blob glow-blob-2"></div>

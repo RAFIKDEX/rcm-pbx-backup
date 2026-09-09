@@ -7,7 +7,7 @@
     <!-- Header Card -->
     <div class="q-header-card">
         <div class="header-content">
-            <div class="header-icon-wrap" style="background: linear-gradient(135deg, #c084fc 0%, #9333ea 100%); box-shadow: 0 10px 20px rgba(147, 51, 234, 0.3);">
+            <div class="header-icon-wrap" style=" box-shadow: 0 10px 20px rgba(147, 51, 234, 0.3);">
                 <i class="fa-solid fa-chart-pie"></i>
             </div>
             <div>
@@ -44,7 +44,7 @@
                     <label class="q-label"><i class="fa-regular fa-calendar"></i> End Date</label>
                     <input type="datetime-local" name="end" value="{{ end }}" class="q-input" style="padding: 0.75rem 1rem;">
                 </div>
-                <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 0.75rem 1.5rem; height: 46px;">
+                <button type="submit" class="btn-premium" style=" color: white; padding: 0.75rem 1.5rem; height: 46px;">
                     <i class="fa-solid fa-filter"></i> Apply
                 </button>
             </div>
@@ -452,7 +452,7 @@
     }
     
     .filter-pill.active {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        
         color: white;
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
@@ -466,7 +466,7 @@
     
     /* Header Styles */
     .q-header-card {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+        
         border: 1px solid var(--border-color);
         border-radius: 20px;
         padding: 2.5rem;
@@ -492,8 +492,8 @@
     }
     .header-title {
         margin: 0; font-size: 2rem; font-weight: 800;
-        background: linear-gradient(to right, #f8fafc, #cbd5e1);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        
+        
         letter-spacing: -0.5px;
     }
     .header-subtitle { color: #94a3b8; font-size: 1rem; margin-top: 0.5rem; font-weight: 400; }
@@ -601,7 +601,7 @@
         padding: 2rem; animation: fadeIn 0.2s ease-out;
     }
     .modal-window {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+        
         border: 1px solid var(--border-color); border-radius: 20px;
         width: 100%; max-width: 1100px; max-height: 85vh; display: flex; flex-direction: column;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -628,10 +628,10 @@
         display: inline-flex; align-items: center; justify-content: center; 
         width: 32px; height: 32px; border-radius: 10px; font-weight: 800; font-size: 0.95rem; 
     }
-    .score-badge.score-0 { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); }
-    .score-badge.score-low { background: linear-gradient(135deg, #f97316, #ea580c); color: white; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3); }
-    .score-badge.score-mid { background: linear-gradient(135deg, #eab308, #ca8a04); color: white; box-shadow: 0 4px 10px rgba(234, 179, 8, 0.3); }
-    .score-badge.score-high { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
+    .score-badge.score-0 {  color: white; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); }
+    .score-badge.score-low {  color: white; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3); }
+    .score-badge.score-mid {  color: white; box-shadow: 0 4px 10px rgba(234, 179, 8, 0.3); }
+    .score-badge.score-high {  color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>

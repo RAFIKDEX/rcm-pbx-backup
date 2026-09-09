@@ -7,7 +7,7 @@
     <!-- Header Card -->
     <div class="q-header-card">
         <div class="header-content">
-            <div class="header-icon-wrap" style="background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);">
+            <div class="header-icon-wrap" style=" box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);">
                 <i class="fa-solid fa-microphone-lines"></i>
             </div>
             <div>
@@ -89,7 +89,7 @@
         {% endfor %}
         
         div.innerHTML = `
-            <div class="step-num step-num-active" style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; flex-shrink: 0; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">
+            <div class="step-num step-num-active" style="width: 48px; height: 48px; border-radius: 12px;  color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; flex-shrink: 0; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">
                 Q${questionCount}
             </div>
             <div style="flex: 1;">
@@ -149,7 +149,7 @@
     
     /* Header Styles */
     .q-header-card {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+        
         border: 1px solid var(--border-color);
         border-radius: 20px;
         padding: 2.5rem;
@@ -175,8 +175,8 @@
     }
     .header-title {
         margin: 0; font-size: 2rem; font-weight: 800;
-        background: linear-gradient(to right, #f8fafc, #cbd5e1);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        
+        
         letter-spacing: -0.5px;
     }
     .header-subtitle { color: #94a3b8; font-size: 1rem; margin-top: 0.5rem; font-weight: 400; }
@@ -249,7 +249,7 @@
         text-decoration: none; transition: all 0.3s; border: none; cursor: pointer;
     }
     .btn-glow-success {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;
+         color: white;
         box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
     }
     .btn-glow-success:hover {

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}{{ title }} | RCM 7021{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dex.css') }}">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dex.css') }}?v=1.1">{% endblock %}
 {% block content %}
 <div class="dex-page"><div class="page-header"><div><h1>{{ title }}</h1><p>Only verified model capabilities create account and BLF controls.</p></div></div>
 <form method="post" class="dex-form">

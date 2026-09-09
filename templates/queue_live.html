@@ -17,8 +17,8 @@
         --wb-danger-glow: rgba(239, 68, 68, 0.4);
         --wb-purple: #8b5cf6;
         --wb-cyan: #06b6d4;
-        --text-main: #f8fafc;
-        --text-sub: #94a3b8;
+        /* Removed to inherit from theme */
+        /* Removed to inherit from theme */
     }
 
     /* Custom Animations */
@@ -50,7 +50,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+        background: var(--wb-panel);
         backdrop-filter: blur(16px);
         border: 1px solid var(--wb-border);
         border-radius: 16px;
@@ -330,7 +330,7 @@
     .badge-busy { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
     .badge-ringing { background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); animation: pulse 1s infinite; }
     .badge-paused { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); }
-    .badge-offline { background: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.4); }
+    .badge-offline { background: rgba(100, 116, 139, 0.2); color: var(--text-muted); border: 1px solid rgba(100, 116, 139, 0.4); }
 
     /* Activity Feed Ticker */
     .wb-ticker {
@@ -440,12 +440,12 @@
     .ql-donut {
         --value: 0;
         --accent: var(--primary);
-        --donut-fill: conic-gradient(var(--accent) calc(var(--value) * 1%), rgba(255,255,255,0.08) 0);
+        --donut-fill: conic-gradient(var(--accent) calc(var(--value) * 1%), var(--border-color) 0);
         width: 128px;
         aspect-ratio: 1;
         border-radius: 50%;
         background:
-            radial-gradient(circle at center, #151d30 0 52%, transparent 53%),
+            radial-gradient(circle at center, var(--panel-dark) 0 52%, transparent 53%),
             var(--donut-fill);
         position: relative;
         display: grid;
@@ -1145,7 +1145,7 @@
             .filter(segment => segment.value > 0);
         const total = activeSegments.reduce((sum, segment) => sum + segment.value, 0);
         if (!total) {
-            return "conic-gradient(rgba(255,255,255,0.08) 0 100%)";
+            return "conic-gradient(var(--border-color) 0 100%)";
         }
 
         let cursor = 0;

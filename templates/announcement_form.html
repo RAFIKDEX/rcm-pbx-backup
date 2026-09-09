@@ -23,7 +23,7 @@
             <div class="form-group">
                 <label for="num">Announcement Number <span class="tooltip-container">!<span class="tooltip-text">A unique extension number between 8000 and 8199 to play this announcement.</span></span> <span style="color: #ff4a4a;">*</span></label>
                 <input type="number" id="num" name="num" class="form-control" placeholder="e.g. 8000" min="8000" max="8199" required
-                       {% if ann %}value="{{ ann.num }}" readonly style="background-color: #1a1a1a; color: #888;"{% endif %}>
+                       {% if ann %}value="{{ ann.num }}" readonly style=" color: #888;"{% endif %}>
             </div>
             <div class="form-group">
                 <label for="name">Announcement Name <span class="tooltip-container">!<span class="tooltip-text">Descriptive name for the announcement (alphanumeric, dashes, underscores).</span></span> <span style="color: #ff4a4a;">*</span></label>

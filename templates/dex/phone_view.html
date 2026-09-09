@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}{{ device.display_mac }} | DEX Phone{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dex.css') }}">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dex.css') }}?v=1.1">{% endblock %}
 {% block content %}
 <div class="dex-page">
   <div class="page-header"><div><h1><i class="fa-solid fa-mobile-screen-button"></i> {{ device.display_mac }}</h1><p>{{ device.vendor or 'Unknown vendor' }} {{ device.detected_model or 'Unknown model' }}</p></div><div class="dex-actions"><a class="btn btn-secondary" href="{{ url_for('dex_phones') }}">Back</a>{% if device.ip_address %}<a class="btn btn-secondary" href="http://{{ device.ip_address }}/" target="_blank" rel="noopener">Open Web Interface</a>{% endif %}{% if device.provisionable and device.model_enabled and device.sip_account_count is not none and device.blf_count is not none and has_permission('dex_phones','edit') %}<a class="btn btn-primary" href="{{ url_for('dex_phone_edit', device_id=device.id) }}">Edit</a>{% elif not device.model_id and has_permission('dex_models','add') %}<a class="btn btn-primary" href="{{ url_for('dex_model_add', vendor_code=device.vendor_code, model_name=device.detected_model) }}">Define Model</a>{% endif %}</div></div>

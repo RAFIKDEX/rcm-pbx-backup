@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/png" href="/Logo.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTER Phone</title>
+    <title>DEXTER Phone v2</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -295,23 +296,33 @@
     <div class="phone-container">
         <div class="phone-card">
             
+            
             <!-- LOGIN SCREEN -->
             <div id="screen-login" class="screen active">
-                <div style="text-align: center; margin: 40px 0 30px 0;">
-                    <div style="color: var(--primary); font-size: 48px; margin-bottom: 15px;">
-                        <i class="fa-solid fa-phone-flip"></i>
+                <div style="text-align: center; margin: 20px 0 40px 0;">
+                    <div style="position: relative; display: inline-block; margin-bottom: 20px;">
+                        <div style="position: absolute; inset: -10px; background: var(--primary); filter: blur(25px); opacity: 0.3; border-radius: 50%;"></div>
+                        <div style="background: linear-gradient(135deg, var(--bg-dark), var(--panel-bg)); width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); position: relative; z-index: 1; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                            <i class="fa-solid fa-headset" style="font-size: 36px; background: linear-gradient(135deg, #60a5fa 0%, #a5b4fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                        </div>
                     </div>
-                    <h1 style="font-family: 'Orbitron', sans-serif; font-size: 24px; color: var(--text-main);">DEXTER Phone</h1>
-                    <p style="color: var(--text-muted); font-size: 13px; margin-top: 5px;">WebRTC Client</p>
+                    <h1 style="font-family: 'Orbitron', sans-serif; font-size: 26px; color: var(--text-main); font-weight: 800; letter-spacing: 1px;">DEXTER Phone</h1>
+                    <p style="color: var(--primary); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-top: 5px;">WebRTC Client v2</p>
                 </div>
                 
-                <div id="mic-warning" class="alert-warning" style="display: none;">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <div>
-                        <strong>Microphone Blocked!</strong><br>
-                        Your browser blocks mics on non-HTTPS sites. Type this in a new tab: 
-                        <code style="display:block; background:#000; padding:4px; margin-top:4px; font-size:10px; word-break:break-all;">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>
-                        Enable it, enter <strong>http://192.168.99.223</strong>, and relaunch Chrome.
+                <div id="mic-warning" class="alert-warning" style="display: none; flex-direction: column; text-align: left; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #f87171;">
+                    <div style="display: flex; align-items: center; gap: 10px; font-weight: bold; margin-bottom: 8px;">
+                        <i class="fa-solid fa-microphone-slash" style="font-size: 16px;"></i>
+                        <span>Microphone Access Denied</span>
+                    </div>
+                    <div style="font-size: 12px; line-height: 1.5; color: var(--text-muted);">
+                        Please allow microphone permissions. If you are using a local IP, Chrome blocks the mic automatically. 
+                        <br><br>
+                        <strong>Browsers block mic on HTTP! Quick Fixes:</strong><br>
+                        <ul style="margin: 5px 0 0 15px; padding: 0;">
+                        <li><strong>Chrome/Edge:</strong> Open <code style="background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; color: #60a5fa; user-select: all; font-size: 10px;">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> (or edge://...), add <code>http://192.168.99.223</code>, set to Enabled, and restart.</li>
+                        <li style="margin-top: 5px;"><strong>Firefox:</strong> Open <code>about:config</code>, search for <code style="background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; color: #60a5fa; user-select: all; font-size: 10px;">media.getusermedia.insecure.allow</code> and set it to <strong>true</strong>.</li>
+                        </ul>
                     </div>
                 </div>
 
@@ -320,18 +331,20 @@
                     <span id="login-error-text"></span>
                 </div>
                 
-                <form id="login-form" onsubmit="event.preventDefault(); connectSIP();">
-                    <div class="form-group">
-                        <label>Extension Number</label>
-                        <input type="text" id="sip-extension" class="form-control" placeholder="e.g. 1001" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="sip-password" class="form-control" placeholder="********" required>
+                <form id="login-form" onsubmit="event.preventDefault(); connectSIP();" style="display: flex; flex-direction: column; gap: 15px; margin-top: auto;">
+                    
+                    <div class="input-wrapper" style="position: relative;">
+                        <i class="fa-solid fa-hashtag" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                        <input type="text" id="sip-extension" class="form-control" style="padding-left: 45px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);" placeholder="Extension (e.g. 1001)" required>
                     </div>
                     
-                    <button type="submit" id="btn-connect" class="btn-primary" style="margin-top: 10px;">
-                        <i class="fa-solid fa-bolt"></i> Connect
+                    <div class="input-wrapper" style="position: relative;">
+                        <i class="fa-solid fa-lock" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                        <input type="password" id="sip-password" class="form-control" style="padding-left: 45px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);" placeholder="Secret Password" required>
+                    </div>
+                    
+                    <button type="submit" id="btn-connect" class="btn-primary" style="margin-top: 15px; height: 50px; font-size: 15px; letter-spacing: 1px;">
+                        <i class="fa-solid fa-power-off"></i> Initialize Connection
                     </button>
                 </form>
             </div>
@@ -577,6 +590,9 @@
 
         async function checkMicPermission() {
             try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error("Browser blocks media on HTTP");
+                }
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 stream.getTracks().forEach(t => t.stop());
                 document.getElementById('mic-warning').style.display = 'none';
@@ -584,13 +600,14 @@
             } catch (e) {
                 if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
                     document.getElementById('mic-warning').style.display = 'flex';
+                } else {
+                    document.getElementById('login-error-text').innerText = "Please allow microphone permissions when prompted.";
+                    document.getElementById('login-error').style.display = 'flex';
                 }
                 return false;
             }
         }
         
-        // Auto check mic on load to show warning early
-        checkMicPermission();
 
         async function connectSIP() {
             const ext = document.getElementById('sip-extension').value;
@@ -606,11 +623,9 @@
             
             const hasMic = await checkMicPermission();
             if (!hasMic) {
-                errText.innerText = "Microphone permission is required.";
-                err.style.display = 'flex';
-                btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Connect';
+                btn.innerHTML = '<i class="fa-solid fa-power-off"></i> Initialize Connection';
                 btn.disabled = false;
-                return;
+                return; // Error message is handled inside checkMicPermission
             }
 
             const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
