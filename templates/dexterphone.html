@@ -523,8 +523,20 @@
             if (dialInput.innerText.length < 15) dialInput.innerText += digit;
             if (activeSession && activeSession.state === SIP.SessionState.Established) {
                 try {
-                    const dtmf = new SIP.Infoer(activeSession, 'application/dtmf-relay');
-                    dtmf.send({ body: `Signal=${digit}\r\nDuration=160` });
+                    const pc = activeSession.sessionDescriptionHandler.peerConnection;
+                    const senders = pc.getSenders();
+                    let sent = false;
+                    for (let sender of senders) {
+                        if (sender.dtmf) {
+                            sender.dtmf.insertDTMF(digit);
+                            sent = true;
+                            break;
+                        }
+                    }
+                    if (!sent) {
+                        const dtmf = new SIP.Infoer(activeSession, 'application/dtmf-relay');
+                        dtmf.send({ body: `Signal=${digit}\r\nDuration=160` });
+                    }
                 } catch (e) { console.error('DTMF Error', e); }
             }
         }
