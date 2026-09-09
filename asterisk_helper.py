@@ -3039,6 +3039,7 @@ transferdigittimeout = {timeout}
 blindxfer => {blind_code}
 atxfer => {attended_code}
 automixmon => *1
+disconnect => 
 
 [applicationmap]
 """
