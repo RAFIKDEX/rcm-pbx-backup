@@ -629,7 +629,7 @@
             }
 
             const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsServer = `${wsProtocol}://${srv}:8088/ws`;
+            const wsServer = `${wsProtocol}://${srv}:${window.location.protocol === 'https:' ? '8089' : '8088'}/ws`;
             const uri = SIP.UserAgent.makeURI(`sip:${ext}_webrtc@${srv}`);
             
             const uaOptions = {
