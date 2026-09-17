@@ -1710,7 +1710,7 @@ def add_extension_with_spy_permissions(data, allowed_spy_exts):
             data["max_contacts"], data["max_expiration"], data["ring_time"], data["vm_enabled"],
             data["vm_password"], data["record_mode"], data.get("dtmf_mode", "rfc4733"), data.get("moh_class", "default"), int(data.get("video_support", 0) or 0), data["direct_media"], data["nat"],
             data.get("codecs", "alaw,ulaw"), json.dumps(data.get("followme", [])), data.get("mobile", ""),
-            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 0))
+            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 1))
         ))
         data["_web_password_once"] = _create_extension_web_user(
             cursor, data["ext"], data.get("email", ""), data.get("web_password")
@@ -1747,7 +1747,7 @@ def update_extension_with_spy_permissions(ext, data, allowed_spy_exts):
             data["max_contacts"], data["max_expiration"], data["ring_time"], data["vm_enabled"],
             data["vm_password"], data["record_mode"], data.get("dtmf_mode", "rfc4733"), data.get("moh_class", "default"), int(data.get("video_support", 0) or 0), data["direct_media"], data["nat"],
             data.get("codecs", "alaw,ulaw"), json.dumps(data.get("followme", [])), data.get("mobile", ""),
-            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 0)), int(data.get("call_waiting", 0)), ext
+            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 1)), ext
         ))
         if cursor.rowcount == 0:
             raise ValueError(f"Extension {ext} not found.")
@@ -1826,7 +1826,7 @@ def add_extension(data):
             data["max_contacts"], data["max_expiration"], data["ring_time"], data["vm_enabled"],
             data["vm_password"], data["record_mode"], data.get("dtmf_mode", "rfc4733"), data.get("moh_class", "default"), int(data.get("video_support", 0) or 0), data["direct_media"], data["nat"],
             data.get("codecs", "alaw,ulaw"), json.dumps(data.get("followme", [])), data.get("mobile", ""),
-            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 0))
+            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 1))
         ))
         data["_web_password_once"] = _create_extension_web_user(
             cursor, data["ext"], data.get("email", ""), data.get("web_password")
@@ -1854,7 +1854,7 @@ def update_extension(ext, data):
         data["max_contacts"], data["max_expiration"], data["ring_time"], data["vm_enabled"],
         data["vm_password"], data["record_mode"], data.get("dtmf_mode", "rfc4733"), data.get("moh_class", "default"), int(data.get("video_support", 0) or 0), data["direct_media"], data["nat"],
         data.get("codecs", "alaw,ulaw"), json.dumps(data.get("followme", [])), data.get("mobile", ""),
-        data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 0)), int(data.get("call_waiting", 0)), ext
+        data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 1)), ext
     ))
     conn.commit()
     conn.close()

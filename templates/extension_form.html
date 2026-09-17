@@ -464,7 +464,7 @@
                 <div class="form-group" style="margin-top: 1.5rem; grid-column: 1 / -1;">
                     <div class="switch-group" style="margin-top: 0.5rem;">
                         <label class="switch">
-                            <input type="checkbox" name="call_waiting" {% if extension and extension.call_waiting == 1 %}checked{% endif %}>
+                            <input type="checkbox" name="call_waiting" {% if not extension or extension.call_waiting == 1 %}checked{% endif %}>
                             <span class="slider"></span>
                         </label>
                         <div><strong>Enable Call Waiting</strong> <span class="text-muted">(Allow receiving a second call while already on a call)</span></div>
