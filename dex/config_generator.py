@@ -11,6 +11,18 @@ from .constants import PROVISION_ROOT
 from .drivers import UnsupportedOperation
 from .validators import normalize_mac, safe_filename
 
+def _local_ip_for(target_ip="192.168.99.90"):
+    if not target_ip: return ""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect((str(target_ip), 5060))
+        return sock.getsockname()[0]
+    except OSError:
+        return ""
+    finally:
+        sock.close()
+
+
 
 class ConfigGenerationError(ValueError):
     pass
@@ -79,12 +91,14 @@ class FanvilFiberMeConfigGenerator:
             extension = self._extension(account.get("extension"))
             lines.extend(self.engine.render_account_lines(
                 account["account_index"], extension["ext"],
-                config.get("provisioning_ip") or "", sip_port,
+                config.get("provisioning_ip") or _local_ip_for(device.get("ip_address")), sip_port,
                 extension.get("secret") or "", extension.get("name") or extension["ext"],
             ))
         lines.extend(["", "<PHONE FEATURE MODULE>", "--DateTime Config--:", f"Enable SNTP        :{1 if config.get('sntp_enabled') else 0}"])
-        if config.get("sntp_enabled") and config.get("primary_ntp"):
-            lines.append(f"SNTP Server        :{config['primary_ntp']}")
+        if config.get("sntp_enabled"):
+            ntp_srv = config.get("primary_ntp") or _local_ip_for(device.get("ip_address"))
+            if ntp_srv:
+                lines.append(f"SNTP Server        :{ntp_srv}")
         if config.get("sntp_enabled") and config.get("secondary_ntp"):
             lines.append(f"Second SNTP Server :{config['secondary_ntp']}")
         if config.get("sntp_enabled") and config.get("timezone"):
@@ -368,7 +382,7 @@ class GrandstreamXmlConfigGenerator(FanvilFiberMeConfigGenerator):
                     ("userid", extension["ext"]),
                     ("password", extension.get("secret") or ""),
                 ))
-                parts_item(f"{prefix}.sip.server.1", (("address", config.get("provisioning_ip") or ""),))
+                parts_item(f"{prefix}.sip.server.1", (("address", config.get("provisioning_ip") or _local_ip_for(device.get("ip_address"))),))
             else:
                 # The alias spelling differs between the GXV and GRP
                 # templates; retain the established GXV flat grammar.
@@ -376,7 +390,7 @@ class GrandstreamXmlConfigGenerator(FanvilFiberMeConfigGenerator):
                 values = (
                     (f"{prefix}.enable", "Yes"),
                     (f"{prefix}.name", display_name),
-                    (f"{prefix}.sip.server.1.address", config.get("provisioning_ip") or ""),
+                    (f"{prefix}.sip.server.1.address", config.get("provisioning_ip") or _local_ip_for(device.get("ip_address"))),
                     (f"{prefix}.sip.userid", extension["ext"]),
                     (auth_key, extension["ext"]),
                     (f"{prefix}.sip.subscriber.password", extension.get("secret") or ""),
@@ -414,8 +428,9 @@ class GrandstreamXmlConfigGenerator(FanvilFiberMeConfigGenerator):
         # existing phone address book is preserved.
         if config.get("sntp_enabled"):
             ntp_parts = []
-            if config.get("primary_ntp"):
-                ntp_parts.append(("1", config["primary_ntp"]))
+            ntp_srv = config.get("primary_ntp") or _local_ip_for(device.get("ip_address"))
+            if ntp_srv:
+                ntp_parts.append(("1", ntp_srv))
             if config.get("secondary_ntp"):
                 ntp_parts.append(("2", config["secondary_ntp"]))
             if ntp_parts:
