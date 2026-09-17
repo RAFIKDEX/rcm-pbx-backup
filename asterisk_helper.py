@@ -1795,7 +1795,7 @@ def write_extension_configs(data, reload=True):
     new_dp_lines = []
     for line in dp_lines:
         t = line.strip()
-        if t.startswith(f"RECORD_{ext}=") or t.startswith(f"VM_{ext}=") or t.startswith(f"RING_{ext}=") or t.startswith(f"FM_{ext}=") or t.startswith(f"exten => {ext},"):
+        if t.startswith(f"RECORD_{ext}=") or t.startswith(f"VM_{ext}=") or t.startswith(f"RING_{ext}=") or t.startswith(f"FM_{ext}=") or t.startswith(f"CW_{ext}=") or t.startswith(f"exten => {ext},"):
             continue
         new_dp_lines.append(line)
 
@@ -1810,13 +1810,16 @@ def write_extension_configs(data, reload=True):
             final_dp_lines.append(f"VM_{ext}={'On' if vm_enabled else 'Off'}")
             final_dp_lines.append(f"RING_{ext}={ring_time}")
             final_dp_lines.append(f"FM_{ext}={followme_enabled}")
+            call_waiting_enabled = "On" if extension_data.get("call_waiting", 0) else "Off"
+            final_dp_lines.append(f"CW_{ext}={call_waiting_enabled}")
             globals_inserted = True
         if line.strip() == "[internal]" and not internal_inserted:
             final_dp_lines.append(f"exten => {ext},1,Goto(dexter,${{EXTEN}},1)")
             internal_inserted = True
 
     if not globals_inserted:
-        final_dp_lines.extend(["", "[globals]", f"RECORD_{ext}={record_mode}", f"VM_{ext}={'On' if vm_enabled else 'Off'}", f"RING_{ext}={ring_time}", f"FM_{ext}={followme_enabled}"])
+        call_waiting_enabled = "On" if extension_data.get("call_waiting", 0) else "Off"
+        final_dp_lines.extend(["", "[globals]", f"RECORD_{ext}={record_mode}", f"VM_{ext}={'On' if vm_enabled else 'Off'}", f"RING_{ext}={ring_time}", f"FM_{ext}={followme_enabled}", f"CW_{ext}={call_waiting_enabled}"])
     if not internal_inserted:
         final_dp_lines.extend(["", "[internal]", f"exten => {ext},1,Goto(dexter,${{EXTEN}},1)"])
 
@@ -1911,7 +1914,7 @@ def delete_extension_configs(ext, reload=True):
         new_dp_lines = []
         for line in dp_lines:
             t = line.strip()
-            if t.startswith(f"RECORD_{ext}=") or t.startswith(f"VM_{ext}=") or t.startswith(f"RING_{ext}=") or t.startswith(f"FM_{ext}=") or t.startswith(f"exten => {ext},"):
+            if t.startswith(f"RECORD_{ext}=") or t.startswith(f"VM_{ext}=") or t.startswith(f"RING_{ext}=") or t.startswith(f"FM_{ext}=") or t.startswith(f"CW_{ext}=") or t.startswith(f"exten => {ext},"):
                 continue
             new_dp_lines.append(line)
         with open(DP_FILE, 'w', encoding='utf-8') as f:

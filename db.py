@@ -1703,14 +1703,14 @@ def add_extension_with_spy_permissions(data, allowed_spy_exts):
         cursor.execute("BEGIN")
         cursor.execute('''
             INSERT INTO extensions 
-            (ext, enabled, name, callerid_number, secret, max_contacts, max_expiration, ring_time, vm_enabled, vm_password, record_mode, dtmf_mode, moh_class, video_support, direct_media, nat, codecs, followme_json, mobile, allow_spy, email, sync_ldap)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (ext, enabled, name, callerid_number, secret, max_contacts, max_expiration, ring_time, vm_enabled, vm_password, record_mode, dtmf_mode, moh_class, video_support, direct_media, nat, codecs, followme_json, mobile, allow_spy, email, sync_ldap, call_waiting)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data["ext"], data["enabled"], data["name"], data["callerid_number"], data["secret"],
             data["max_contacts"], data["max_expiration"], data["ring_time"], data["vm_enabled"],
             data["vm_password"], data["record_mode"], data.get("dtmf_mode", "rfc4733"), data.get("moh_class", "default"), int(data.get("video_support", 0) or 0), data["direct_media"], data["nat"],
             data.get("codecs", "alaw,ulaw"), json.dumps(data.get("followme", [])), data.get("mobile", ""),
-            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1)
+            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 0))
         ))
         data["_web_password_once"] = _create_extension_web_user(
             cursor, data["ext"], data.get("email", ""), data.get("web_password")
@@ -1740,14 +1740,14 @@ def update_extension_with_spy_permissions(ext, data, allowed_spy_exts):
                 enabled = ?, name = ?, callerid_number = ?, secret = ?, max_contacts = ?, 
                 max_expiration = ?, ring_time = ?, vm_enabled = ?, vm_password = ?, 
                 record_mode = ?, dtmf_mode = ?, moh_class = ?, video_support = ?, direct_media = ?, nat = ?, codecs = ?, followme_json = ?, mobile = ?,
-                allow_spy = ?, email = ?, sync_ldap = ?
+                allow_spy = ?, email = ?, sync_ldap = ?, call_waiting = ?
             WHERE ext = ?
         ''', (
             data["enabled"], data["name"], data["callerid_number"], data["secret"],
             data["max_contacts"], data["max_expiration"], data["ring_time"], data["vm_enabled"],
             data["vm_password"], data["record_mode"], data.get("dtmf_mode", "rfc4733"), data.get("moh_class", "default"), int(data.get("video_support", 0) or 0), data["direct_media"], data["nat"],
             data.get("codecs", "alaw,ulaw"), json.dumps(data.get("followme", [])), data.get("mobile", ""),
-            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), ext
+            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 0)), int(data.get("call_waiting", 0)), ext
         ))
         if cursor.rowcount == 0:
             raise ValueError(f"Extension {ext} not found.")
@@ -1819,14 +1819,14 @@ def add_extension(data):
     try:
         cursor.execute('''
             INSERT INTO extensions 
-            (ext, enabled, name, callerid_number, secret, max_contacts, max_expiration, ring_time, vm_enabled, vm_password, record_mode, dtmf_mode, moh_class, video_support, direct_media, nat, codecs, followme_json, mobile, allow_spy, email, sync_ldap)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (ext, enabled, name, callerid_number, secret, max_contacts, max_expiration, ring_time, vm_enabled, vm_password, record_mode, dtmf_mode, moh_class, video_support, direct_media, nat, codecs, followme_json, mobile, allow_spy, email, sync_ldap, call_waiting)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data["ext"], data["enabled"], data["name"], data["callerid_number"], data["secret"],
             data["max_contacts"], data["max_expiration"], data["ring_time"], data["vm_enabled"],
             data["vm_password"], data["record_mode"], data.get("dtmf_mode", "rfc4733"), data.get("moh_class", "default"), int(data.get("video_support", 0) or 0), data["direct_media"], data["nat"],
             data.get("codecs", "alaw,ulaw"), json.dumps(data.get("followme", [])), data.get("mobile", ""),
-            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1)
+            data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 0))
         ))
         data["_web_password_once"] = _create_extension_web_user(
             cursor, data["ext"], data.get("email", ""), data.get("web_password")
@@ -1847,14 +1847,14 @@ def update_extension(ext, data):
             enabled = ?, name = ?, callerid_number = ?, secret = ?, max_contacts = ?, 
             max_expiration = ?, ring_time = ?, vm_enabled = ?, vm_password = ?, 
             record_mode = ?, dtmf_mode = ?, moh_class = ?, video_support = ?, direct_media = ?, nat = ?, codecs = ?, followme_json = ?, mobile = ?,
-            allow_spy = ?, email = ?, sync_ldap = ?
+            allow_spy = ?, email = ?, sync_ldap = ?, call_waiting = ?
         WHERE ext = ?
     ''', (
         data["enabled"], data["name"], data["callerid_number"], data["secret"],
         data["max_contacts"], data["max_expiration"], data["ring_time"], data["vm_enabled"],
         data["vm_password"], data["record_mode"], data.get("dtmf_mode", "rfc4733"), data.get("moh_class", "default"), int(data.get("video_support", 0) or 0), data["direct_media"], data["nat"],
         data.get("codecs", "alaw,ulaw"), json.dumps(data.get("followme", [])), data.get("mobile", ""),
-        data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), ext
+        data.get("allow_spy", 1), data.get("email", ""), data.get("sync_ldap", 1), int(data.get("call_waiting", 0)), int(data.get("call_waiting", 0)), ext
     ))
     conn.commit()
     conn.close()

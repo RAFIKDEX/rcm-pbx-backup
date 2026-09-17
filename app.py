@@ -3241,6 +3241,7 @@ def extensions_add():
             "mobile": request.form.get('mobile', '').strip(),
             "email": email,
             "allow_spy": 1 if request.form.get('allow_spy') == 'on' else 0,
+            "call_waiting": 1 if request.form.get('call_waiting') == 'on' else 0,
             "sync_ldap": 1 if request.form.get('sync_ldap') else 0,
             "web_password": request.form.get('web_password', '').strip()
         }
@@ -3375,6 +3376,7 @@ def extensions_edit(ext):
             "mobile": request.form.get('mobile', '').strip(),
             "email": email,
             "allow_spy": 1 if request.form.get('allow_spy') == 'on' else 0,
+            "call_waiting": 1 if request.form.get('call_waiting') == 'on' else 0,
             "sync_ldap": 1 if request.form.get('sync_ldap') else 0,
             "web_password": request.form.get('web_password', '').strip()
         }
@@ -3386,7 +3388,7 @@ def extensions_edit(ext):
         changes = audit_changes(existing, ext_data, [
             "enabled", "name", "callerid_number", "secret", "max_contacts", "ring_time",
             "vm_enabled", "record_mode", "dtmf_mode", "moh_class", "video_support",
-            "direct_media", "nat", "codecs", "mobile", "email", "allow_spy"
+            "direct_media", "nat", "codecs", "mobile", "email", "allow_spy", "call_waiting"
         ])
         ok, msg, spy_added, spy_removed = db.update_extension_with_spy_permissions(ext, ext_data, selected_spy_extensions)
         if not ok:

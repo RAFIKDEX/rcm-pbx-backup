@@ -1,0 +1,3721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <script>
+        // Global fetch interceptor for CSRF tokens
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = async function() {
+                let [resource, config] = arguments;
+                if (typeof resource === 'string' && config && config.method && !['GET', 'HEAD', 'OPTIONS'].includes(config.method.toUpperCase())) {
+                    config.headers = config.headers || {};
+                    config.headers['X-CSRFToken'] = 'lkWbtm40EAwy6PG_VUsdB71czr-TNTEq';
+                }
+                return originalFetch(resource, config);
+            };
+        })();
+    </script>
+
+    <meta charset="UTF-8">
+    <!-- Theme Initialization -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('rcm_theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - RCM 7021</title>
+    <link rel="icon" type="image/png" href="/Logo.png">
+    <link rel="stylesheet" href="/static/css/style.css?v=2.4">
+    <link rel="stylesheet" href="/static/css/glass_theme.css?v=1.6">
+    <link rel="stylesheet" href="/static/css/extension_portal.css?v=1.3">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Modern alerts container */
+        .toast-container {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+        
+        .toast {
+            background-color: var(--panel-dark);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            min-width: 320px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            pointer-events: auto;
+            animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
+        }
+        
+        .toast-success {
+            border-left: 4px solid var(--status-registered);
+        }
+        
+        .toast-danger {
+            border-left: 4px solid var(--status-offline);
+        }
+        
+        .toast-info {
+            border-left: 4px solid var(--status-ringing);
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* Interactive Tabs Styling */
+        .tabs-header {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 1rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tab-btn:hover, .tab-btn.active {
+            color: var(--primary);
+        }
+        
+        .tab-btn.active {
+            border-bottom-color: var(--primary);
+            background-color: var(--border-color);
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Modals and popups */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(8px);
+        }
+        
+        .modal-content {
+            background-color: var(--panel-dark);
+            margin: 10% auto;
+            padding: 2.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            width: 90%;
+            max-width: 520px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            position: relative;
+            animation: modalSlideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes modalSlideDown {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 1.25rem;
+            right: 1.5rem;
+            font-size: 1.8rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .close-modal:hover {
+            color: var(--text-main);
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .switch-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            background-color: var(--border-color);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* Standard Native Checkbox */
+        .switch {
+            display: inline-flex;
+            align-items: center;
+        }
+        .switch input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary); /* Makes native checkbox blue on modern browsers */
+            margin: 0;
+            opacity: 1;
+            position: static;
+        }
+        .slider {
+            display: none !important; /* Hide the custom slider entirely */
+        }
+        
+        .fm-table {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            border-collapse: collapse;
+        }
+        
+        .fm-table th, .fm-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.5rem;
+        }
+
+        /* New Premium UI Elements */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--panel-dark);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .apply-changes-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: rgba(245, 158, 11, 0.05);
+            color: #888;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: not-allowed;
+            opacity: 0.5;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+        }
+        
+        .apply-changes-btn.active {
+            background-color: #f59e0b;
+            color: #0b0f19;
+            border-color: #f59e0b;
+            cursor: pointer;
+            opacity: 1;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.35);
+        }
+        
+        .apply-changes-btn.active:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.5);
+        }
+        
+        .apply-changes-btn.active:active {
+            transform: translateY(0);
+        }
+        
+        .pending-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background-color: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            color: #f59e0b;
+            font-size: 0.82rem;
+            font-weight: 700;
+            animation: pulseBanner 2s infinite;
+        }
+        
+        @keyframes pulseBanner {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.2); }
+            70% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+
+        /* Tooltip styling */
+        .tooltip-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 0.35rem;
+            color: var(--primary);
+            cursor: help;
+            font-size: 0.85rem;
+            width: 1.05rem;
+            height: 1.05rem;
+            border: 1px solid rgba(14, 165, 233, 0.45);
+            border-radius: 50%;
+            line-height: 1;
+            font-weight: 800;
+        }
+        .tooltip-container .tooltip-text {
+            visibility: hidden;
+            width: 220px;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            text-align: left;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s, visibility 0.2s;
+            font-size: 0.78rem;
+            font-family: var(--font-body);
+            font-weight: 500;
+            line-height: 1.4;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        .tooltip-container .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #0b0f19 transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .tooltip-container:focus .tooltip-text,
+        .tooltip-container:focus-visible .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Premium GUI enhancements */
+        .form-control {
+            transition: all 0.2s ease;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+            transform: translateY(-1px);
+        }
+        .btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.1);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+        .panel {
+            animation: fadeIn 0.4s ease-out;
+            transition: transform 0.3s ease;
+        }
+        .card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border-color: var(--primary);
+        }
+    </style>
+    
+    <!-- Load Glass Theme last to ensure overrides -->
+    <link rel="stylesheet" href="/static/css/glass_theme.css?v=1.9">
+</head>
+<body>
+    <div class="uiverse-bg-container">
+        <div id="stars"></div>
+        <div id="stars2"></div>
+        <div id="stars3"></div>
+    </div>
+    <div class="app-container">
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+        <!-- Left Sidebar Navigation -->
+        <aside class="sidebar" id="main-sidebar">
+            <script>
+                if (localStorage.getItem('sidebar_main_collapsed') === 'true' && window.innerWidth > 768) {
+                    document.getElementById('main-sidebar').classList.add('sidebar-collapsed', 'no-transition');
+                }
+            </script>
+            <div class="sidebar-brand">
+                <div class="brand-content">
+                    <h3 class="brand-title">RCM 7021</h3>
+                </div>
+                <button id="sidebarCollapseBtn" class="sidebar-collapse-btn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
+                    <i class="fa-solid fa-angles-left" id="sidebarCollapseIcon"></i>
+                </button>
+            </div>
+            
+            <ul class="sidebar-menu">
+                
+                
+                <!-- SYSTEM STATUS -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="system-status-group" role="button" tabindex="0" aria-expanded="true" aria-controls="system-status-group">
+                    <span class="category-label"><i class="fa-solid fa-gauge"></i><span class="category-title">System Status</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="system-status-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            
+                            <li class="">
+                                <a href="/dashboard" data-tooltip="Dashboard"><i class="fa-solid fa-chart-pie" style="color: #3b82f6;"></i> <span class="menu-text">Dashboard</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/active-calls" data-tooltip="Active Calls"><i class="fa-solid fa-headset" style="color: #10b981;"></i> <span class="menu-text">Active Calls</span></a>
+                            </li>
+                            
+                        </ul>
+                    </div>
+                </li>
+                
+
+                <!-- CONSOLE -->
+                
+
+                <!-- EXTENSIONS & TRUNKS -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="extensions-trunks-group" role="button" tabindex="0" aria-expanded="true" aria-controls="extensions-trunks-group">
+                    <span class="category-label"><i class="fa-solid fa-phone"></i><span class="category-title">Extensions & Trunks</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="extensions-trunks-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            
+                            <li class="">
+                                <a href="/extensions" data-tooltip="Extensions"><i class="fa-solid fa-users-gear" style="color: #0ea5e9;"></i> <span class="menu-text">Extensions</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/trunks" data-tooltip="Trunks"><i class="fa-solid fa-server" style="color: #a855f7;"></i> <span class="menu-text">Trunks</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/inbound-routes" data-tooltip="Inbound Routes"><i class="fa-solid fa-phone-volume" style="color: #3b82f6;"></i> <span class="menu-text">Inbound Routes</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/call-routes" data-tooltip="Outbound Routes"><i class="fa-solid fa-route" style="color: #f59e0b;"></i> <span class="menu-text">Outbound Routes</span></a>
+                            </li>
+                            
+                        </ul>
+                    </div>
+                </li>
+                
+
+
+                <!-- CALL FEATURES -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="call-features-group" role="button" tabindex="0" aria-expanded="true" aria-controls="call-features-group">
+                    <span class="category-label"><i class="fa-solid fa-wand-magic-sparkles"></i><span class="category-title">Call Features</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="call-features-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            
+                            <li class="">
+                                <a href="/media-center?tab=prompts" data-tooltip="Voice Prompts"><i class="fa-solid fa-volume-high" style="color: #14b8a6;"></i> <span class="menu-text">Voice Prompts</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/media-center?tab=system" data-tooltip="System Prompts"><i class="fa-solid fa-gear" style="color: #a78bfa;"></i> <span class="menu-text">System Prompts</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/media-center?tab=moh" data-tooltip="Music On Hold"><i class="fa-solid fa-music" style="color: #eab308;"></i> <span class="menu-text">Music On Hold</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/announcements" data-tooltip="Announcements"><i class="fa-solid fa-bullhorn" style="color: #fb923c;"></i> <span class="menu-text">Announcements</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/paging" data-tooltip="Intercom & Paging"><i class="fa-solid fa-broadcast-tower" style="color: #10b981;"></i> <span class="menu-text">Intercom & Paging</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/ring-groups" data-tooltip="Call Groups"><i class="fa-solid fa-people-group" style="color: #06b6d4;"></i> <span class="menu-text">Call Groups</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/pickup-groups" data-tooltip="Pickup Groups"><i class="fa-solid fa-hand-holding-hand" style="color: #3b82f6;"></i> <span class="menu-text">Pickup Groups</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/speed-dials" data-tooltip="Speed Dial"><i class="fa-solid fa-phone-flip" style="color: #8b5cf6;"></i> <span class="menu-text">Speed Dial</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/feature-codes" data-tooltip="Feature Codes"><i class="fa-solid fa-hashtag" style="color: #ec4899;"></i> <span class="menu-text">Feature Codes</span></a>
+                            </li>
+                            
+                        </ul>
+                    </div>
+                </li>
+                
+
+                <!-- CALL CENTER -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="call-center-group" role="button" tabindex="0" aria-expanded="true" aria-controls="call-center-group">
+                    <span class="category-label"><i class="fa-solid fa-headset"></i><span class="category-title">Call Center</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="call-center-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            
+                            <li class="">
+                                <a href="/ivr" data-tooltip="IVR"><i class="fa-solid fa-robot" style="color: #6366f1;"></i> <span class="menu-text">IVR</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/queues" data-tooltip="Queue"><i class="fa-solid fa-lines-leaning" style="color: #f43f5e;"></i> <span class="menu-text">Queue</span></a>
+                            </li>
+                            <li class="">
+                                <a href="/surveys" data-tooltip="Survey"><i class="fa-solid fa-square-poll-vertical" style="color: #10b981;"></i> <span class="menu-text">Survey</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/call-center/live" data-tooltip="Live Queue"><i class="fa-solid fa-gauge-high" style="color: #10b981;"></i> <span class="menu-text">Live Queue</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/call-center/stats" data-tooltip="Queue Statistics"><i class="fa-solid fa-chart-line" style="color: #3b82f6;"></i> <span class="menu-text">Queue Statistics</span></a>
+                            </li>
+                            
+                        </ul>
+                    </div>
+                </li>
+                
+
+                <!-- CONTACTS & LDAP -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="contacts-ldap-group" role="button" tabindex="0" aria-expanded="true" aria-controls="contacts-ldap-group">
+                    <span class="category-label"><i class="fa-solid fa-address-book"></i><span class="category-title">Contacts & LDAP</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="contacts-ldap-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            <li class="">
+                                <a href="/contacts/list" data-tooltip="Contacts"><i class="fa-solid fa-users" style="color: #10b981;"></i> <span class="menu-text">Contacts</span></a>
+                            </li>
+                            <li class="">
+                                <a href="/contacts/ldap" data-tooltip="LDAP Settings"><i class="fa-solid fa-network-wired" style="color: #6366f1;"></i> <span class="menu-text">LDAP</span></a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                
+
+                <!-- DEX -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="dex-group" role="button" tabindex="0" aria-expanded="true" aria-controls="dex-group">
+                    <span class="category-label"><i class="fa-solid fa-mobile-screen-button"></i><span class="category-title">DEX</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="dex-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            
+                            <li class="">
+                                <a href="/dex/phones" data-tooltip="DEX Phone"><i class="fa-solid fa-mobile-screen-button" style="color: #38bdf8;"></i> <span class="menu-text">DEX Phone</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/dex/models" data-tooltip="DEX Model"><i class="fa-solid fa-layer-group" style="color: #a78bfa;"></i> <span class="menu-text">DEX Model</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/dex/config" data-tooltip="DEX Config"><i class="fa-solid fa-sliders" style="color: #34d399;"></i> <span class="menu-text">DEX Config</span></a>
+                            </li>
+                            
+                        </ul>
+                    </div>
+                </li>
+                
+
+                <!-- PBX SETTINGS -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="pbx-settings-group" role="button" tabindex="0" aria-expanded="true" aria-controls="pbx-settings-group">
+                    <span class="category-label"><i class="fa-solid fa-gears"></i><span class="category-title">PBX Settings</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="pbx-settings-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            
+                            <li class="">
+                                <a href="/pbx-settings" data-tooltip="Global Settings"><i class="fa-solid fa-sliders" style="color: #64748b;"></i> <span class="menu-text">Global Settings</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/pbx-settings/operation-log" data-tooltip="Operation Log"><i class="fa-solid fa-clock-rotate-left" style="color: #0ea5e9;"></i> <span class="menu-text">Operation Log</span></a>
+                            </li>
+                            
+                            
+                            <li>
+                                <a href="javascript:void(0)" onclick="showNotification('Incoming caller blacklist features are managed via dialplan routing rules.', 'info')" data-tooltip="Blacklist">
+                                    <i class="fa-solid fa-ban" style="color: #ef4444;"></i> <span class="menu-text">Blacklist</span> <span class="sidebar-badge coming-soon">Soon</span>
+                                </a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/system/time-conditions" data-tooltip="Time Conditions"><i class="fa-solid fa-calendar-days" style="color: #10b981;"></i> <span class="menu-text">Time Conditions</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/cleanup/" data-tooltip="System Cleaner">
+                                    <i class="fa-solid fa-broom" style="color: #a855f7;"></i> <span class="menu-text">System Cleaner</span>
+                                </a>
+                            </li>
+                            <li class="">
+                                <a href="/external-storage/" data-tooltip="External Storage">
+                                    <i class="fa-solid fa-hard-drive" style="color: #3b82f6;"></i> <span class="menu-text">External Storage</span>
+                                </a>
+                            </li>
+                            
+                            
+                            <li class="active">
+                                <a href="/users" data-tooltip="Users Management"><i class="fa-solid fa-users" style="color: #6366f1;"></i> <span class="menu-text">Users</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/privileges" data-tooltip="Privileges Management"><i class="fa-solid fa-key" style="color: #f59e0b;"></i> <span class="menu-text">Privileges</span></a>
+                            </li>
+                            
+                        </ul>
+                    </div>
+                </li>
+                
+
+                <!-- SYSTEM SETTINGS -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="system-settings-group" role="button" tabindex="0" aria-expanded="true" aria-controls="system-settings-group">
+                    <span class="category-label"><i class="fa-solid fa-screwdriver-wrench"></i><span class="category-title">System Settings</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="system-settings-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            
+                            <li class="">
+                                <a href="/system/time" data-tooltip="Time Settings"><i class="fa-solid fa-clock" style="color: #a855f7;"></i> <span class="menu-text">Time Settings</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/system/network" data-tooltip="Network Settings"><i class="fa-solid fa-network-wired" style="color: #06b6d4;"></i> <span class="menu-text">Network Settings</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/security" data-tooltip="Firewall Settings"><i class="fa-solid fa-shield-halved" style="color: #ef4444;"></i> <span class="menu-text">Firewall Settings</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/sip_security" data-tooltip="SIP Security Settings">
+                                    <i class="fa-solid fa-lock" style="color: #3b82f6;"></i> <span class="menu-text">SIP Security Settings</span>
+                                </a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/system/mail-settings" data-tooltip="Mail Server Settings">
+                                    <i class="fa-solid fa-envelope" style="color: #14b8a6;"></i> <span class="menu-text">Mail Server Settings</span>
+                                </a>
+                            </li>
+                            
+                            
+                            <li><a href="/system/maintenance/troubleshooting" data-tooltip="Network Troubleshooting"><i class="fa-solid fa-screwdriver-wrench" style="color: #fb923c;"></i> <span class="menu-text">Network Troubleshooting</span></a>
+                            </li>
+                            
+                        </ul>
+                    </div>
+                </li>
+                
+
+                <!-- REPORTS -->
+                
+                <li class="sidebar-category-header collapsible-header" data-group="reports-group" role="button" tabindex="0" aria-expanded="true" aria-controls="reports-group">
+                    <span class="category-label"><i class="fa-solid fa-chart-simple"></i><span class="category-title">Reports</span></span>
+                    <i class="fa-solid fa-chevron-down category-arrow"></i>
+                </li>
+                <li id="reports-group" class="sidebar-submenu-container expanded">
+                    <div class="submenu-inner">
+                        <ul class="sidebar-submenu">
+                            
+                            <li class="">
+                                <a href="/call-records" data-tooltip="Call Records"><i class="fa-solid fa-microphone-lines" style="color: #ef4444;"></i> <span class="menu-text">Call Records</span></a>
+                            </li>
+                            
+                            
+                            <li class="">
+                                <a href="/cdr" data-tooltip="Call Detail Records"><i class="fa-solid fa-receipt" style="color: #10b981;"></i> <span class="menu-text">Call Detail Records</span></a>
+                            </li>
+                            
+                        </ul>
+                    </div>
+                </li>
+                
+            </ul>
+            
+            <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                
+                <a href="javascript:void(0)" onclick="openMachineRebootModal()" class="reboot-link" data-tooltip="Reboot Server">
+                    <i class="fa-solid fa-server"></i> <span class="menu-text">Reboot System</span>
+                </a>
+                
+                
+                <a href="javascript:void(0)" onclick="openSystemRebootModal()" class="reboot-link" data-tooltip="Restart Asterisk">
+                    <i class="fa-solid fa-power-off"></i> <span class="menu-text">Restart Asterisk</span>
+                </a>
+                
+                <a href="/logout" class="signout-link" data-tooltip="Sign Out">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> <span class="menu-text">Sign Out</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content (order: 1 in css puts it on the left) -->
+        <main class="main-content">
+            <!-- Global Apply Changes Top Bar -->
+            <div class="top-bar">
+                <div style="display: flex; align-items: center; gap: 1.5rem;">
+                    <button id="mobileMenuBtn" class="mobile-menu-btn" title="Open Menu" aria-label="Open Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <a href="/dashboard" style="display: flex; align-items: center; text-decoration: none;">
+                        <img src="/Logo.png" alt="Logo" style="max-height: 42px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4)); transition: transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    </a>
+                    
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 1rem;">
+
+                    <!-- Theme Toggle Button (Fluffy Robin 48) -->
+                    <label class="theme-switch" for="themeToggleCheckbox" title="Toggle Light/Dark Mode">
+                      <input type="checkbox" id="themeToggleCheckbox" class="theme-switch__checkbox">
+                      <div class="theme-switch__container">
+                        <div class="theme-switch__clouds"></div>
+                        <div class="theme-switch__stars-container">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 55" fill="none">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M113.118 41.5999C111.968 41.5999 110.875 42.1678 110.187 43.1118L108.995 44.7505L108.204 42.8465C107.72 41.6841 106.591 40.9167 105.33 40.9167C104.068 40.9167 102.939 41.6841 102.455 42.8465L101.664 44.7505L100.472 43.1118C99.7844 42.1678 98.6912 41.5999 97.5417 41.5999H91.1354V43.5999H97.5417C97.9248 43.5999 98.2892 43.7892 98.5184 44.1042L100.329 46.5925L98.5184 49.0809C98.2892 49.3958 97.9248 49.5852 97.5417 49.5852H91.1354V51.5852H97.5417C98.6912 51.5852 99.7844 51.0173 100.472 50.0733L101.664 48.4346L102.455 50.3386C102.939 51.501 104.068 52.2684 105.33 52.2684C106.591 52.2684 107.72 51.501 108.204 50.3386L108.995 48.4346L110.187 50.0733C110.875 51.0173 111.968 51.5852 113.118 51.5852H120.311V49.5852H113.118C112.735 49.5852 112.37 49.3958 112.141 49.0809L110.33 46.5925L112.141 44.1042C112.37 43.7892 112.735 43.5999 113.118 43.5999H120.311V41.5999H113.118ZM105.33 49.6209C105.617 49.6209 105.882 49.4674 105.996 49.1947L107.135 46.4526L105.996 43.7104C105.882 43.4377 105.617 43.2842 105.33 43.2842C105.042 43.2842 104.777 43.4377 104.663 43.7104L103.524 46.4526L104.663 49.1947C104.777 49.4674 105.042 49.6209 105.33 49.6209Z" fill="white"></path>
+                          </svg>
+                        </div>
+                        <div class="theme-switch__circle-container">
+                          <div class="theme-switch__sun-moon-container">
+                            <div class="theme-switch__moon">
+                              <div class="theme-switch__spot"></div>
+                              <div class="theme-switch__spot"></div>
+                              <div class="theme-switch__spot"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+                    
+                    
+                    <button type="button" class="user-profile-pill" onclick="openMyProfileModal()">
+                        <div class="user-profile-avatar">
+                            A
+                        </div>
+                        <div class="user-profile-text">
+                            <div class="user-profile-name">admin</div>
+                            <div class="user-profile-role">admin</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down user-profile-arrow"></i>
+                    </button>
+                    
+                    <button id="applyChangesBtn" class="apply-changes-btn " disabled>
+                        <i class="fa-solid fa-circle-check"></i> Apply Changes
+                    </button>
+                </div>
+            </div>
+
+            <!-- Toast Notifications Container -->
+            <div class="toast-container" id="toast-container">
+                
+                    
+                
+            </div>
+
+            
+<style>
+    /* Modern UI/UX Variables & Design Tokens */
+    :root {
+        --um-primary: #00adb5;
+        --um-primary-glow: rgba(0, 173, 181, 0.25);
+        --um-accent: #38bdf8;
+        --um-bg-card: rgba(15, 23, 42, 0.78);
+        --um-bg-header: rgba(30, 41, 59, 0.65);
+        --um-border: rgba(255, 255, 255, 0.08);
+        --um-border-hover: rgba(56, 189, 248, 0.4);
+        --um-text-muted: #94a3b8;
+    }
+
+    .um-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        animation: fadeInPage 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeInPage {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Top Hero Toolbar */
+    .um-toolbar {
+        background: var(--um-bg-card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--um-border);
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .um-toolbar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--um-primary), #3b82f6);
+    }
+
+    .um-title {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .um-title h1 {
+        margin: 0;
+        color: var(--text-main);
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .um-title h1 i {
+        color: var(--um-primary);
+        filter: drop-shadow(0 0 8px var(--um-primary-glow));
+    }
+
+    .um-title p {
+        margin: 0;
+        color: var(--um-text-muted);
+        font-size: 0.92rem;
+    }
+
+    .um-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    /* Stat Cards Grid */
+    .um-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+
+    .um-stat {
+        background: var(--um-bg-card);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--um-border);
+        border-radius: 12px;
+        padding: 1.1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    }
+
+    .um-stat:hover {
+        transform: translateY(-3px);
+        border-color: var(--um-border-hover);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .um-stat-info span {
+        display: block;
+        color: var(--um-text-muted);
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    .um-stat-info strong {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--text-main);
+        font-size: 1.65rem;
+        font-weight: 850;
+        line-height: 1.1;
+    }
+
+    .um-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+    }
+
+    .um-stat-icon.total { background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
+    .um-stat-icon.enabled { background: rgba(16, 185, 129, 0.14); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); }
+    .um-stat-icon.disabled { background: rgba(239, 68, 68, 0.14); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); }
+    .um-stat-icon.admin { background: rgba(245, 158, 11, 0.14); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); }
+
+    /* Main Table Panel */
+    .um-panel {
+        background: var(--um-bg-card);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--um-border);
+        border-radius: 14px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+    }
+
+    .um-filters {
+        padding: 1.15rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        background: var(--bg-dark);
+        border-bottom: 1px solid var(--um-border);
+    }
+
+    .um-search {
+        min-width: 280px;
+        flex: 1;
+    }
+
+    .um-control {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        border-radius: 8px;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.9rem;
+        min-height: 40px;
+        transition: all 0.2s ease;
+    }
+
+    .um-control:focus {
+        outline: none;
+        border-color: var(--um-primary);
+        box-shadow: 0 0 0 3px var(--um-primary-glow);
+        background: var(--bg-dark);
+    }
+
+    .um-control option {
+        background: var(--bg-dark);
+        color: var(--text-main);
+    }
+
+    /* Floating Bulk Bar */
+    .um-bulk {
+        display: none;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        padding: 0.85rem 1.5rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        background: linear-gradient(90deg, rgba(8, 47, 73, 0.95), rgba(14, 116, 144, 0.95));
+        border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        animation: slideDownBulk 0.25s ease-out;
+    }
+
+    @keyframes slideDownBulk {
+        from { transform: translateY(-100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .um-bulk strong {
+        color: var(--text-main);
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .um-bulk strong::before {
+        content: '';
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #38bdf8;
+        box-shadow: 0 0 8px #38bdf8;
+    }
+
+    /* Table Styling */
+    .um-table-wrap {
+        overflow-x: auto;
+    }
+
+    .um-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 950px;
+    }
+
+    .um-table th {
+        text-align: left;
+        color: var(--um-text-muted);
+        font-size: 0.76rem;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        padding: 0.95rem 1.25rem;
+        background: var(--bg-dark);
+        border-bottom: 1px solid var(--um-border);
+    }
+
+    .um-table td {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        color: #e2e8f0;
+        vertical-align: middle;
+        transition: background 0.15s ease;
+    }
+
+    .um-table tr:hover td {
+        background: rgba(56, 189, 248, 0.055);
+    }
+
+    /* User Profile Cell */
+    .um-user {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .um-avatar-wrap {
+        position: relative;
+    }
+
+    .um-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: var(--text-main);
+        font-weight: 800;
+        font-size: 1rem;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        text-transform: uppercase;
+    }
+
+    .um-avatar.super-admin {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .um-status-dot {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #0f172a;
+    }
+
+    .um-status-dot.enabled { background: #10b981; box-shadow: 0 0 6px #10b981; }
+    .um-status-dot.disabled { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+
+    .um-main {
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 0.96rem;
+    }
+
+    .um-sub {
+        color: var(--um-text-muted);
+        font-size: 0.78rem;
+        margin-top: 0.15rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    /* Badges */
+    .um-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.76rem;
+        font-weight: 750;
+        letter-spacing: 0.3px;
+        border: 1px solid transparent;
+        text-transform: capitalize;
+    }
+
+    .um-badge.enabled { color: #86efac; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); }
+    .um-badge.disabled { color: #fca5a5; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35); }
+    .um-badge.role-badge { color: #38bdf8; background: rgba(56, 189, 248, 0.14); border-color: rgba(56, 189, 248, 0.3); }
+    .um-badge.role-admin { color: #fde68a; background: rgba(245, 158, 11, 0.16); border-color: rgba(245, 158, 11, 0.35); }
+
+    /* Action Buttons Row */
+    .um-row-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .um-icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: var(--panel-dark);
+        color: var(--text-muted);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        font-size: 0.9rem;
+    }
+
+    .um-icon-btn:hover:not([disabled]) {
+        border-color: var(--um-accent);
+        color: var(--text-main);
+        background: rgba(56, 189, 248, 0.18);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(56, 189, 248, 0.2);
+    }
+
+    .um-icon-btn.danger:hover:not([disabled]) {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.2);
+        color: #fee2e2;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);
+    }
+
+    .um-icon-btn.good:hover:not([disabled]) {
+        border-color: #10b981;
+        background: rgba(16, 185, 129, 0.2);
+        color: #d1fae5;
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+    }
+
+    .um-icon-btn.warn:hover:not([disabled]) {
+        border-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.2);
+        color: #fef3c7;
+        box-shadow: 0 4px 10px rgba(245, 158, 11, 0.25);
+    }
+
+    .um-icon-btn[disabled] {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .um-footer {
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        background: var(--bg-dark);
+        border-top: 1px solid var(--um-border);
+    }
+
+    /* Modals System */
+    .um-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10040;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-dark);
+        backdrop-filter: blur(8px);
+        padding: 1rem;
+        animation: fadeInModal 0.2s ease-out;
+    }
+
+    @keyframes fadeInModal {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .um-modal-card {
+        width: min(640px, 96vw);
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.7);
+        animation: scaleUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes scaleUpModal {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .um-modal-card > form {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .um-modal-head, .um-modal-foot {
+        padding: 1.15rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border-bottom: 1px solid var(--um-border);
+        background: var(--panel-dark);
+        flex: 0 0 auto;
+    }
+
+    .um-modal-foot {
+        border-top: 1px solid var(--um-border);
+        border-bottom: 0;
+        justify-content: flex-end;
+        background: var(--bg-dark);
+    }
+
+    .um-modal-body {
+        padding: 1.5rem;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .um-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.1rem;
+    }
+
+    .um-field label {
+        display: block;
+        color: var(--text-main);
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+    }
+
+    /* Input Group with Eye/Copy Button */
+    .um-input-group {
+        display: flex;
+        position: relative;
+    }
+
+    .um-input-group .um-control {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        flex: 1;
+    }
+
+    .um-input-group .um-btn-addon {
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-left: 0;
+        color: var(--text-muted);
+        padding: 0 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .um-input-group .um-btn-addon:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+
+    .um-input-group .um-btn-addon:hover {
+        background: rgba(56, 189, 248, 0.2);
+        color: var(--text-main);
+    }
+
+    /* Password Strength Meter */
+    .pw-strength-container {
+        margin-top: 0.45rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .pw-strength-bar {
+        flex: 1;
+        height: 5px;
+        background: var(--border-color);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .pw-strength-fill {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease, background 0.3s ease;
+        border-radius: 999px;
+    }
+
+    .pw-strength-text {
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--um-text-muted);
+        min-width: 50px;
+        text-align: right;
+    }
+
+    /* Alerts and Feedback */
+    .um-alert {
+        display: none;
+        padding: 0.9rem 1rem;
+        margin-bottom: 1.1rem;
+        color: #fecaca;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-radius: 10px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    /* Activity Stream Cards */
+    .activity-item {
+        background: var(--panel-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.65rem;
+        transition: transform 0.15s ease;
+    }
+
+    .activity-item:hover {
+        transform: translateX(4px);
+        border-color: rgba(56, 189, 248, 0.3);
+    }
+
+    .activity-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .activity-action {
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .activity-meta {
+        color: var(--um-text-muted);
+        font-size: 0.78rem;
+    }
+
+    .activity-details {
+        color: var(--text-muted);
+        font-size: 0.86rem;
+        line-height: 1.4;
+    }
+
+    @media (max-width: 800px) {
+        .um-stats, .um-grid { grid-template-columns: 1fr; }
+        .um-toolbar { align-items: stretch; }
+    }
+</style>
+
+<div class="um-page">
+    <div class="um-toolbar">
+        <div class="um-title">
+            <h1><i class="fa-solid fa-users-gear"></i> User Management</h1>
+            <p>Manage PBX user accounts, roles, credentials, and access statuses with enterprise control.</p>
+        </div>
+        <div class="um-actions">
+            
+            <a class="btn btn-secondary" href="/users/export-csv?search=&amp;status=&amp;privilege_id=" title="Export filtered users list to CSV">
+                <i class="fa-solid fa-file-export"></i> Export CSV
+            </a>
+            
+            
+            <button type="button" class="btn btn-secondary" onclick="openModal('importUsersModal')" title="Import users from CSV file">
+                <i class="fa-solid fa-file-import"></i> Import CSV
+            </button>
+            <button type="button" id="addUserBtn" class="btn btn-info" style="box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);" title="Create a new user account">
+                <i class="fa-solid fa-user-plus"></i> Add User
+            </button>
+            
+        </div>
+    </div>
+
+    <div class="um-stats">
+        <div class="um-stat">
+            <div class="um-stat-info">
+                <span>Total Users</span>
+                <strong>4</strong>
+            </div>
+            <div class="um-stat-icon total"><i class="fa-solid fa-users"></i></div>
+        </div>
+        <div class="um-stat">
+            <div class="um-stat-info">
+                <span>Enabled</span>
+                <strong>4</strong>
+            </div>
+            <div class="um-stat-icon enabled"><i class="fa-solid fa-user-check"></i></div>
+        </div>
+        <div class="um-stat">
+            <div class="um-stat-info">
+                <span>Disabled</span>
+                <strong>0</strong>
+            </div>
+            <div class="um-stat-icon disabled"><i class="fa-solid fa-user-slash"></i></div>
+        </div>
+        <div class="um-stat">
+            <div class="um-stat-info">
+                <span>Admin Roles</span>
+                <strong>1</strong>
+            </div>
+            <div class="um-stat-icon admin"><i class="fa-solid fa-user-shield"></i></div>
+        </div>
+    </div>
+
+    <div class="um-panel">
+        <button type="button" class="btn btn-secondary" onclick="openUniversalImportModal('/users')"><i class="fa-solid fa-file-arrow-up"></i> Import</button>
+
+        <div id="bulkActionsBar" class="um-bulk">
+            <strong><span id="bulkSelectedCount" aria-live="polite">0</span> users selected</strong>
+            <div class="um-actions">
+                
+                <button class="btn btn-secondary btn-sm" type="button" onclick="submitBulkToggle('enable')" title="Enable selected accounts"><i class="fa-solid fa-user-check"></i> Enable</button>
+                
+                
+                <button class="btn btn-secondary btn-sm" type="button" onclick="submitBulkToggle('disable')" title="Disable selected accounts"><i class="fa-solid fa-user-slash"></i> Disable</button>
+                
+                
+                <button class="btn btn-secondary btn-sm" type="button" onclick="openBulkAssignRoleModal()" title="Assign privilege to selected accounts"><i class="fa-solid fa-shield-halved"></i> Assign Role</button>
+                
+                
+                <button class="btn btn-danger btn-sm" type="button" onclick="confirmBulkDeleteUsers()" title="Delete selected accounts"><i class="fa-solid fa-trash"></i> Delete</button>
+                
+                <button class="btn btn-secondary btn-sm" type="button" onclick="deselectAllUsers()" title="Deselect all"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+
+        <div class="um-table-wrap">
+            <table class="um-table" id="usersTable">
+                <thead>
+                    <tr>
+                        <th style="width:46px;"><input id="selectAllUsersCb" type="checkbox" onclick="toggleSelectAllUsers(this)" title="Select all rows"></th>
+                        <th>User Account</th>
+                        <th>Email Address</th>
+                        <th>Privilege Role</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Options</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr class="user-row">
+                        <td>
+                            
+                        </td>
+                        <td>
+                            <div class="um-user">
+                                <div class="um-avatar-wrap">
+                                    <span class="um-avatar super-admin">AD</span>
+                                    <span class="um-status-dot enabled" title="Status: Enabled"></span>
+                                </div>
+                                <div>
+                                    <div class="um-main">admin</div>
+                                    <div class="um-sub">
+                                        <span>ID #21</span>
+                                        
+                                        <span style="color:#fbbf24;"><i class="fa-solid fa-lock"></i> Protected</span>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            
+                            <a href="mailto:mohamedrafik770@gmail.com" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-regular fa-envelope" style="color: var(--um-primary);"></i> mohamedrafik770@gmail.com
+                            </a>
+                            
+                        </td>
+                        <td>
+                            <span class="um-badge role-admin">
+                                <i class="fa-solid fa-user-shield"></i>
+                                Super Admin
+                            </span>
+                        </td>
+                        <td>
+                            <span class="um-badge enabled">
+                                <i class="fa-solid fa-circle-check"></i>
+                                Enabled
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="um-row-actions" style="justify-content: flex-end;">
+                                
+                                <button class="um-icon-btn" type="button" title="View Activity History" onclick="openUserActivityModal('admin')"><i class="fa-solid fa-list-check"></i></button>
+                                
+                                
+                                <button class="um-icon-btn user-edit-btn" type="button" title="Edit User Account" data-user-id="21" data-username="admin" data-email="mohamedrafik770@gmail.com" data-privilege-id="1" data-status="enabled"><i class="fa-solid fa-pen-to-square"></i></button>
+                                
+                                
+                                <button class="um-icon-btn warn" type="button" title="Reset Password" onclick="openResetPasswordModal(21, 'admin')"><i class="fa-solid fa-key"></i></button>
+                                
+                                
+                                <button class="um-icon-btn" type="button" title="Revoke Active Sessions" onclick="confirmRevokeSession(21, 'admin')"><i class="fa-solid fa-right-from-bracket"></i></button>
+                                
+                                
+                                <button class="um-icon-btn" type="button" disabled title="Protected System Account or Self"><i class="fa-solid fa-lock"></i></button>
+                                
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="user-row">
+                        <td>
+                            
+                            <input class="user-select-cb" type="checkbox" value="68" onclick="updateUsersBulkBar()">
+                            
+                        </td>
+                        <td>
+                            <div class="um-user">
+                                <div class="um-avatar-wrap">
+                                    <span class="um-avatar ">AG</span>
+                                    <span class="um-status-dot enabled" title="Status: Enabled"></span>
+                                </div>
+                                <div>
+                                    <div class="um-main">agent</div>
+                                    <div class="um-sub">
+                                        <span>ID #68</span>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            
+                            <a href="mailto:agent@example.com" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-regular fa-envelope" style="color: var(--um-primary);"></i> agent@example.com
+                            </a>
+                            
+                        </td>
+                        <td>
+                            <span class="um-badge role-badge">
+                                <i class="fa-solid fa-id-badge"></i>
+                                Agent
+                            </span>
+                        </td>
+                        <td>
+                            <span class="um-badge enabled">
+                                <i class="fa-solid fa-circle-check"></i>
+                                Enabled
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="um-row-actions" style="justify-content: flex-end;">
+                                
+                                <button class="um-icon-btn" type="button" title="View Activity History" onclick="openUserActivityModal('agent')"><i class="fa-solid fa-list-check"></i></button>
+                                
+                                
+                                <button class="um-icon-btn user-edit-btn" type="button" title="Edit User Account" data-user-id="68" data-username="agent" data-email="agent@example.com" data-privilege-id="3" data-status="enabled"><i class="fa-solid fa-pen-to-square"></i></button>
+                                
+                                
+                                <button class="um-icon-btn warn" type="button" title="Reset Password" onclick="openResetPasswordModal(68, 'agent')"><i class="fa-solid fa-key"></i></button>
+                                
+                                
+                                <button class="um-icon-btn" type="button" title="Revoke Active Sessions" onclick="confirmRevokeSession(68, 'agent')"><i class="fa-solid fa-right-from-bracket"></i></button>
+                                
+                                
+                                    
+                                    <form method="POST" action="/users/toggle/68" style="display:inline;">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                                        <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                                        <button class="um-icon-btn danger" type="submit" title="Disable Account" onclick="return confirm('Change status for agent?')"><i class="fa-solid fa-user-slash"></i></button>
+                                    </form>
+                                    
+                                    
+                                    <button class="um-icon-btn danger" type="button" title="Delete Account" onclick="confirmDeleteUser(68, 'agent')"><i class="fa-solid fa-trash"></i></button>
+                                    
+                                
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="user-row">
+                        <td>
+                            
+                            <input class="user-select-cb" type="checkbox" value="10" onclick="updateUsersBulkBar()">
+                            
+                        </td>
+                        <td>
+                            <div class="um-user">
+                                <div class="um-avatar-wrap">
+                                    <span class="um-avatar ">RA</span>
+                                    <span class="um-status-dot enabled" title="Status: Enabled"></span>
+                                </div>
+                                <div>
+                                    <div class="um-main">rafik</div>
+                                    <div class="um-sub">
+                                        <span>ID #10</span>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            
+                            <a href="mailto:modyxblack04@gmail.com" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-regular fa-envelope" style="color: var(--um-primary);"></i> modyxblack04@gmail.com
+                            </a>
+                            
+                        </td>
+                        <td>
+                            <span class="um-badge role-badge">
+                                <i class="fa-solid fa-id-badge"></i>
+                                radd
+                            </span>
+                        </td>
+                        <td>
+                            <span class="um-badge enabled">
+                                <i class="fa-solid fa-circle-check"></i>
+                                Enabled
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="um-row-actions" style="justify-content: flex-end;">
+                                
+                                <button class="um-icon-btn" type="button" title="View Activity History" onclick="openUserActivityModal('rafik')"><i class="fa-solid fa-list-check"></i></button>
+                                
+                                
+                                <button class="um-icon-btn user-edit-btn" type="button" title="Edit User Account" data-user-id="10" data-username="rafik" data-email="modyxblack04@gmail.com" data-privilege-id="16" data-status="enabled"><i class="fa-solid fa-pen-to-square"></i></button>
+                                
+                                
+                                <button class="um-icon-btn warn" type="button" title="Reset Password" onclick="openResetPasswordModal(10, 'rafik')"><i class="fa-solid fa-key"></i></button>
+                                
+                                
+                                <button class="um-icon-btn" type="button" title="Revoke Active Sessions" onclick="confirmRevokeSession(10, 'rafik')"><i class="fa-solid fa-right-from-bracket"></i></button>
+                                
+                                
+                                    
+                                    <form method="POST" action="/users/toggle/10" style="display:inline;">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                                        <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                                        <button class="um-icon-btn danger" type="submit" title="Disable Account" onclick="return confirm('Change status for rafik?')"><i class="fa-solid fa-user-slash"></i></button>
+                                    </form>
+                                    
+                                    
+                                    <button class="um-icon-btn danger" type="button" title="Delete Account" onclick="confirmDeleteUser(10, 'rafik')"><i class="fa-solid fa-trash"></i></button>
+                                    
+                                
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <tr class="user-row">
+                        <td>
+                            
+                            <input class="user-select-cb" type="checkbox" value="67" onclick="updateUsersBulkBar()">
+                            
+                        </td>
+                        <td>
+                            <div class="um-user">
+                                <div class="um-avatar-wrap">
+                                    <span class="um-avatar ">SU</span>
+                                    <span class="um-status-dot enabled" title="Status: Enabled"></span>
+                                </div>
+                                <div>
+                                    <div class="um-main">supervisor</div>
+                                    <div class="um-sub">
+                                        <span>ID #67</span>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            
+                            <a href="mailto:supervisor@example.com" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+                                <i class="fa-regular fa-envelope" style="color: var(--um-primary);"></i> supervisor@example.com
+                            </a>
+                            
+                        </td>
+                        <td>
+                            <span class="um-badge role-badge">
+                                <i class="fa-solid fa-id-badge"></i>
+                                Supervisor
+                            </span>
+                        </td>
+                        <td>
+                            <span class="um-badge enabled">
+                                <i class="fa-solid fa-circle-check"></i>
+                                Enabled
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="um-row-actions" style="justify-content: flex-end;">
+                                
+                                <button class="um-icon-btn" type="button" title="View Activity History" onclick="openUserActivityModal('supervisor')"><i class="fa-solid fa-list-check"></i></button>
+                                
+                                
+                                <button class="um-icon-btn user-edit-btn" type="button" title="Edit User Account" data-user-id="67" data-username="supervisor" data-email="supervisor@example.com" data-privilege-id="2" data-status="enabled"><i class="fa-solid fa-pen-to-square"></i></button>
+                                
+                                
+                                <button class="um-icon-btn warn" type="button" title="Reset Password" onclick="openResetPasswordModal(67, 'supervisor')"><i class="fa-solid fa-key"></i></button>
+                                
+                                
+                                <button class="um-icon-btn" type="button" title="Revoke Active Sessions" onclick="confirmRevokeSession(67, 'supervisor')"><i class="fa-solid fa-right-from-bracket"></i></button>
+                                
+                                
+                                    
+                                    <form method="POST" action="/users/toggle/67" style="display:inline;">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                                        <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                                        <button class="um-icon-btn danger" type="submit" title="Disable Account" onclick="return confirm('Change status for supervisor?')"><i class="fa-solid fa-user-slash"></i></button>
+                                    </form>
+                                    
+                                    
+                                    <button class="um-icon-btn danger" type="button" title="Delete Account" onclick="confirmDeleteUser(67, 'supervisor')"><i class="fa-solid fa-trash"></i></button>
+                                    
+                                
+                            </div>
+                        </td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <div class="um-footer">
+            <span style="color:var(--um-text-muted); font-size: 0.88rem;">
+                Page 1 of 1 &bull; Total 4 users
+            </span>
+            <div class="um-actions">
+                
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="userModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+    <div class="um-modal-card">
+        <form id="userForm" method="POST" action="/users/add">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+            <div class="um-modal-head">
+                <div>
+                    <h2 id="userModalTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Add User</h2>
+                    <div id="userModalSubtitle" class="um-sub">Create or modify user credentials and access permissions.</div>
+                </div>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('userModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                <input type="hidden" id="modal_user_id" value="">
+                <div id="modal_validation_alert" class="um-alert" style="display: none;"><i class="fa-solid fa-triangle-exclamation"></i> <span id="modal_validation_msg"></span></div>
+                
+                <div class="um-grid">
+                    <div class="um-field">
+                        <label for="modal_username">User Name *</label>
+                        <input class="um-control" style="width:100%;" name="username" id="modal_username" placeholder="e.g. jdoe" required>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_email">Email Address *</label>
+                        <input class="um-control" style="width:100%;" type="email" name="email" id="modal_email" placeholder="e.g. jdoe@company.com" required>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_password">Password <span id="password_required_star">*</span></label>
+                        <div class="um-input-group">
+                            <input class="um-control" type="password" name="password" id="modal_password" autocomplete="new-password" placeholder="Enter or generate password" oninput="checkPasswordStrength('modal_password', 'pw_strength_bar_1', 'pw_strength_text_1')">
+                            <button type="button" class="um-btn-addon" onclick="togglePasswordVisibility('modal_password', this)" title="Show/Hide Password"><i class="fa-solid fa-eye"></i></button>
+                            <button type="button" class="um-btn-addon" onclick="copyToClipboardInput('modal_password')" title="Copy Password"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        <div class="pw-strength-container">
+                            <div class="pw-strength-bar"><div id="pw_strength_bar_1" class="pw-strength-fill"></div></div>
+                            <span id="pw_strength_text_1" class="pw-strength-text">-</span>
+                        </div>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_confirm_password">Confirm Password <span id="confirm_password_required_star">*</span></label>
+                        <div class="um-input-group">
+                            <input class="um-control" type="password" name="confirm_password" id="modal_confirm_password" autocomplete="new-password" placeholder="Confirm password">
+                            <button type="button" class="um-btn-addon" onclick="togglePasswordVisibility('modal_confirm_password', this)" title="Show/Hide Password"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_privilege_id">Privilege Role *</label>
+                        <select class="um-control" style="width:100%;" name="privilege_id" id="modal_privilege_id" required>
+                            <option value="">Select Privilege Role</option>
+                            <option value="1">Super Admin</option><option value="3">Agent</option><option value="2">Supervisor</option><option value="16">radd</option>
+                        </select>
+                    </div>
+                    <div class="um-field">
+                        <label for="modal_status">Account Status</label>
+                        <select class="um-control" style="width:100%;" name="status" id="modal_status">
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--um-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                    <button class="btn btn-secondary" type="button" onclick="generateAndShowPassword()"><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--um-primary);"></i> Generate Secure Password</button>
+                    <span style="font-size: 0.8rem; color: var(--um-text-muted);">Generates strong 14-char mixed credentials.</span>
+                </div>
+            </div>
+            <div class="um-modal-foot">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">Cancel</button>
+                <button type="submit" id="userModalSubmitBtn" class="btn btn-info" style="box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);">Save User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<div id="resetPasswordModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="resetPasswordTitle">
+    <div class="um-modal-card">
+        <form id="resetPasswordForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+            <div class="um-modal-head">
+                <div>
+                    <h2 id="resetPasswordTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Change Password</h2>
+                    <div class="um-sub">Reset credentials for <strong id="reset_password_username" style="color: var(--text-main);"></strong></div>
+                </div>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('resetPasswordModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                <div class="um-grid">
+                    <div class="um-field">
+                        <label>New Password *</label>
+                        <div class="um-input-group">
+                            <input class="um-control" type="password" name="password" id="new_user_password" placeholder="Enter new password" required oninput="checkPasswordStrength('new_user_password', 'pw_strength_bar_2', 'pw_strength_text_2')">
+                            <button type="button" class="um-btn-addon" onclick="togglePasswordVisibility('new_user_password', this)" title="Show/Hide Password"><i class="fa-solid fa-eye"></i></button>
+                            <button type="button" class="um-btn-addon" onclick="copyToClipboardInput('new_user_password')" title="Copy Password"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        <div class="pw-strength-container">
+                            <div class="pw-strength-bar"><div id="pw_strength_bar_2" class="pw-strength-fill"></div></div>
+                            <span id="pw_strength_text_2" class="pw-strength-text">-</span>
+                        </div>
+                    </div>
+                    <div class="um-field">
+                        <label>Confirm New Password *</label>
+                        <div class="um-input-group">
+                            <input class="um-control" type="password" name="confirm_password" id="new_user_confirm_password" placeholder="Confirm new password" required>
+                            <button type="button" class="um-btn-addon" onclick="togglePasswordVisibility('new_user_confirm_password', this)" title="Show/Hide Password"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--um-border);">
+                    <button class="btn btn-secondary" type="button" onclick="generateResetPassword()"><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--um-primary);"></i> Generate Secure Password</button>
+                </div>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('resetPasswordModal')">Cancel</button>
+                <button class="btn btn-info" type="submit" style="box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);">Update Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<div id="deleteUserModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="deleteUserTitle">
+    <div class="um-modal-card" style="width: min(480px, 94vw);">
+        <form id="deleteUserForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+            <div class="um-modal-head">
+                <h2 id="deleteUserTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;"><i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i> Delete User</h2>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('deleteUserModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                <p style="color: var(--text-muted); font-size: 0.96rem; line-height: 1.5;">Are you sure you want to permanently delete user account <strong id="delete_username_display" style="color: var(--text-main);"></strong>?</p>
+                <p style="color: #fca5a5; font-size: 0.85rem; margin-top: 0.5rem; background: rgba(239,68,68,0.12); padding: 0.7rem; border-radius: 8px; border: 1px solid rgba(239,68,68,0.25);">
+                    <i class="fa-solid fa-circle-exclamation"></i> This action will remove the user, terminate active sessions, and revoke credentials immediately. This cannot be undone.
+                </p>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('deleteUserModal')">Cancel</button>
+                <button class="btn btn-danger" type="submit">Delete Permanently</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<div id="importUsersModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="importUsersTitle">
+    <div class="um-modal-card" style="width: min(520px, 94vw);">
+        <form method="POST" action="/users/import-csv" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+            <div class="um-modal-head">
+                <div>
+                    <h2 id="importUsersTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Import Users CSV</h2>
+                    <div class="um-sub">Bulk import accounts from a formatted CSV file.</div>
+                </div>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('importUsersModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                <div class="um-field">
+                    <label>Select CSV File *</label>
+                    <input class="um-control" style="width:100%; padding: 0.5rem;" type="file" name="csv_file" accept=".csv" required>
+                </div>
+                <div class="um-field" style="margin-top:1rem;">
+                    <label>Default Privilege Role *</label>
+                    <select class="um-control" style="width:100%;" name="default_privilege_id" required>
+                        <option value="1">Super Admin</option><option value="3">Agent</option><option value="2">Supervisor</option><option value="16">radd</option>
+                    </select>
+                </div>
+                <div style="margin-top: 1.1rem; padding: 0.8rem; background: var(--panel-dark); border-radius: 8px; border: 1px solid var(--um-border);">
+                    <strong style="color: var(--text-main); font-size: 0.85rem; display:block; margin-bottom: 0.3rem;"><i class="fa-solid fa-circle-info" style="color:var(--um-primary);"></i> CSV Structure Requirement:</strong>
+                    <p class="um-sub" style="margin:0;">Expected headers: <code style="color:#38bdf8;">Username, Password, Email</code>. Accounts with existing usernames will be skipped.</p>
+                </div>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('importUsersModal')">Cancel</button>
+                <button class="btn btn-info" type="submit"><i class="fa-solid fa-upload"></i> Import Accounts</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<div id="userActivityModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="userActivityTitle">
+    <div class="um-modal-card" style="width: min(720px, 96vw);">
+        <div class="um-modal-head">
+            <div>
+                <h2 id="userActivityTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--um-primary);"></i> Audit Trail: <span id="activity_username_header" style="color:#38bdf8;"></span></h2>
+                <div class="um-sub">Recent operations and system events recorded for this user.</div>
+            </div>
+            <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('userActivityModal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="activity_logs_content" class="um-modal-body" style="max-height: 60vh;"></div>
+        <div class="um-modal-foot">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('userActivityModal')">Close</button>
+        </div>
+    </div>
+</div>
+
+
+<div id="bulkAssignRoleModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="bulkAssignTitle">
+    <div class="um-modal-card" style="width: min(460px, 94vw);">
+        <form method="POST" action="/users/bulk-assign-role">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+            <div class="um-modal-head">
+                <h2 id="bulkAssignTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;">Bulk Assign Privilege Role</h2>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('bulkAssignRoleModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                <div id="bulkAssignRoleInputs"></div>
+                <div class="um-field">
+                    <label>Select Target Privilege Role *</label>
+                    <select class="um-control" style="width:100%;" name="privilege_id" required>
+                        <option value="">Select Role...</option>
+                        <option value="1">Super Admin</option><option value="3">Agent</option><option value="2">Supervisor</option><option value="16">radd</option>
+                    </select>
+                </div>
+                <p class="um-sub" style="margin-top: 0.75rem;">Selected accounts will immediately be updated with the chosen access permissions.</p>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('bulkAssignRoleModal')">Cancel</button>
+                <button class="btn btn-info" type="submit"><i class="fa-solid fa-shield-halved"></i> Apply Role</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<div id="revokeSessionModal" class="um-modal" role="dialog" aria-modal="true" aria-labelledby="revokeSessionTitle">
+    <div class="um-modal-card" style="width: min(460px, 94vw);">
+        <form id="revokeSessionForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+            <div class="um-modal-head">
+                <h2 id="revokeSessionTitle" style="margin:0;color: var(--text-main);font-size:1.3rem;"><i class="fa-solid fa-right-from-bracket" style="color: #f59e0b;"></i> Revoke Sessions</h2>
+                <button type="button" class="um-icon-btn" aria-label="Close" onclick="closeModal('revokeSessionModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="um-modal-body">
+                <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                <p style="color: var(--text-muted); font-size: 0.96rem;">Are you sure you want to terminate all active sessions for <strong id="revoke_username_display" style="color: var(--text-main);"></strong>?</p>
+                <p class="um-sub" style="margin-top: 0.5rem;">The user will be immediately logged out from all devices and required to authenticate again.</p>
+            </div>
+            <div class="um-modal-foot">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('revokeSessionModal')">Cancel</button>
+                <button class="btn btn-info" type="submit">Revoke Active Sessions</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<script>
+const userFormState = null;
+let previousModalFocus = null;
+
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    previousModalFocus = document.activeElement;
+    modal.style.display = 'flex';
+    const focusTarget = modal.querySelector('input:not([type="hidden"]), select, button:not([disabled])');
+    if (focusTarget) window.setTimeout(() => focusTarget.focus(), 0);
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.style.display = 'none';
+    if (previousModalFocus && typeof previousModalFocus.focus === 'function') previousModalFocus.focus();
+}
+
+function showUserError(msg) {
+    const alertBox = document.getElementById('modal_validation_alert');
+    const msgSpan = document.getElementById('modal_validation_msg');
+    if (alertBox && msgSpan) {
+        msgSpan.textContent = msg;
+        alertBox.style.display = 'flex';
+    }
+}
+
+function clearUserError() {
+    const alertBox = document.getElementById('modal_validation_alert');
+    if (alertBox) alertBox.style.display = 'none';
+}
+
+function checkPasswordStrength(inputId, barId, textId) {
+    const val = document.getElementById(inputId)?.value || '';
+    const bar = document.getElementById(barId);
+    const text = document.getElementById(textId);
+    if (!bar || !text) return;
+    
+    if (!val) {
+        bar.style.width = '0%';
+        bar.style.background = 'transparent';
+        text.textContent = '-';
+        return;
+    }
+    
+    let score = 0;
+    if (val.length >= 8) score += 25;
+    if (val.length >= 12) score += 25;
+    if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score += 25;
+    if (/[0-9]/.test(val) || /[^A-Za-z0-9]/.test(val)) score += 25;
+    
+    bar.style.width = score + '%';
+    if (score <= 25) {
+        bar.style.background = '#ef4444';
+        text.textContent = 'Weak';
+        text.style.color = '#ef4444';
+    } else if (score <= 50) {
+        bar.style.background = '#f59e0b';
+        text.textContent = 'Fair';
+        text.style.color = '#f59e0b';
+    } else if (score <= 75) {
+        bar.style.background = '#38bdf8';
+        text.textContent = 'Good';
+        text.style.color = '#38bdf8';
+    } else {
+        bar.style.background = '#10b981';
+        text.textContent = 'Strong';
+        text.style.color = '#10b981';
+    }
+}
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+    }
+}
+
+function copyToClipboardInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input || !input.value) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+        showToastNotification("Password copied to clipboard!", "success");
+    }).catch(() => {
+        showToastNotification("Failed to copy password.", "danger");
+    });
+}
+
+function showToastNotification(message, type = "info") {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<div style="display:flex;align-items:center;gap:0.75rem;"><i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-info'}" style="color:${type === 'success' ? '#10b981' : '#38bdf8'};"></i> <span>${message}</span></div>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+function openAddUserModal() {
+    clearUserError();
+    document.getElementById('userModalTitle').textContent = 'Add User';
+    document.getElementById('userForm').action = "/users/add";
+    document.getElementById('modal_user_id').value = '';
+    document.getElementById('modal_username').value = '';
+    document.getElementById('modal_username').readOnly = false;
+    document.getElementById('modal_email').value = '';
+    document.getElementById('modal_password').value = '';
+    document.getElementById('modal_password').type = 'password';
+    document.getElementById('modal_password').required = true;
+    document.getElementById('modal_confirm_password').value = '';
+    document.getElementById('modal_confirm_password').type = 'password';
+    document.getElementById('modal_confirm_password').required = true;
+    document.getElementById('password_required_star').style.display = 'inline';
+    document.getElementById('confirm_password_required_star').style.display = 'inline';
+    document.getElementById('modal_privilege_id').value = '';
+    document.getElementById('modal_status').value = 'enabled';
+    document.getElementById('userModalSubmitBtn').textContent = 'Create User';
+    checkPasswordStrength('modal_password', 'pw_strength_bar_1', 'pw_strength_text_1');
+    openModal('userModal');
+}
+
+function openEditUserFromButton(btn) {
+    clearUserError();
+    document.getElementById('userModalTitle').textContent = 'Edit User Account';
+    document.getElementById('userForm').action = '/users/edit/' + btn.dataset.userId;
+    document.getElementById('modal_user_id').value = btn.dataset.userId;
+    document.getElementById('modal_username').value = btn.dataset.username || '';
+    document.getElementById('modal_username').readOnly = false;
+    document.getElementById('modal_email').value = btn.dataset.email || '';
+    document.getElementById('modal_password').value = '';
+    document.getElementById('modal_password').type = 'password';
+    document.getElementById('modal_password').required = false;
+    document.getElementById('modal_confirm_password').value = '';
+    document.getElementById('modal_confirm_password').type = 'password';
+    document.getElementById('modal_confirm_password').required = false;
+    document.getElementById('password_required_star').style.display = 'none';
+    document.getElementById('confirm_password_required_star').style.display = 'none';
+    document.getElementById('modal_privilege_id').value = btn.dataset.privilegeId || '';
+    document.getElementById('modal_status').value = btn.dataset.status || 'enabled';
+    document.getElementById('userModalSubmitBtn').textContent = 'Save Changes';
+    checkPasswordStrength('modal_password', 'pw_strength_bar_1', 'pw_strength_text_1');
+    openModal('userModal');
+}
+
+function openResetPasswordModal(id, username) {
+    document.getElementById('reset_password_username').textContent = username;
+    document.getElementById('new_user_password').value = '';
+    document.getElementById('new_user_password').type = 'password';
+    document.getElementById('new_user_confirm_password').value = '';
+    document.getElementById('new_user_confirm_password').type = 'password';
+    document.getElementById('resetPasswordForm').action = '/users/change-password/' + id;
+    checkPasswordStrength('new_user_password', 'pw_strength_bar_2', 'pw_strength_text_2');
+    openModal('resetPasswordModal');
+}
+
+function confirmDeleteUser(id, username) {
+    document.getElementById('delete_username_display').textContent = username;
+    document.getElementById('deleteUserForm').action = '/users/delete/' + id;
+    openModal('deleteUserModal');
+}
+
+function confirmRevokeSession(id, username) {
+    document.getElementById('revoke_username_display').textContent = username;
+    document.getElementById('revokeSessionForm').action = '/users/revoke-session/' + id;
+    openModal('revokeSessionModal');
+}
+
+function secureRandomIndex(max) {
+    const values = new Uint32Array(1);
+    crypto.getRandomValues(values);
+    return values[0] % max;
+}
+
+function generatePassword() {
+    const groups = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789', '!@#$%^&*()'];
+    const all = groups.join('');
+    const chars = groups.map(group => group[secureRandomIndex(group.length)]);
+    while (chars.length < 14) chars.push(all[secureRandomIndex(all.length)]);
+    for (let i = chars.length - 1; i > 0; i--) {
+        const j = secureRandomIndex(i + 1);
+        [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    return chars.join('');
+}
+
+function generateAndShowPassword() {
+    const p = generatePassword();
+    document.getElementById('modal_password').type = 'text';
+    document.getElementById('modal_confirm_password').type = 'text';
+    document.getElementById('modal_password').value = p;
+    document.getElementById('modal_confirm_password').value = p;
+    checkPasswordStrength('modal_password', 'pw_strength_bar_1', 'pw_strength_text_1');
+    showToastNotification("Secure password generated!", "success");
+}
+
+function generateResetPassword() {
+    const p = generatePassword();
+    document.getElementById('new_user_password').type = 'text';
+    document.getElementById('new_user_confirm_password').type = 'text';
+    document.getElementById('new_user_password').value = p;
+    document.getElementById('new_user_confirm_password').value = p;
+    checkPasswordStrength('new_user_password', 'pw_strength_bar_2', 'pw_strength_text_2');
+    showToastNotification("Secure password generated!", "success");
+}
+
+function toggleSelectAllUsers(master) {
+    document.querySelectorAll('.user-select-cb').forEach(cb => cb.checked = master.checked);
+    updateUsersBulkBar();
+}
+
+function updateUsersBulkBar() {
+    const count = document.querySelectorAll('.user-select-cb:checked').length;
+    document.getElementById('bulkSelectedCount').textContent = count;
+    document.getElementById('bulkActionsBar').style.display = count ? 'flex' : 'none';
+}
+
+function deselectAllUsers() {
+    document.querySelectorAll('.user-select-cb').forEach(cb => cb.checked = false);
+    const master = document.getElementById('selectAllUsersCb');
+    if (master) master.checked = false;
+    updateUsersBulkBar();
+}
+
+function appendHiddenInput(container, name, value) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = String(value);
+    container.append(input);
+}
+
+function buildBulkForm(actionUrl, extra) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = actionUrl;
+    appendHiddenInput(form, 'csrf_token', "lkWbtm40EAwy6PG_VUsdB71czr-TNTEq");
+    if (extra) Object.entries(extra).forEach(([key, value]) => appendHiddenInput(form, key, value));
+    document.querySelectorAll('.user-select-cb:checked').forEach(cb => appendHiddenInput(form, 'user_ids', cb.value));
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function submitBulkToggle(action) {
+    if (!document.querySelector('.user-select-cb:checked')) return;
+    buildBulkForm("/users/bulk-toggle", {action});
+}
+
+function confirmBulkDeleteUsers() {
+    if (!document.querySelector('.user-select-cb:checked')) return;
+    if (confirm('Permanently delete all selected user accounts?')) buildBulkForm("/users/bulk-delete");
+}
+
+function openBulkAssignRoleModal() {
+    const box = document.getElementById('bulkAssignRoleInputs');
+    box.replaceChildren();
+    document.querySelectorAll('.user-select-cb:checked').forEach(cb => appendHiddenInput(box, 'user_ids', cb.value));
+    openModal('bulkAssignRoleModal');
+}
+
+function openUserActivityModal(username) {
+    document.getElementById('activity_username_header').textContent = username;
+    const box = document.getElementById('activity_logs_content');
+    box.replaceChildren();
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.style.cssText = 'padding: 3rem; text-align: center; color: var(--um-text-muted);';
+    loadingDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin fa-2x" style="color:var(--um-primary);margin-bottom:0.75rem;"></i><br>Fetching audit trail logs...';
+    box.append(loadingDiv);
+    
+    openModal('userActivityModal');
+    
+    fetch('/api/users/' + encodeURIComponent(username) + '/activity')
+        .then(r => {
+            if (!r.ok) throw new Error('Activity request failed');
+            return r.json();
+        })
+        .then(data => {
+            const logs = data.logs || [];
+            box.replaceChildren();
+            if (!logs.length) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.style.cssText = 'padding: 3rem; text-align: center; color: var(--um-text-muted);';
+                emptyDiv.innerHTML = '<i class="fa-solid fa-clipboard-check fa-2x" style="margin-bottom:0.75rem;opacity:0.5;"></i><br>No recent activity logs recorded for this user.';
+                box.append(emptyDiv);
+                return;
+            }
+            logs.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                
+                const isSuccess = (log.result || log.status || '').toLowerCase() === 'success';
+                const badgeColor = isSuccess ? '#10b981' : '#f59e0b';
+                
+                item.innerHTML = `
+                    <div class="activity-header">
+                        <span class="activity-action"><i class="fa-solid fa-bolt" style="color:var(--um-primary);margin-right:0.4rem;"></i> ${esc(log.action || 'System Operation')}</span>
+                        <span class="um-badge" style="background: ${isSuccess ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'}; color: ${badgeColor}; border-color: ${isSuccess ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'};">${esc(log.result || log.status || 'Logged')}</span>
+                    </div>
+                    <div class="activity-meta" style="margin-bottom: 0.4rem;">
+                        <i class="fa-regular fa-clock"></i> ${log.timestamp || 'Unknown Time'} &bull; Module: <strong style="color: var(--text-main);">${esc(log.module || 'System')}</strong> ${log.ip_address ? `&bull; IP: <strong>${esc(log.ip_address)}</strong>` : ''}
+                    </div>
+                    <div class="activity-details">${esc(log.details || log.message || 'No additional details provided.')}</div>
+                `;
+                box.append(item);
+            });
+        })
+        .catch(() => {
+            box.replaceChildren();
+            const errDiv = document.createElement('div');
+            errDiv.style.cssText = 'padding: 2rem; text-align: center; color: #fca5a5;';
+            errDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation fa-2x" style="margin-bottom:0.5rem;"></i><br>Failed to load activity logs from server.';
+            box.append(errDiv);
+        });
+}
+
+document.getElementById('addUserBtn')?.addEventListener('click', openAddUserModal);
+document.querySelectorAll('.user-edit-btn').forEach(btn => btn.addEventListener('click', () => openEditUserFromButton(btn)));
+
+document.getElementById('userForm')?.addEventListener('submit', function(e) {
+    const id = document.getElementById('modal_user_id').value;
+    const username = document.getElementById('modal_username').value.trim();
+    const email = document.getElementById('modal_email').value.trim();
+    const password = document.getElementById('modal_password').value;
+    const confirmPassword = document.getElementById('modal_confirm_password').value;
+    const privilegeId = document.getElementById('modal_privilege_id').value;
+    if (!username) { e.preventDefault(); return showUserError('Username is required.'); }
+    if (!email) { e.preventDefault(); return showUserError('Email address is required.'); }
+    if (!privilegeId) { e.preventDefault(); return showUserError('Privilege role is required.'); }
+    if (!id && !password) { e.preventDefault(); return showUserError('Password is required for new accounts.'); }
+    if (password && password !== confirmPassword) { e.preventDefault(); return showUserError('Password confirmation does not match.'); }
+});
+
+document.getElementById('resetPasswordForm')?.addEventListener('submit', function(e) {
+    if (document.getElementById('new_user_password').value !== document.getElementById('new_user_confirm_password').value) {
+        e.preventDefault();
+        showToastNotification("Password confirmation does not match.", "danger");
+    }
+});
+
+function restoreUserFormState() {
+    if (!userFormState) return;
+    const values = userFormState.values || {};
+    if (userFormState.mode === 'edit') {
+        clearUserError();
+        document.getElementById('userModalTitle').textContent = 'Edit User Account';
+        document.getElementById('userForm').action = '/users/edit/' + values.user_id;
+        document.getElementById('modal_user_id').value = values.user_id || '';
+        document.getElementById('modal_password').required = false;
+        document.getElementById('modal_confirm_password').required = false;
+        document.getElementById('password_required_star').style.display = 'none';
+        document.getElementById('confirm_password_required_star').style.display = 'none';
+        document.getElementById('userModalSubmitBtn').textContent = 'Save Changes';
+    } else {
+        openAddUserModal();
+    }
+    document.getElementById('modal_username').value = values.username || '';
+    document.getElementById('modal_email').value = values.email || '';
+    document.getElementById('modal_privilege_id').value = values.privilege_id || '';
+    document.getElementById('modal_status').value = values.status || 'enabled';
+    showUserError(userFormState.error || 'Please review the highlighted form fields.');
+    openModal('userModal');
+}
+
+window.addEventListener('click', e => {
+    if (e.target.classList && e.target.classList.contains('um-modal')) closeModal(e.target.id);
+});
+
+window.addEventListener('keydown', e => {
+    const open = Array.from(document.querySelectorAll('.um-modal')).find(modal => modal.style.display === 'flex');
+    if (!open) return;
+    if (e.key === 'Escape') {
+        closeModal(open.id);
+        return;
+    }
+    if (e.key === 'Tab') {
+        const focusable = Array.from(open.querySelectorAll('button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), a[href]'));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+});
+
+restoreUserFormState();
+</script>
+
+        </main>
+    </div>
+    
+    <!-- My Profile & Security Self-Service Modal -->
+    <div id="myProfileModal" class="modal" style="display: none; z-index: 10020; background: rgba(11, 15, 25, 0.92);">
+        <div class="modal-content" style="max-width: 520px; border-radius: 18px; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0,0,0,0.7); padding: 0; overflow: hidden; background: var(--panel-dark);">
+            <div style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.85), rgba(30, 58, 138, 0.95)); padding: 1.5rem 1.75rem; border-bottom: 1px solid rgba(56, 189, 248, 0.25); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.85rem;">
+                    <div style="width: 46px; height: 46px; border-radius: 14px; background: var(--border-color); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: var(--text-main);">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h2 style="color: var(--text-main); margin: 0; font-size: 1.25rem; font-weight: 700;">My Account & Security</h2>
+                        <div style="color: #bae6fd; font-size: 0.82rem; margin-top: 0.15rem;">Manage your user credentials and email address</div>
+                    </div>
+                </div>
+                <button type="button" class="close-modal" onclick="closeMyProfileModal()" style="position: static; font-size: 1.6rem; color: #bae6fd; background: none; border: none; cursor: pointer;">&times;</button>
+            </div>
+            
+            <div style="padding: 1.5rem 1.75rem;">
+                <!-- Profile Tabs -->
+                <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                    <button type="button" id="tab_btn_profile_info" class="btn btn-info btn-sm" onclick="switchProfileTab('info')" style="padding: 0.45rem 1.1rem; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 0.45rem;">
+                        <i class="fa-solid fa-id-badge"></i> Account Profile
+                    </button>
+                    <button type="button" id="tab_btn_profile_password" class="btn btn-secondary btn-sm" onclick="switchProfileTab('password')" style="padding: 0.45rem 1.1rem; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 0.45rem;">
+                        <i class="fa-solid fa-key"></i> Change Password
+                    </button>
+                </div>
+                
+                <!-- Profile Info Tab -->
+                <div id="tab_content_profile_info">
+                    <div style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; display: block; font-weight: 600;">Active Username</span>
+                            <span id="profile_display_username" style="font-size: 1.15rem; font-weight: 700; color: var(--text-main);">admin</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; display: block; font-weight: 600;">Assigned Role</span>
+                            <span id="profile_display_role" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase;">admin</span>
+                        </div>
+                    </div>
+                    
+                    <form action="/profile/update-email" method="POST">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                        <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                        <div class="form-group" style="margin-bottom: 1.25rem;">
+                            <label for="profile_email" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.4rem; display: block; font-size: 0.9rem;">
+                                Registered Email Address <span style="color: #94a3b8; font-size: 0.8rem; font-weight: normal;">(Used for OTP & Password Resets)</span>
+                            </label>
+                            <input type="email" class="form-control" name="email" id="profile_email" required placeholder="user@company.com" style="border-radius: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.65rem 0.85rem; width: 100%;">
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" onclick="closeMyProfileModal()" style="padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 600;">Close</button>
+                            <button type="submit" class="btn btn-info" style="padding: 0.55rem 1.4rem; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);">
+                                <i class="fa-solid fa-envelope"></i> Update Email
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Change Password Tab -->
+                <div id="tab_content_profile_password" style="display: none;">
+                    <form action="/profile/change-password" method="POST" onsubmit="return validateProfilePasswordChange()">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                        <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label for="prof_current_password" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem; display: block; font-size: 0.9rem;">
+                                Current Password <span style="color: #ef4444;">*</span>
+                            </label>
+                            <input type="password" class="form-control" name="current_password" id="prof_current_password" required placeholder="Enter current password" style="border-radius: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.6rem 0.85rem; width: 100%;">
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label for="prof_new_password" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem; display: block; font-size: 0.9rem;">
+                                New Password <span style="color: #ef4444;">*</span> <span style="color: #94a3b8; font-size: 0.8rem;">(Min 6 chars)</span>
+                            </label>
+                            <input type="password" class="form-control" name="new_password" id="prof_new_password" required minlength="6" placeholder="At least 6 characters" onkeyup="checkProfPasswordStrength(this.value)" style="border-radius: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.6rem 0.85rem; width: 100%;">
+                            <div id="prof_pw_meter_bar" style="height: 5px; background: var(--border-color); border-radius: 3px; margin-top: 0.4rem; overflow: hidden;">
+                                <div id="prof_pw_meter_fill" style="height: 100%; width: 0%; transition: all 0.3s ease;"></div>
+                            </div>
+                            <div id="prof_pw_meter_text" style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.2rem;">Enter password to test strength</div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 1.25rem;">
+                            <label for="prof_confirm_password" style="font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem; display: block; font-size: 0.9rem;">
+                                Confirm New Password <span style="color: #ef4444;">*</span>
+                            </label>
+                            <input type="password" class="form-control" name="confirm_password" id="prof_confirm_password" required minlength="6" placeholder="Repeat new password" style="border-radius: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.6rem 0.85rem; width: 100%;">
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" onclick="closeMyProfileModal()" style="padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 600;">Cancel</button>
+                            <button type="submit" class="btn btn-warning" style=" border-color: #f59e0b; color: #000; padding: 0.55rem 1.4rem; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);">
+                                <i class="fa-solid fa-shield-halved"></i> Update Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Apply Changes Confirmation Modal -->
+    <div id="applyChangesModal" class="modal" style="display: none; z-index: 10000;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-modal" onclick="closeApplyChangesModal()">&times;</span>
+            <h2 style="font-family: 'Orbitron', sans-serif; color: #f59e0b; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; font-size: 1.25rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Apply Changes
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+                The following configuration changes will be applied to the live system:
+            </p>
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; max-height: 180px; overflow-y: auto; margin-bottom: 1.5rem;">
+                <ul id="pendingChangesList" style="margin: 0; padding-left: 1.25rem; color: var(--text-main); line-height: 1.6; font-size: 0.88rem; text-align: left;">
+                    <!-- Filled dynamically -->
+                </ul>
+            </div>
+            <div class="form-actions" style="margin: 0; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeApplyChangesModal()">Cancel</button>
+                <button type="button" class="btn btn-info" style=" border-color: #f59e0b; color: #0b0f19; font-weight: bold;" onclick="submitApplyChanges()">
+                    <i class="fa-solid fa-check"></i> Continue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div id="progressModal" class="modal" style="display: none; z-index: 10001; background: rgba(11, 15, 25, 0.9);">
+        <div class="modal-content" style="max-width: 450px; text-align: center; padding: 2.5rem 2rem;">
+            <div style="font-size: 3rem; color: var(--primary); margin-bottom: 1.5rem;" id="progressIcon">
+                <i class="fa-solid fa-spinner fa-spin-pulse"></i>
+            </div>
+            <h2 style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; margin-bottom: 1.5rem;" id="progressTitle">Applying changes...</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; align-items: start; max-width: 300px; margin: 0 auto; text-align: left;" id="progressSteps">
+                <!-- Filled dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto remove toasts after 5 seconds
+        setTimeout(() => {
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(toast => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            });
+        }, 5000);
+
+        // Client-side notification helper
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.style.pointerEvents = 'auto';
+            
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="` + (type === 'danger' ? 'fa-solid fa-circle-xmark' : type === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-info') + `" style="color: ` + (type === 'danger' ? 'var(--status-offline)' : type === 'success' ? 'var(--status-registered)' : 'var(--status-ringing)') + `; font-size: 1.2rem;"></i>
+                    <span style="font-weight: 500; font-size: 0.9rem;">` + message + `</span>
+                </div>
+                <i class="fa-solid fa-xmark" style="cursor: pointer; color: var(--text-muted);" onclick="this.parentElement.remove()"></i>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Global Apply Changes Logic
+        const pendingChanges = [];
+
+        const applyBtn = document.getElementById("applyChangesBtn");
+        if (applyBtn) {
+            applyBtn.addEventListener("click", function() {
+                if (this.classList.contains("active")) {
+                    openApplyChangesModal();
+                }
+            });
+        }
+
+        function openApplyChangesModal() {
+            const list = document.getElementById("pendingChangesList");
+            list.innerHTML = "";
+            pendingChanges.forEach(change => {
+                const li = document.createElement("li");
+                li.textContent = change.description;
+                list.appendChild(li);
+            });
+            document.getElementById("applyChangesModal").style.display = "block";
+        }
+
+        function closeApplyChangesModal() {
+            document.getElementById("applyChangesModal").style.display = "none";
+        }
+
+        function submitApplyChanges() {
+            closeApplyChangesModal();
+            const progressModal = document.getElementById("progressModal");
+            progressModal.style.display = "block";
+            
+            const stepsDiv = document.getElementById("progressSteps");
+            stepsDiv.innerHTML = `
+                <div id="step-apply" style="display:flex; align-items:center; gap:0.75rem; color: var(--text-main);">
+                    <i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i>
+                    <span>Applying changes...</span>
+                </div>
+            `;
+            
+            fetch('/api/apply-changes', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': "lkWbtm40EAwy6PG_VUsdB71czr-TNTEq",
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(async res => {
+                    const contentType = res.headers.get('content-type') || '';
+                    const data = contentType.includes('application/json')
+                        ? await res.json()
+                        : { status: 'error', msg: await res.text() };
+                    if (!res.ok && data.status !== 'success') {
+                        data.status = 'error';
+                    }
+                    return data;
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById("step-apply").innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-registered);"></i> <span style="color: var(--status-registered);">Applying changes...</span>`;
+                        
+                        setTimeout(() => {
+                            stepsDiv.innerHTML += `
+                                <div id="step-pjsip" style="display:flex; align-items:center; gap:0.75rem; color: var(--text-main);">
+                                    <i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i>
+                                    <span>Reloading PJSIP...</span>
+                                </div>
+                            `;
+                        }, 500);
+                        
+                        setTimeout(() => {
+                            document.getElementById("step-pjsip").innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-registered);"></i> <span style="color: var(--status-registered);">Reloading PJSIP...</span>`;
+                            stepsDiv.innerHTML += `
+                                <div id="step-dialplan" style="display:flex; align-items:center; gap:0.75rem; color: var(--text-main);">
+                                    <i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i>
+                                    <span>Reloading Dialplan...</span>
+                                </div>
+                            `;
+                        }, 1200);
+
+                        setTimeout(() => {
+                            document.getElementById("step-dialplan").innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-registered);"></i> <span style="color: var(--status-registered);">Reloading Dialplan...</span>`;
+                            stepsDiv.innerHTML += `
+                                <div style="display:flex; align-items:center; gap:0.75rem; color: var(--status-registered); font-weight: bold; margin-top: 0.5rem;">
+                                    <i class="fa-solid fa-circle-check fa-bounce"></i>
+                                    <span>Completed successfully.</span>
+                                </div>
+                            `;
+                            document.getElementById("progressIcon").innerHTML = `<i class="fa-solid fa-circle-check fa-bounce" style="color: var(--status-registered);"></i>`;
+                            document.getElementById("progressTitle").textContent = "Success";
+                        }, 2000);
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3500);
+                    } else {
+                        showProgressError(data.msg || data.error || "Internal Server Error");
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showProgressError("Failed to communicate with API server.");
+                });
+        }
+
+        function showProgressError(msg) {
+            document.getElementById("progressIcon").innerHTML = `<i class="fa-solid fa-circle-xmark fa-shake" style="color: var(--status-offline);"></i>`;
+            document.getElementById("progressTitle").textContent = "Error";
+            const stepsDiv = document.getElementById("progressSteps");
+            stepsDiv.innerHTML = `
+                <div style="color: var(--status-offline); font-weight: bold; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <span>Failed to apply changes:</span>
+                    <code style="background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; font-size: 0.8rem; font-family: monospace; word-break: break-all;">${msg}</code>
+                </div>
+                <button class="btn btn-secondary btn-sm" style="margin-top: 1rem; width: 100%;" onclick="document.getElementById('progressModal').style.display='none'">Close</button>
+            `;
+        }
+
+        // Enterprise Sidebar Navigation & Accordion Logic
+        window.toggleSidebarGroup = function(groupId) {
+            const targetContainer = document.getElementById(groupId);
+            if (!targetContainer) return;
+
+            const allContainers = document.querySelectorAll('.sidebar-submenu-container');
+            const allHeaders = document.querySelectorAll('.collapsible-header');
+
+            const isCurrentlyExpanded = targetContainer.classList.contains('expanded');
+
+            // Accordion: Collapse all groups
+            allContainers.forEach(container => {
+                container.classList.remove('expanded');
+            });
+            allHeaders.forEach(header => {
+                header.classList.add('collapsed');
+                header.setAttribute('aria-expanded', 'false');
+            });
+
+            // If the clicked group was not expanded, expand it
+            if (!isCurrentlyExpanded) {
+                targetContainer.classList.add('expanded');
+                const matchingHeader = document.querySelector(`.collapsible-header[data-group="${groupId}"]`);
+                if (matchingHeader) {
+                    matchingHeader.classList.remove('collapsed');
+                    matchingHeader.setAttribute('aria-expanded', 'true');
+                }
+                localStorage.setItem('sidebar_active_group', groupId);
+            } else {
+                localStorage.removeItem('sidebar_active_group');
+            }
+
+            // If sidebar is collapsed on desktop, auto-expand it when clicking a category
+            const mainSidebar = document.getElementById('main-sidebar');
+            if (mainSidebar && mainSidebar.classList.contains('sidebar-collapsed') && window.innerWidth > 768) {
+                mainSidebar.classList.remove('sidebar-collapsed');
+                localStorage.setItem('sidebar_main_collapsed', 'false');
+            }
+        };
+
+        function updatePaginationFooter(totalRows, currentPage, limit, onPageChange) {
+            const totalPages = Math.max(1, Math.ceil(totalRows / limit));
+            const footer = document.getElementById("pagination-footer");
+            if (!footer) return;
+            
+            if (totalPages <= 1) {
+                footer.innerHTML = `
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">
+                        Showing all <strong style="color: var(--text-main);">${totalRows}</strong> records
+                    </div>
+                    <input type="hidden" id="current_page" value="1">
+                `;
+                return;
+            }
+            
+            let paginationButtons = "";
+            
+            // Previous Button
+            const prevDisabled = currentPage === 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+            paginationButtons += `
+                <button onclick="${onPageChange}(${currentPage - 1})" class="btn btn-secondary btn-sm" ${prevDisabled}>
+                    <i class="fa-solid fa-angle-left"></i> Previous
+                </button>
+            `;
+            
+            // Page Numbers
+            for (let p = 1; p <= totalPages; p++) {
+                if (p === currentPage) {
+                    paginationButtons += `<button class="btn btn-info btn-sm" style="font-weight: bold;">${p}</button>`;
+                } else if (p <= 3 || p >= totalPages - 2 || (p >= currentPage - 1 && p <= currentPage + 1)) {
+                    paginationButtons += `<button onclick="${onPageChange}(${p})" class="btn btn-secondary btn-sm">${p}</button>`;
+                } else if (p === 4 || p === totalPages - 3) {
+                    paginationButtons += `<span style="color: var(--text-dark); padding: 0.25rem 0.5rem;">...</span>`;
+                }
+            }
+            
+            // Next Button
+            const nextDisabled = currentPage === totalPages ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+            paginationButtons += `
+                <button onclick="${onPageChange}(${currentPage + 1})" class="btn btn-secondary btn-sm" ${nextDisabled}>
+                    Next <i class="fa-solid fa-angle-right"></i>
+                </button>
+            `;
+            
+            footer.innerHTML = `
+                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                    Showing page <strong style="color: var(--text-main);">${currentPage}</strong> of <strong style="color: var(--text-main);">${totalPages}</strong> (Total <strong style="color: var(--text-main);">${totalRows}</strong> records)
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    ${paginationButtons}
+                </div>
+                <input type="hidden" id="current_page" value="${currentPage}">
+            `;
+        }
+
+        // Initialize Sidebar State & Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const mainSidebar = document.getElementById('main-sidebar');
+            const collapseBtn = document.getElementById('sidebarCollapseBtn');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const allHeaders = document.querySelectorAll('.collapsible-header');
+            const allContainers = document.querySelectorAll('.sidebar-submenu-container');
+
+            // 1. Remove anti-flicker class after initial layout is computed
+            if (mainSidebar) {
+                setTimeout(() => {
+                    mainSidebar.classList.remove('no-transition');
+                }, 100);
+            }
+
+            // 2. Initialize Accordion state: Auto-expand section with active page, or restore from localStorage
+            let activeGroupId = null;
+            allContainers.forEach(container => {
+                if (container.querySelector('.active')) {
+                    activeGroupId = container.id;
+                }
+            });
+
+            if (!activeGroupId) {
+                activeGroupId = localStorage.getItem('sidebar_active_group') || 'system-status-group';
+            }
+
+            allContainers.forEach(container => {
+                const header = document.querySelector(`.collapsible-header[data-group="${container.id}"]`);
+                if (container.id === activeGroupId) {
+                    container.classList.add('expanded');
+                    if (header) {
+                        header.classList.remove('collapsed');
+                        header.setAttribute('aria-expanded', 'true');
+                    }
+                    localStorage.setItem('sidebar_active_group', activeGroupId);
+                } else {
+                    container.classList.remove('expanded');
+                    if (header) {
+                        header.classList.add('collapsed');
+                        header.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+
+            // 3. Category Header Click & Keyboard Support
+            allHeaders.forEach(header => {
+                const groupId = header.getAttribute('data-group');
+                header.addEventListener('click', () => toggleSidebarGroup(groupId));
+                header.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleSidebarGroup(groupId);
+                    }
+                });
+            });
+
+            // 4. Desktop Sidebar Collapse/Expand Button
+            if (collapseBtn && mainSidebar) {
+                const toggleMainSidebar = () => {
+                    const isCollapsed = mainSidebar.classList.toggle('sidebar-collapsed');
+                    localStorage.setItem('sidebar_main_collapsed', isCollapsed);
+                };
+                collapseBtn.addEventListener('click', toggleMainSidebar);
+                collapseBtn.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleMainSidebar();
+                    }
+                });
+            }
+
+            // 5. Mobile Slide-in Drawer & Overlay Support
+            if (mobileMenuBtn && mainSidebar && sidebarOverlay) {
+                const openMobileMenu = () => {
+                    mainSidebar.classList.add('mobile-open');
+                    sidebarOverlay.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                };
+                const closeMobileMenu = () => {
+                    mainSidebar.classList.remove('mobile-open');
+                    sidebarOverlay.classList.remove('active');
+                    document.body.style.overflow = '';
+                };
+
+                mobileMenuBtn.addEventListener('click', openMobileMenu);
+                sidebarOverlay.addEventListener('click', closeMobileMenu);
+
+                // Close mobile drawer when clicking any link inside
+                mainSidebar.querySelectorAll('a').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth <= 768) {
+                            closeMobileMenu();
+                        }
+                    });
+                });
+            }
+        });
+
+
+        // Reusable destinations data structure
+        const PBX_DESTINATIONS = {
+            extension: [["2121", "2121 rafik"], ["3001", "3001 tetch"], ["4321", "4321 BALAA"], ["5000", "5000 \u0645\u062d\u0645\u062f"], ["5001", "5001 \u0645\u0635\u0637\u0641\u064a"], ["5002", "5002 rafik"], ["5003", "5003 GOG"], ["5004", "5004 rafik"], ["555", "555 Dexter"], ["5555", "5555 MR"], ["5858", "5858 KO"], ["6000", "6000 DEXXXX"], ["6001", "6001 GGG 6001"], ["6002", "6002 GGG 6002"], ["6003", "6003 GGG 6003"], ["6004", "6004 GGG 6004"], ["6005", "6005 GGG 6005"], ["6006", "6006 GGG 6006"], ["6007", "6007 GGG 6007"], ["6008", "6008 GGG 6008"], ["6009", "6009 GGG 6009"], ["6100", "6100"], ["852", "852 \u0623\u062d\u0645\u062f"], ["9999", "9999 rafik"]],
+            queue: [["6500", "6500 support q"], ["6501", "6501 sales"]],
+            ivr: [["7001", "7001 main menu"], ["7002", "7002 test_valid"]],
+            ringgroup: [["6400", "6400 support"]],
+            announcement: [["8000", "8000 test"], ["8001", "8001 test"], ["8005", "8005 test"]],
+            voicemail: [["2121", "2121 rafik (Voicemail)"], ["3001", "3001 tetch (Voicemail)"], ["4321", "4321 BALAA (Voicemail)"], ["5000", "5000 \u0645\u062d\u0645\u062f (Voicemail)"], ["5001", "5001 \u0645\u0635\u0637\u0641\u064a (Voicemail)"], ["5002", "5002 rafik (Voicemail)"], ["5003", "5003 GOG (Voicemail)"], ["5004", "5004 rafik (Voicemail)"], ["555", "555 Dexter (Voicemail)"], ["5555", "5555 MR (Voicemail)"], ["5858", "5858 KO (Voicemail)"], ["6000", "6000 DEXXXX (Voicemail)"], ["6001", "6001 GGG 6001 (Voicemail)"], ["6002", "6002 GGG 6002 (Voicemail)"], ["6003", "6003 GGG 6003 (Voicemail)"], ["6004", "6004 GGG 6004 (Voicemail)"], ["6005", "6005 GGG 6005 (Voicemail)"], ["6006", "6006 GGG 6006 (Voicemail)"], ["6007", "6007 GGG 6007 (Voicemail)"], ["6008", "6008 GGG 6008 (Voicemail)"], ["6009", "6009 GGG 6009 (Voicemail)"], ["6100", "6100  (Voicemail)"], ["852", "852 \u0623\u062d\u0645\u062f (Voicemail)"], ["9999", "9999 rafik (Voicemail)"]],
+            conference: [],
+            paging: [["3698", "3698 test"], ["258", "258 rrrr"], ["9632", "9632 ttttooo"]],
+            featurecode: [["*97", "*97 (Voicemail Main)"], ["*37", "*37 (Do Not Disturb On)"], ["*38", "*38 (Do Not Disturb Off)"], ["*8", "*8 (Call Pickup)"], ["**", "** (Directed Call Pickup)"], ["*64", "*64 (Call Forward Always On)"], ["*65", "*65 (Call Forward Always Off)"], ["*58", "*58 (Call Forward Busy On)"], ["*59", "*59 (Call Forward Busy Off)"], ["*60", "*60 (Call Forward No Answer On)"], ["*61", "*61 (Call Forward No Answer Off)"]],
+            ext_outbound_map: {"2121": ["out_mobile"], "3001": [], "4321": [], "5000": [], "5001": ["out_mobile"], "5002": ["out_mobile"], "5003": [], "5004": [], "555": [], "5555": [], "5858": [], "6000": [], "6001": [], "6002": [], "6003": [], "6004": [], "6005": [], "6006": [], "6007": [], "6008": [], "6009": [], "6100": [], "852": [], "9999": []},
+            rg_outbound_map: {"6400": ["out_mobile"]}
+        };
+
+        function renderDestinationSelector(container, typeName, valName, currentType, currentVal) {
+            if (typeof container === 'string') {
+                container = document.getElementById(container);
+            }
+            if (!container) return;
+
+            // Clear container
+            container.innerHTML = '';
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '0.5rem';
+
+            // Create Type Select
+            const typeSelect = document.createElement('select');
+            typeSelect.name = typeName;
+            typeSelect.className = 'form-control dest-type-select';
+            typeSelect.style.width = '100%';
+
+            const types = [
+                { value: 'hangup', label: 'Hangup Call' },
+                { value: 'extension', label: 'Extension' },
+                { value: 'internal', label: 'BY DID' },
+                { value: 'queue', label: 'Queue' },
+                { value: 'ivr', label: 'IVR / Auto-Attendant' },
+                { value: 'ringgroup', label: 'Ring Group' },
+                { value: 'announcement', label: 'Announcement' },
+                { value: 'voicemail', label: 'Voicemail' },
+                { value: 'conference', label: 'Conference' },
+                { value: 'external', label: 'External Number' }
+            ];
+
+            types.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.value;
+                opt.textContent = t.label;
+                if (currentType === t.value) {
+                    opt.selected = true;
+                }
+                typeSelect.appendChild(opt);
+            });
+
+            container.appendChild(typeSelect);
+
+            // Create Value Container
+            const valContainer = document.createElement('div');
+            valContainer.className = 'dest-val-container';
+            valContainer.style.width = '100%';
+            container.appendChild(valContainer);
+
+            function updateValueField() {
+                valContainer.innerHTML = '';
+                const selectedType = typeSelect.value;
+
+                if (selectedType === 'hangup') {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = valName;
+                    hiddenInput.value = 'hangup';
+                    valContainer.appendChild(hiddenInput);
+                } else if (selectedType === 'internal') {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = valName;
+                    hiddenInput.value = '__INBOUND_CALLEE__';
+                    valContainer.appendChild(hiddenInput);
+                } else if (PBX_DESTINATIONS[selectedType]) {
+                    const valSelect = document.createElement('select');
+                    valSelect.name = valName;
+                    valSelect.className = 'form-control dest-val-select';
+                    valSelect.required = true;
+
+                    const data = PBX_DESTINATIONS[selectedType];
+                    
+                    const emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.textContent = `-- Select ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} --`;
+                    valSelect.appendChild(emptyOpt);
+
+                    data.forEach(item => {
+                        const opt = document.createElement('option');
+                        let val = Array.isArray(item) ? item[0] : item.value;
+                        let lbl = Array.isArray(item) ? item[1] : item.label;
+                        opt.value = val;
+                        opt.textContent = lbl;
+                        if (currentVal && String(currentVal) === String(val)) {
+                            opt.selected = true;
+                        }
+                        valSelect.appendChild(opt);
+                    });
+
+                    valContainer.appendChild(valSelect);
+                } else if (selectedType === 'external') {
+                    let rawPhone = currentVal || '';
+                    let permType = 'default';
+                    let permId = '';
+                    if (rawPhone.includes('|ext:')) {
+                        const pts = rawPhone.split('|ext:');
+                        rawPhone = pts[0];
+                        permType = 'ext';
+                        permId = pts[1] || '';
+                    } else if (rawPhone.includes('|rg:')) {
+                        const pts = rawPhone.split('|rg:');
+                        rawPhone = pts[0];
+                        permType = 'default';
+                        permId = '';
+                    }
+
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = valName;
+                    hiddenInput.value = currentVal || '';
+                    valContainer.appendChild(hiddenInput);
+
+                    const extCard = document.createElement('div');
+                    extCard.style.cssText = 'background: rgba(0,0,0,0.25); border: 1px solid rgba(14,165,233,0.3); border-radius: 8px; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.65rem;';
+
+                    const phoneGrp = document.createElement('div');
+                    phoneGrp.innerHTML = `<label style="font-size: 0.82rem; color: #38bdf8; font-weight: 600; display: block; margin-bottom: 0.25rem;"><i class="fa-solid fa-phone"></i> Target External Phone Number</label>`;
+                    const phoneInput = document.createElement('input');
+                    phoneInput.type = 'text';
+                    phoneInput.className = 'form-control';
+                    phoneInput.placeholder = 'e.g. 01012345678 or +201012345678';
+                    phoneInput.value = rawPhone;
+                    phoneGrp.appendChild(phoneInput);
+                    extCard.appendChild(phoneGrp);
+
+                    const permGrp = document.createElement('div');
+                    permGrp.innerHTML = `<label style="font-size: 0.82rem; color: #a78bfa; font-weight: 600; display: block; margin-bottom: 0.35rem;"><i class="fa-solid fa-shield-halved"></i> Outbound Route Permission Level</label>`;
+
+                    const radioContainer = document.createElement('div');
+                    radioContainer.style.cssText = 'display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.4rem;';
+
+                    const uid = Math.random().toString(36).substring(2, 8);
+
+                    radioContainer.innerHTML = `
+                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: var(--text-main);">
+                            <input type="radio" name="perm_radio_${uid}" value="ext" ${permType === 'ext' ? 'checked' : ''}>
+                            Take Extension Permission
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: var(--text-main);">
+                            <input type="radio" name="perm_radio_${uid}" value="default" ${permType === 'default' ? 'checked' : ''}>
+                            Default Outbound
+                        </label>
+                    `;
+                    permGrp.appendChild(radioContainer);
+
+                    const extSelectHolder = document.createElement('div');
+                    extSelectHolder.style.display = (permType === 'ext') ? 'block' : 'none';
+                    const extSelect = document.createElement('select');
+                    extSelect.className = 'form-control';
+                    (PBX_DESTINATIONS.extension || []).forEach(e => {
+                        const opt = document.createElement('option');
+                        const val = Array.isArray(e) ? e[0] : e.value;
+                        const lbl = Array.isArray(e) ? e[1] : e.label;
+                        opt.value = val;
+                        opt.textContent = lbl;
+                        if (String(val) === String(permId)) opt.selected = true;
+                        extSelect.appendChild(opt);
+                    });
+                    extSelectHolder.appendChild(extSelect);
+                    permGrp.appendChild(extSelectHolder);
+
+                    extCard.appendChild(permGrp);
+                    valContainer.appendChild(extCard);
+
+                    const statusBox = document.createElement('div');
+                    statusBox.style.cssText = 'padding: 0.65rem 0.85rem; border-radius: 6px; font-size: 0.82rem; margin-top: 0.35rem; transition: all 0.2s;';
+                    extCard.appendChild(statusBox);
+
+                    function updateExternalHidden() {
+                        const num = phoneInput.value.trim();
+                        const checkedRadio = radioContainer.querySelector('input:checked');
+                        const mode = checkedRadio ? checkedRadio.value : 'default';
+                        extSelectHolder.style.display = (mode === 'ext') ? 'block' : 'none';
+
+                        let allowedRoutes = [];
+                        if (mode === 'ext' && extSelect.value) {
+                            hiddenInput.value = num ? (num + '|ext:' + extSelect.value) : '';
+                            allowedRoutes = (PBX_DESTINATIONS.ext_outbound_map || {})[extSelect.value] || [];
+                            if (allowedRoutes.length > 0) {
+                                statusBox.style.background = 'rgba(16, 185, 129, 0.15)';
+                                statusBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+                                statusBox.style.color = '#34d399';
+                                statusBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> <strong>Extension ${extSelect.value} Allowed:</strong> Outbound call will exit via route(s): <strong>${allowedRoutes.join(', ')}</strong>`;
+                            } else {
+                                statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                                statusBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                                statusBox.style.color = '#f87171';
+                                statusBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>Warning:</strong> Extension ${extSelect.value} is NOT allowed on any Outbound Route. Calls will be blocked!`;
+                            }
+                        } else {
+                            hiddenInput.value = num || '';
+                            statusBox.style.background = 'rgba(14, 165, 233, 0.15)';
+                            statusBox.style.border = '1px solid rgba(14, 165, 233, 0.4)';
+                            statusBox.style.color = '#38bdf8';
+                            statusBox.innerHTML = `<i class="fa-solid fa-circle-info"></i> Using default inbound transit trunk routing.`;
+                        }
+                    }
+
+                    phoneInput.addEventListener('input', updateExternalHidden);
+                    radioContainer.addEventListener('change', updateExternalHidden);
+                    extSelect.addEventListener('change', updateExternalHidden);
+                    updateExternalHidden();
+                } else {
+                    const textInput = document.createElement('input');
+                    textInput.type = 'text';
+                    textInput.name = valName;
+                    textInput.className = 'form-control';
+                    textInput.required = true;
+                    textInput.placeholder = 'e.g. Local/1000@context';
+
+                    if (currentVal && currentType === selectedType) {
+                        textInput.value = currentVal;
+                    }
+                    valContainer.appendChild(textInput);
+                }
+            }
+
+            typeSelect.addEventListener('change', updateValueField);
+            updateValueField();
+        }
+
+        function createHelpTooltip(text) {
+            const tooltip = document.createElement('span');
+            tooltip.className = 'tooltip-container';
+            tooltip.textContent = '!';
+
+            const tooltipText = document.createElement('span');
+            tooltipText.className = 'tooltip-text';
+            tooltipText.textContent = text;
+            tooltip.appendChild(tooltipText);
+            return tooltip;
+        }
+
+        function attachHelpTooltip(target, text) {
+            if (!target || !text || target.querySelector('.tooltip-container')) return false;
+            target.appendChild(createHelpTooltip(text.trim()));
+            return true;
+        }
+
+        function normalizeInlineHelpText() {
+            document.querySelectorAll('.form-group > small').forEach(help => {
+                const text = help.textContent.trim().replace(/\s+/g, ' ');
+                if (!text) return;
+                const group = help.closest('.form-group');
+                const label = group ? group.querySelector('label') : null;
+                if (attachHelpTooltip(label, text)) {
+                    help.remove();
+                }
+            });
+
+            document.querySelectorAll('.switch-desc').forEach(help => {
+                const text = help.textContent.trim().replace(/\s+/g, ' ');
+                if (!text) return;
+                const container = help.closest('.switch-info') || help.parentElement;
+                const title = container ? container.querySelector('.switch-title') : null;
+                if (attachHelpTooltip(title, text)) {
+                    help.remove();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', normalizeInlineHelpText);
+    </script>
+
+    <!-- Machine Reboot Modal -->
+    <div id="machineRebootModal" class="modal" style="display: none; z-index: 10011; background: rgba(11, 15, 25, 0.92);">
+        <div class="modal-content" style="max-width: 470px; text-align: center; padding: 2.25rem 1.75rem; border: 1px solid rgba(239, 68, 68, 0.45); box-shadow: 0 0 35px rgba(239, 68, 68, 0.2);">
+            <div style="width: 68px; height: 68px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #f87171; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 2rem;">
+                <i class="fa-solid fa-server"></i>
+            </div>
+            <h3 style="color: var(--text-main); font-size: 1.35rem; margin-bottom: 0.75rem;">System Reboot Confirmation</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.4rem;">
+                This will reboot the entire PBX server machine.<br><br>
+                <strong style="color: #fecaca;">All active calls will be dropped and the web portal will be unavailable until the server boots again.</strong>
+            </p>
+            <div id="machineRebootStatus" style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+                Checking active calls...
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button type="button" class="btn btn-secondary" onclick="closeMachineRebootModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="executeMachineReboot()" id="confirmMachineRebootBtn" style=" border-color: #dc2626; color: var(--text-main); font-weight: 700;">
+                    <i class="fa-solid fa-power-off"></i> Reboot System
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asterisk Restart Modal -->
+    <div id="systemRebootModal" class="modal" style="display: none; z-index: 10010; background: rgba(11, 15, 25, 0.9);">
+        <div class="modal-content" style="max-width: 460px; text-align: center; padding: 2.25rem 1.75rem; border: 1px solid rgba(234, 179, 8, 0.4); box-shadow: 0 0 35px rgba(234, 179, 8, 0.2);">
+            <div style="width: 68px; height: 68px; border-radius: 50%; background: rgba(234, 179, 8, 0.15); color: #eab308; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 2rem;">
+                <i class="fa-solid fa-power-off"></i>
+            </div>
+            <h3 style="color: var(--text-main); font-size: 1.35rem; margin-bottom: 0.75rem;">Asterisk Restart Confirmation</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.75rem;">
+                This will run an Asterisk core reload, then restart the Asterisk service.<br><br>
+                <strong style="color: #fef08a;">Active calls will be dropped while Asterisk restarts. The web portal will stay open.</strong>
+            </p>
+            <div id="asteriskRestartStatus" style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem; color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+                Checking Asterisk status...
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button type="button" class="btn btn-secondary" onclick="closeSystemRebootModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="executeSystemReboot()" id="confirmRebootBtn" style=" border-color: #eab308; color: #0f172a; font-weight: 600;">
+                    <i class="fa-solid fa-rotate-right"></i> Core Reload & Restart
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const asteriskRestartToken = "xFqTAdS6zwnWWMUN5ljDY1xpq5kQBFZK";
+        const machineRebootToken = "5uMzBSm8NO7L6e0awzmdk6SDojl3yPn4";
+
+        function openMachineRebootModal() {
+            document.getElementById('machineRebootModal').style.display = 'block';
+            const status = document.getElementById('machineRebootStatus');
+            status.textContent = 'Checking active calls...';
+            fetch('/system/asterisk-status', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                const calls = data.active_calls === null || data.active_calls === undefined ? 'Unknown' : data.active_calls;
+                status.innerHTML = `<strong style="color: var(--text-main);">Active calls:</strong> ${calls}`;
+            })
+            .catch(() => {
+                status.textContent = 'Unable to read active calls.';
+            });
+        }
+        function closeMachineRebootModal() {
+            document.getElementById('machineRebootModal').style.display = 'none';
+        }
+        function pollMachineAfterReboot(startedAt) {
+            fetch('/login', { cache: 'no-store' })
+            .then(res => {
+                if (res.ok && Date.now() - startedAt > 25000) {
+                    setAsteriskRestartProgress('System is back online', [
+                        '<i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> The PBX server responded successfully.',
+                        'Redirecting to login...'
+                    ], 'fa-solid fa-circle-check');
+                    setTimeout(() => { window.location.href = '/login'; }, 1200);
+                    return;
+                }
+                setTimeout(() => pollMachineAfterReboot(startedAt), 5000);
+            })
+            .catch(() => {
+                setTimeout(() => pollMachineAfterReboot(startedAt), 5000);
+            });
+        }
+        function executeMachineReboot() {
+            const btn = document.getElementById('confirmMachineRebootBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rebooting...';
+
+            fetch('/system/machine-reboot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ token: machineRebootToken })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    throw new Error(data.message || 'System reboot failed.');
+                }
+                closeMachineRebootModal();
+                const calls = data.active_calls === null || data.active_calls === undefined ? 'Unknown' : data.active_calls;
+                setAsteriskRestartProgress('Rebooting PBX server...', [
+                    '<i class="fa-solid fa-spinner fa-spin" style="color:#eab308;"></i> System reboot command accepted.',
+                    'The web portal will disconnect while the machine restarts.',
+                    `Active calls before reboot: ${calls}`
+                ], 'fa-solid fa-server fa-fade');
+                pollMachineAfterReboot(Date.now());
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-power-off"></i> Reboot System';
+                alert(err.message || 'Error connecting to server to initiate system reboot.');
+            });
+        }
+
+        function openSystemRebootModal() {
+            document.getElementById('systemRebootModal').style.display = 'block';
+            const status = document.getElementById('asteriskRestartStatus');
+            status.textContent = 'Checking Asterisk status...';
+            fetch('/system/asterisk-status', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    status.textContent = 'Unable to read Asterisk status.';
+                    return;
+                }
+                const calls = data.active_calls === null || data.active_calls === undefined ? 'Unknown' : data.active_calls;
+                const state = data.responsive ? 'Online' : 'Not responding';
+                status.innerHTML = `<strong style="color: var(--text-main);">Asterisk:</strong> ${state} &nbsp; | &nbsp; <strong style="color: var(--text-main);">Active calls:</strong> ${calls}`;
+            })
+            .catch(() => {
+                status.textContent = 'Unable to read Asterisk status.';
+            });
+        }
+        function closeSystemRebootModal() {
+            document.getElementById('systemRebootModal').style.display = 'none';
+        }
+        function setAsteriskRestartProgress(title, rows, iconClass) {
+            const progressModal = document.getElementById("progressModal");
+            if (!progressModal) return;
+            const progressTitle = document.getElementById("progressTitle");
+            const progressIcon = document.getElementById("progressIcon");
+            const progressSteps = document.getElementById("progressSteps");
+            if (progressTitle) progressTitle.textContent = title;
+            if (progressIcon) progressIcon.innerHTML = `<i class="${iconClass || 'fa-solid fa-spinner fa-spin-pulse'}"></i>`;
+            if (progressSteps) {
+                progressSteps.innerHTML = rows.map(row => `<div style="color: var(--text-muted); font-size: 0.9rem;">${row}</div>`).join('');
+            }
+            progressModal.style.display = "block";
+        }
+        function pollAsteriskAfterRestart(startedAt) {
+            fetch('/system/asterisk-status', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                const elapsed = Date.now() - startedAt;
+                if (data.status === 'success' && data.responsive && elapsed > 5000) {
+                    setAsteriskRestartProgress('Asterisk is online', [
+                        '<i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> Asterisk service responded successfully.',
+                        'You can close this dialog and continue using the PBX.'
+                    ], 'fa-solid fa-circle-check');
+                    setTimeout(() => {
+                        const progressModal = document.getElementById("progressModal");
+                        if (progressModal) progressModal.style.display = "none";
+                    }, 2500);
+                    return;
+                }
+                setTimeout(() => pollAsteriskAfterRestart(startedAt), 3000);
+            })
+            .catch(() => {
+                setTimeout(() => pollAsteriskAfterRestart(startedAt), 3000);
+            });
+        }
+        function executeSystemReboot() {
+            const btn = document.getElementById('confirmRebootBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Restarting...';
+            
+            fetch('/system/reboot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ token: asteriskRestartToken })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    throw new Error(data.message || 'Asterisk restart failed.');
+                }
+                closeSystemRebootModal();
+                const calls = data.active_calls === null || data.active_calls === undefined ? 'Unknown' : data.active_calls;
+                setAsteriskRestartProgress('Restarting Asterisk...', [
+                    '<i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> Core reload accepted.',
+                    '<i class="fa-solid fa-spinner fa-spin" style="color:#eab308;"></i> Restarting Asterisk service.',
+                    `Active calls before restart: ${calls}`
+                ], 'fa-solid fa-rotate-right fa-spin');
+                pollAsteriskAfterRestart(Date.now());
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Core Reload & Restart';
+                alert(err.message || 'Error connecting to server to initiate Asterisk restart.');
+            });
+        }
+
+        /* Profile Modal & Helpers */
+        function openMyProfileModal() {
+            document.getElementById('myProfileModal').style.display = 'flex';
+            switchProfileTab('info');
+            fetch('/api/profile/info')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.email !== undefined) {
+                        const emailInput = document.getElementById('profile_email');
+                        if (emailInput) emailInput.value = data.email || '';
+                    }
+                    if (data.role !== undefined) {
+                        const roleEl = document.getElementById('profile_display_role');
+                        if (roleEl) roleEl.textContent = data.privilege_name || data.role || 'Agent';
+                    }
+                })
+                .catch(e => console.error('Could not load profile details', e));
+        }
+
+        function closeMyProfileModal() {
+            document.getElementById('myProfileModal').style.display = 'none';
+        }
+
+        function switchProfileTab(tab) {
+            if (tab === 'info') {
+                document.getElementById('tab_content_profile_info').style.display = 'block';
+                document.getElementById('tab_content_profile_password').style.display = 'none';
+                document.getElementById('tab_btn_profile_info').className = 'btn btn-info btn-sm';
+                document.getElementById('tab_btn_profile_password').className = 'btn btn-secondary btn-sm';
+            } else {
+                document.getElementById('tab_content_profile_info').style.display = 'none';
+                document.getElementById('tab_content_profile_password').style.display = 'block';
+                document.getElementById('tab_btn_profile_info').className = 'btn btn-secondary btn-sm';
+                document.getElementById('tab_btn_profile_password').className = 'btn btn-info btn-sm';
+            }
+        }
+
+        function checkProfPasswordStrength(val) {
+            const fill = document.getElementById('prof_pw_meter_fill');
+            const txt = document.getElementById('prof_pw_meter_text');
+            if (!val) {
+                fill.style.width = '0%';
+                txt.textContent = 'Enter password to test strength';
+                txt.style.color = '#94a3b8';
+                return;
+            }
+            let score = 0;
+            if (val.length >= 6) score++;
+            if (val.length >= 10) score++;
+            if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+
+            if (score <= 1) {
+                fill.style.width = '25%';
+                fill.style.background = '#ef4444';
+                txt.textContent = 'Weak';
+                txt.style.color = '#ef4444';
+            } else if (score === 2 || score === 3) {
+                fill.style.width = '60%';
+                fill.style.background = '#f59e0b';
+                txt.textContent = 'Moderate';
+                txt.style.color = '#f59e0b';
+            } else {
+                fill.style.width = '100%';
+                fill.style.background = '#10b981';
+                txt.textContent = 'Strong & Secure';
+                txt.style.color = '#10b981';
+            }
+        }
+
+        function validateProfilePasswordChange() {
+            const np = document.getElementById('prof_new_password').value;
+            const cp = document.getElementById('prof_confirm_password').value;
+            if (np !== cp) {
+                alert('New password and confirmation do not match.');
+                return false;
+            }
+            if (np.length < 6) {
+                alert('Password must be at least 6 characters.');
+                return false;
+            }
+            return true;
+        }
+
+        window.addEventListener('click', function(e) {
+            if (e.target === document.getElementById('myProfileModal')) closeMyProfileModal();
+        });
+    </script>
+    
+<!-- Universal Import Modal -->
+<div id="universalImportModal" class="modal" style="display: none; z-index: 9999;">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="close-modal" onclick="closeUniversalImportModal()">&times;</span>
+        <h2 style="color: var(--text-main); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            Import Data
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Select or drag & drop your Excel or CSV file to import records instantly.</p>
+        
+        <form id="universalImportForm" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+            <input type="hidden" name="csrf_token" value="lkWbtm40EAwy6PG_VUsdB71czr-TNTEq">
+            <div class="import-drop-zone" id="importDropZone" style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 14px; padding: 3rem 2rem; text-align: center; cursor: pointer; transition: all 0.3s; background: var(--bg-dark); position: relative;">
+                <i class="fa-solid fa-file-excel" style="font-size: 3rem; color: #10b981; margin-bottom: 1rem; opacity: 0.8;"></i>
+                <h3 style="color: var(--text-main); margin-bottom: 0.5rem; font-size: 1.1rem;">Click to browse or drag file here</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Supports .xlsx and .csv files</p>
+                <input type="file" id="universal_import_file" name="import_file" accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+            </div>
+            
+            <div id="importFilePreview" style="display: none; margin-top: 1.5rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 1rem; border-radius: 8px; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fa-solid fa-file-circle-check" style="color: #10b981; font-size: 1.5rem;"></i>
+                    <div>
+                        <div id="importFileName" style="color: var(--text-main); font-weight: bold; font-size: 0.95rem;">filename.xlsx</div>
+                        <div id="importFileSize" style="color: #34d399; font-size: 0.8rem;">0 KB</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetUniversalImport()" style="padding: 0.35rem 0.75rem;"><i class="fa-solid fa-xmark"></i> Remove</button>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 2rem; border-top: none; padding-top: 0;">
+                <button type="button" class="btn btn-secondary" onclick="closeUniversalImportModal()">Cancel</button>
+                <button type="submit" class="btn btn-info" id="btn-universal-import-submit" disabled>
+                    <i class="fa-solid fa-file-import"></i> Upload & Import
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .import-drop-zone:hover, .import-drop-zone.dragover {
+        border-color: #3b82f6 !important;
+        background: rgba(59, 130, 246, 0.05) !important;
+    }
+</style>
+
+<script>
+    function openUniversalImportModal(actionUrl) {
+        const form = document.getElementById("universalImportForm");
+        if (form) form.action = actionUrl;
+        resetUniversalImport();
+        const modal = document.getElementById("universalImportModal");
+        if (modal) modal.style.display = "flex";
+    }
+    
+    function closeUniversalImportModal() {
+        const modal = document.getElementById("universalImportModal");
+        if (modal) modal.style.display = "none";
+    }
+    
+    function resetUniversalImport() {
+        const fileInput = document.getElementById("universal_import_file");
+        if (fileInput) fileInput.value = "";
+        
+        const dropZone = document.getElementById("importDropZone");
+        if (dropZone) dropZone.style.display = "block";
+        
+        const preview = document.getElementById("importFilePreview");
+        if (preview) preview.style.display = "none";
+        
+        const btn = document.getElementById("btn-universal-import-submit");
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-file-import"></i> Upload & Import';
+        }
+    }
+    
+    const uniFileInput = document.getElementById("universal_import_file");
+    if (uniFileInput) {
+        uniFileInput.addEventListener("change", function(e) {
+            if (this.files && this.files.length > 0) {
+                const file = this.files[0];
+                document.getElementById("importDropZone").style.display = "none";
+                document.getElementById("importFileName").innerText = file.name;
+                document.getElementById("importFileSize").innerText = (file.size / 1024).toFixed(1) + " KB";
+                document.getElementById("importFilePreview").style.display = "flex";
+                document.getElementById("btn-universal-import-submit").disabled = false;
+            }
+        });
+    }
+    
+    const uniForm = document.getElementById("universalImportForm");
+    if (uniForm) {
+        uniForm.addEventListener("submit", function() {
+            const btn = document.getElementById("btn-universal-import-submit");
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+            }
+        });
+    }
+    
+    const dropZone = document.getElementById('importDropZone');
+    if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); });
+        dropZone.addEventListener('drop', (e) => { dropZone.classList.remove('dragover'); });
+    }
+</script>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeCheckbox = document.getElementById('themeToggleCheckbox');
+            
+            if (document.documentElement.getAttribute('data-theme') === 'light') {
+                if (themeCheckbox) themeCheckbox.checked = false;
+            } else {
+                if (themeCheckbox) themeCheckbox.checked = true;
+            }
+            
+            if (themeCheckbox) {
+                themeCheckbox.addEventListener('change', (e) => {
+                    const newTheme = e.target.checked ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('rcm_theme', newTheme);
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>
