@@ -313,17 +313,16 @@ function bindSessionEvents(session) {
             document.getElementById('ringback-audio').pause();
             document.getElementById('ringing-audio').pause();
             startCallTimer();
+        const pc = session.sessionDescriptionHandler.peerConnection;
+        const remoteStream = new MediaStream();
+        pc.getReceivers().forEach(r => { if(r.track) remoteStream.addTrack(r.track); });
+        getAudioElement(session).srcObject = remoteStream;
         }
         if (state === SIP.SessionState.Terminated) {
             document.getElementById('ringback-audio').pause();
             document.getElementById('ringing-audio').pause();
             cleanupSession(session);
         }
-    });
-    session.sessionDescriptionHandler.on('trackAdded', () => {
-        const pc = session.sessionDescriptionHandler.peerConnection;
-        const stream = new MediaStream(pc.getReceivers().map(r => r.track));
-        getAudioElement(session).srcObject = stream;
     });
 }
 
