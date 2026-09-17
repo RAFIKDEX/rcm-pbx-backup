@@ -2425,7 +2425,7 @@ def check_auth():
     if app.config.get('TESTING') and not request.headers.get('X-Enforce-Security') and not request.environ.get('enforce_security'):
         return
     # List of endpoints that don't require login
-    open_endpoints = ['login', 'static', 'global_favicon', 'global_logo_png', 'forgot_password', 'forgot_password_verify', 'forgot_password_reset', 'dexterphone']
+    open_endpoints = ['login', 'static', 'global_favicon', 'global_logo_png', 'forgot_password', 'forgot_password_verify', 'forgot_password_reset', 'dexterphone', 'extensions_live_status']
     if 'logged_in' not in session and request.endpoint not in open_endpoints:
         if request.path.startswith('/api/') or request.path.startswith('/extensions/info') or request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({"error": "Unauthorized"}), 401
@@ -14336,6 +14336,28 @@ def survey_drilldown(survey_id):
     return jsonify({'results': results})
 
 
+
+@app.route("/api/extensions_live_status")
+def extensions_live_status():
+    import subprocess
+    try:
+        res = subprocess.check_output(["asterisk", "-rx", "core show channels concise"], text=True)
+        active = set()
+        for line in res.split("\n"):
+            if line.strip():
+                ch = line.split("!")[0]
+                if ch.startswith("PJSIP/"):
+                    active.add(ch.split("/")[1].split("-")[0])
+        import db
+        exts = db.get_all_extensions()
+        final_status = []
+        for e in exts:
+            ext_num = str(e["ext"])
+            st = "InUse" if ext_num in active else "Available"
+            final_status.append({"ext": ext_num, "name": e.get("name") or ext_num, "status": st})
+        return jsonify(final_status)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/dexterphone')
 def dexterphone():

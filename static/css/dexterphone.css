@@ -1,36 +1,125 @@
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
-.phone-container { width: 380px; height: 750px; background: #1e1e24; border-radius: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden; position: relative; border: 1px solid #333; }
-.header { background: #2b2b36; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-.header h2 { margin: 0; font-size: 1.2rem; font-weight: 500; }
-.status { font-size: 0.85rem; color: #aaa; }
-.screen { flex: 1; display: flex; flex-direction: column; padding: 20px; display: none; }
-.screen.active { display: flex; }
-.input-group { display: flex; flex-direction: column; margin-bottom: 15px; }
-.input-group label { font-size: 0.85rem; color: #aaa; margin-bottom: 5px; }
-.input-group input { background: #2b2b36; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; font-size: 1rem; outline: none; }
-.btn { background: #4a90e2; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; font-weight: 500; }
-.btn:hover { background: #357abd; }
-.btn-success { background: #28a745; }
-.btn-success:hover { background: #218838; }
-.btn-danger { background: #dc3545; }
-.btn-danger:hover { background: #c82333; }
-.btn-dark { background: #333; }
-.btn-dark:hover { background: #444; }
-.dial-display { text-align: center; margin-bottom: 20px; }
-.dial-display input { background: transparent; border: none; color: #fff; font-size: 2rem; text-align: center; width: 100%; outline: none; }
-.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
-.key { background: #2b2b36; border-radius: 50%; aspect-ratio: 1; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; cursor: pointer; transition: 0.2s; user-select: none; }
-.key:hover { background: #444; }
-.key:active { background: #555; transform: scale(0.95); }
-.call-card { background: #2b2b36; border-radius: 12px; padding: 15px; margin-bottom: 15px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
-.call-card.active { border-color: #4a90e2; background: #323242; }
-.call-card.background { opacity: 0.7; }
-.call-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-.call-info h3 { margin: 0; font-size: 1.1rem; }
-.call-info p { margin: 0; color: #aaa; font-size: 0.9rem; }
-.badge { background: #ffc107; color: #000; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
-.call-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.call-actions .btn { padding: 10px; font-size: 0.9rem; }
-#calls-container { flex: 1; overflow-y: auto; display: none; flex-direction: column; }
-.text-danger { color: #ff4d4d !important; }
-.text-warning { color: #ffc107 !important; }
+
+:root {
+  --bg: #080A0F;
+  --card: #121826;
+  --card-hover: #1A2234;
+  --border: #1E293B;
+  --text: #F8FAFC;
+  --text2: #94A3B8;
+  --primary: #2563EB;
+  --go: #10B981;
+  --stop: #EF4444;
+  --wait: #F59E0B;
+  --sky: #38BDF8;
+  --purple: #A855F7;
+}
+
+[data-theme="light"] {
+  --bg: #F8FAFC;
+  --card: #FFFFFF;
+  --card-hover: #F1F5F9;
+  --border: #E2E8F0;
+  --text: #0F172A;
+  --text2: #475569;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+body { background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+.hidden { display: none !important; }
+
+.app-container { display: flex; flex-direction: column; height: 100vh; }
+
+/* Topbar */
+.top-status-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: var(--card); border-bottom: 1px solid var(--border); height: 60px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-logo { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--sky)); display: flex; justify-content: center; align-items: center; font-size: 16px; }
+.brand h1 { font-size: 16px; margin: 0; }
+.brand span { font-size: 12px; color: var(--text2); }
+.top-actions { display: flex; align-items: center; gap: 15px; }
+.status-pill { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.05); }
+.status-pill.registered { color: var(--go); background: rgba(16,185,129,0.1); }
+.status-pill.offline { color: var(--stop); background: rgba(239,68,68,0.1); }
+.icon-btn { background: none; border: none; color: var(--text2); font-size: 18px; cursor: pointer; transition: 0.2s; }
+.icon-btn:hover { color: var(--text); }
+
+/* Workspace */
+.main-workspace { display: flex; flex: 1; overflow: hidden; }
+
+/* Sidebar */
+.sidebar { width: 280px; background: var(--bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 15px; gap: 20px; overflow-y: auto; }
+.sidebar-section h3 { font-size: 11px; color: var(--text2); text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; }
+.contact-list { display: flex; flex-direction: column; gap: 8px; }
+.speed-dial-btn, .blf-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; text-align: left; font-size: 13px; font-weight: 600; transition: 0.2s; }
+.speed-dial-btn:hover, .blf-item:hover { background: var(--card-hover); border-color: var(--primary); }
+.blf-item { justify-content: space-between; }
+.blf-info { display: flex; align-items: center; gap: 10px; }
+.blf-dot { width: 10px; height: 10px; border-radius: 50%; }
+.blf-dot.Available { background: var(--go); box-shadow: 0 0 5px var(--go); }
+.blf-dot.InUse { background: var(--stop); box-shadow: 0 0 5px var(--stop); }
+.blf-dot.Unavailable { background: var(--text2); }
+.search-box { position: relative; margin-bottom: 10px; }
+.search-box i { position: absolute; left: 10px; top: 10px; color: var(--text2); }
+.search-box input { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 10px 8px 30px; border-radius: 6px; outline: none; }
+.audio-settings .hardware-select { width: 100%; padding: 8px; background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 6px; margin-bottom: 8px; font-size: 12px; }
+
+/* Center Stage */
+.center-stage { flex: 1; position: relative; background: radial-gradient(circle at 50% 30%, var(--card) 0%, var(--bg) 90%); display: flex; justify-content: center; align-items: center; }
+.stage-view { width: 100%; height: 100%; display: none; justify-content: center; align-items: center; flex-direction: column; }
+.stage-view.active { display: flex; }
+
+/* Dialer */
+.dialer-wrapper { width: 300px; display: flex; flex-direction: column; gap: 20px; }
+#dial-input { width: 100%; text-align: center; font-size: 32px; background: transparent; border: none; color: var(--text); outline: none; letter-spacing: 2px; }
+.dialpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+.keypad-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 50%; width: 70px; height: 70px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--text); font-size: 24px; cursor: pointer; transition: 0.1s; margin: 0 auto; }
+.keypad-btn:active { background: rgba(255,255,255,0.15); transform: scale(0.95); }
+.keypad-btn span { font-size: 10px; color: var(--text2); margin-top: -2px; }
+.dialer-actions { display: flex; gap: 15px; justify-content: center; margin-top: 10px; }
+.call-btn { flex: 1; padding: 15px; border-radius: 30px; border: none; background: var(--go); color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px var(--go-glow); }
+.clear-btn { width: 50px; border-radius: 25px; border: none; background: rgba(255,255,255,0.05); color: var(--text2); cursor: pointer; }
+
+/* In-Call Stage */
+.active-call-stage { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 320px; }
+.codec-pill { font-size: 11px; padding: 4px 12px; background: rgba(56,189,248,0.15); color: var(--sky); border-radius: 20px; border: 1px solid rgba(56,189,248,0.3); }
+.caller-avatar { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #1E293B, #0F172A); border: 2px solid var(--border); display: flex; justify-content: center; align-items: center; font-size: 40px; color: var(--text2); position: relative; margin: 20px 0; }
+.pulse-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--go); animation: pulse 2s infinite ease-out; opacity: 0; }
+.pulse-ring.delay { animation-delay: 1s; }
+@keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
+.call-status { color: var(--go); font-weight: bold; font-size: 14px; }
+.call-timer { font-size: 32px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.in-call-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; width: 100%; margin-top: 20px; }
+.ctrl-btn { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--text); font-size: 20px; cursor: pointer; transition: 0.2s; margin: 0 auto; }
+.ctrl-btn:hover { background: rgba(255,255,255,0.15); }
+.ctrl-btn.active { background: rgba(255,255,255,0.25); color: var(--primary); border-color: var(--primary); }
+.end-call-btn { width: 100%; padding: 15px; border-radius: 30px; border: none; background: var(--stop); color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px var(--stop-glow); margin-top: 20px; }
+
+/* Multi-Call Island */
+.multi-call-island { position: absolute; top: 20px; width: 340px; background: linear-gradient(180deg, var(--card), var(--bg)); border: 1px solid var(--border); border-radius: 14px; padding: 15px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10; border-left: 4px solid var(--wait); }
+.island-header { display: flex; justify-content: space-between; align-items: center; }
+.amber-badge { font-size: 10px; font-weight: 900; background: rgba(245,158,11,0.15); color: var(--wait); padding: 4px 8px; border-radius: 6px; }
+.island-actions { display: flex; gap: 10px; }
+.pill-btn { flex: 1; padding: 8px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 12px; color: #fff; }
+.pill-btn.red { background: var(--stop); flex: 0 0 40px; }
+.pill-btn.sky { background: var(--sky); }
+.pill-btn.green { background: var(--go); }
+.pill-btn.purple { background: var(--purple); }
+.pill-btn.default { background: var(--border); color: var(--text); }
+
+/* Transfer Sheet */
+.transfer-sheet { position: absolute; bottom: 20px; width: 340px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; z-index: 11; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
+.transfer-sheet h3 { margin-bottom: 15px; font-size: 16px; text-align: center; }
+.transfer-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+
+/* Modals */
+.modal-overlay, .incoming-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 100; display: flex; justify-content: center; align-items: center; }
+.modal-content, .incoming-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 25px; width: 350px; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 5px; }
+.form-control { width: 100%; background: var(--bg); border: 1px solid var(--border); padding: 10px; color: var(--text); border-radius: 8px; outline: none; }
+.modal-actions, .incoming-actions { display: flex; gap: 10px; margin-top: 20px; }
+.save-btn, .accept-btn { flex: 1; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.accept-btn { background: var(--go); }
+.cancel-btn, .reject-btn { flex: 1; padding: 12px; background: rgba(255,255,255,0.1); color: var(--text); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.reject-btn { background: var(--stop); color: #fff; }
+.incoming-avatar { font-size: 40px; color: var(--go); text-align: center; margin-bottom: 15px; }
+.incoming-info { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 10px; }
