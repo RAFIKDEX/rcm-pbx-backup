@@ -40,7 +40,6 @@ const dom = {
     islandHeldName: document.getElementById('island-held-name'),
     btnIslandSwap: document.getElementById('btn-island-swap'),
     btnIslandMerge: document.getElementById('btn-island-merge'),
-    btnIslandTransfer: document.getElementById('btn-island-transfer'),
     btnIslandEnd: document.getElementById('btn-island-end'),
     islandBadge: document.getElementById('island-badge'),
     
@@ -568,7 +567,6 @@ dom.btnIslandMerge.onclick = async () => {
 };
 
 dom.btnTransfer.onclick = () => { dom.transferSheet.classList.remove('hidden'); };
-dom.btnIslandTransfer.onclick = () => { dom.transferSheet.classList.remove('hidden'); };
 dom.btnCancelTransfer.onclick = () => { dom.transferSheet.classList.add('hidden'); };
 
 dom.btnBlindTransfer.onclick = () => {
@@ -577,7 +575,7 @@ dom.btnBlindTransfer.onclick = () => {
     const uri = SIP.UserAgent.makeURI(`sip:${target}@${window.location.hostname}`);
     activeSession.refer(uri);
     dom.transferSheet.classList.add('hidden');
-    setTimeout(() => { if(activeSession) activeSession.bye(); }, 500);
+    // Let Asterisk send BYE after successful REFER
 };
 
 dom.btnAttendedTransfer.onclick = () => {
@@ -587,7 +585,7 @@ dom.btnAttendedTransfer.onclick = () => {
     }
     activeSession.refer(heldSession);
     dom.transferSheet.classList.add('hidden');
-    setTimeout(() => { if(activeSession) activeSession.bye(); if(heldSession) heldSession.bye(); }, 500);
+    // Let Asterisk send BYE after successful REFER
 };
 
 function playDTMF(digit) {
