@@ -13,35 +13,22 @@ const dom = {
     btnClear: document.getElementById('btn-dial-clear'),
     
     settingsModal: document.getElementById('settings-modal'),
-    btnShowSettings: document.getElementById('btn-show-settings'),
     btnSaveSettings: document.getElementById('btn-save-settings'),
-    btnCloseSettings: document.getElementById('btn-close-settings'),
     
     incomingModal: document.getElementById('incoming-modal'),
-    incomingInfo: document.getElementById('incoming-caller-info'),
-    btnAccept: document.getElementById('btn-incoming-accept'),
-    btnReject: document.getElementById('btn-incoming-reject'),
+    incomingInfo: document.getElementById('incoming-info'),
+    btnAccept: document.getElementById('btn-accept'),
+    btnReject: document.getElementById('btn-reject'),
     
-    activeCallStage: document.getElementById('active-call-stage'),
     activeCallerName: document.getElementById('active-caller-name'),
     activeCallStatus: document.getElementById('active-call-status'),
     activeCallTimer: document.getElementById('active-call-timer'),
     
-    btnMute: document.getElementById('btn-ctrl-mute'),
-    btnKeypad: document.getElementById('btn-ctrl-keypad'),
-    btnHold: document.getElementById('btn-ctrl-hold'),
-    btnAddCall: document.getElementById('btn-ctrl-add-call'),
-    inCallKeypad: document.getElementById('in-call-keypad'),
-    btnBackToCall: document.getElementById('btn-back-to-call'),
-    btnTransfer: document.getElementById('btn-ctrl-transfer'),
-    btnEnd: document.getElementById('btn-ctrl-end'),
-    
     multiCallIsland: document.getElementById('multi-call-island'),
     islandHeldName: document.getElementById('island-held-name'),
+    btnIslandEnd: document.getElementById('btn-island-end'),
     btnIslandSwap: document.getElementById('btn-island-swap'),
     btnIslandMerge: document.getElementById('btn-island-merge'),
-    btnIslandEnd: document.getElementById('btn-island-end'),
-    islandBadge: document.getElementById('island-badge'),
     
     transferSheet: document.getElementById('transfer-sheet'),
     transferTarget: document.getElementById('transfer-target'),
@@ -49,415 +36,156 @@ const dom = {
     btnAttendedTransfer: document.getElementById('btn-attended-transfer'),
     btnCancelTransfer: document.getElementById('btn-cancel-transfer'),
     
+    btnMute: document.getElementById('btn-mute'),
+    btnKeypad: document.getElementById('btn-keypad'),
+    btnHold: document.getElementById('btn-hold'),
+    btnTransfer: document.getElementById('btn-transfer'),
+    btnAddCall: document.getElementById('btn-add-call'),
+    btnEnd: document.getElementById('btn-end'),
+    
+    inCallKeypad: document.getElementById('in-call-keypad'),
     audioInput: document.getElementById('audio-input-select'),
-    audioOutput: document.getElementById('audio-output-select'),
-    blfList: document.getElementById('blf-list'),
-    blfSearch: document.getElementById('blf-search')
+    audioOutput: document.getElementById('audio-output-select')
 };
 
 let userAgent = null;
+let registerer = null;
 let activeSession = null;
 let heldSession = null;
 let incomingSession = null;
-let activeCallTimerId = null;
-let activeCallSeconds = 0;
-let mediaStreams = new Map(); // session -> MediaStream
-let remoteAudios = new Map(); // session -> HTMLAudioElement
+let callTimer = null;
+let callStartTime = null;
+const remoteAudios = new Map();
 
-// Theme Toggle
-dom.themeBtn.onclick = () => {
-    const isLight = document.body.getAttribute('data-theme') === 'light';
-    document.body.setAttribute('data-theme', isLight ? 'dark' : 'light');
-    dom.themeBtn.innerHTML = isLight ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadAudioDevices();
+    navigator.mediaDevices.ondevicechange = loadAudioDevices;
+    
+    if (localStorage.getItem('dxt_ext')) {
+        document.getElementById('sip-ext').value = localStorage.getItem('dxt_ext');
+        document.getElementById('sip-pwd').value = localStorage.getItem('dxt_pwd');
+        initSIP();
+    }
+});
+
+dom.btnSaveSettings.onclick = () => {
+    localStorage.setItem('dxt_ext', document.getElementById('sip-ext').value);
+    localStorage.setItem('dxt_pwd', document.getElementById('sip-pwd').value);
+    initSIP();
 };
 
-// Dialpad Logic
-document.querySelectorAll('.keypad-btn').forEach(btn => {
-    btn.onclick = () => {
-        const key = btn.getAttribute('data-key');
-        dom.dialInput.value += key;
-        if (activeSession) {
-            playDTMF(key);
-            sendDTMF(activeSession, key);
-        }
-    };
-});
-dom.btnClear.onclick = () => { dom.dialInput.value = dom.dialInput.value.slice(0, -1); };
-
-// Hardware Audio Enumeration & Hot-Swapping
-async function enumerateDevices() { if (!navigator.mediaDevices) return;
+async function loadAudioDevices() {
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
-        dom.audioInput.innerHTML = '';
-        dom.audioOutput.innerHTML = '';
-        devices.forEach(device => {
-            const option = document.createElement('option');
-            option.value = device.deviceId;
-            option.text = device.label || `Device ${device.deviceId.substring(0, 5)}`;
-            if (device.kind === 'audioinput') dom.audioInput.appendChild(option);
-            if (device.kind === 'audiooutput') dom.audioOutput.appendChild(option);
+        dom.audioInput.innerHTML = ''; dom.audioOutput.innerHTML = '';
+        devices.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.deviceId; opt.text = d.label || d.kind;
+            if (d.kind === 'audioinput') dom.audioInput.appendChild(opt);
+            else if (d.kind === 'audiooutput') dom.audioOutput.appendChild(opt);
         });
-    } catch (err) {
-        console.error('Failed to enumerate devices', err);
-    }
+    } catch(e) {}
 }
-if(navigator.mediaDevices) { navigator.mediaDevices.ondevicechange = enumerateDevices; } else { alert("WebRTC requires HTTPS! Please access this page using https:// to enable microphone and calling."); console.warn("mediaDevices API not available."); }
-dom.audioInput.onchange = applyAudioDevices;
-dom.audioOutput.onchange = applyAudioDevices;
-
-async function applyAudioDevices() {
-    const inputId = dom.audioInput.value;
-    const outputId = dom.audioOutput.value;
-    
-    // Output
-    if (outputId) {
-        remoteAudios.forEach(audio => {
-            if (audio.setSinkId) audio.setSinkId(outputId);
-        });
-        const ringback = document.getElementById('ringback-audio');
-        const ringing = document.getElementById('ringing-audio');
-        if (ringback.setSinkId) ringback.setSinkId(outputId);
-        if (ringing.setSinkId) ringing.setSinkId(outputId);
-    }
-    
-    // Input (Hot-swap for active calls)
-    if (inputId && activeSession) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: inputId } } });
-            const track = stream.getAudioTracks()[0];
-            const sender = activeSession.sessionDescriptionHandler.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-            if (sender) {
-                await sender.replaceTrack(track);
-                console.log('Successfully hot-swapped microphone track!');
-            }
-        } catch(e) { console.error('Hot-swap failed', e); }
-    }
-}
-enumerateDevices();
-
-// BLF Logic
-function updateBLF() {
-    fetch('/api/extensions_live_status')
-        .then(r => r.json())
-        .then(data => {
-            const term = dom.blfSearch.value.toLowerCase();
-            dom.blfList.innerHTML = '';
-            data.forEach(ext => {
-                if (ext.ext === document.getElementById('sip-ext').value) return; // skip self
-                if (term && !ext.ext.includes(term) && !ext.name.toLowerCase().includes(term)) return;
-                
-                const btn = document.createElement('div');
-                btn.className = 'blf-item';
-                btn.innerHTML = `
-                    <div class="blf-info">
-                        <div class="blf-dot ${ext.status}"></div>
-                        <div>
-                            <div style="font-size:13px;">${ext.name}</div>
-                            <div style="font-size:10px; color:var(--text2);">${ext.ext}</div>
-                        </div>
-                    </div>
-                    <button class="icon-btn" onclick="dialNumber('${ext.ext}')"><i class="fa-solid fa-phone"></i></button>
-                `;
-                dom.blfList.appendChild(btn);
-            });
-        }).catch(e => console.error(e));
-}
-setInterval(updateBLF, 5000);
-dom.blfSearch.onkeyup = updateBLF;
-updateBLF();
-
-// Helper to dial a number
-
-document.querySelectorAll('.incall-key').forEach(btn => {
-    btn.onclick = () => {
-        const key = btn.getAttribute('data-key');
-        if (activeSession) { playDTMF(key); sendDTMF(activeSession, key); }
-    };
-});
-
-// Keyboard Listener
-document.addEventListener('keydown', (e) => {
-    // Prevent if typing in an input field (unless it's the dial input which is readonly anyway)
-    if (e.target.tagName === 'INPUT' && e.target.id !== 'dial-input' && e.target.id !== 'blf-search') return;
-    
-    const key = e.key;
-    const validDtmf = /^[0-9*#a-d]$/i;
-    
-    if (activeSession && validDtmf.test(key)) {
-        playDTMF(key.toUpperCase());
-        sendDTMF(activeSession, key.toUpperCase());
-    } else if (!activeSession && dom.viewDialer.classList.contains('active') && validDtmf.test(key)) {
-        dom.dialInput.value += key.toUpperCase();
-    } else if (key === 'Backspace' && !activeSession && dom.viewDialer.classList.contains('active')) {
-        dom.dialInput.value = dom.dialInput.value.slice(0, -1);
-    } else if (key === 'Enter') {
-        if (incomingSession && !dom.incomingModal.classList.contains('hidden')) dom.btnAccept.click();
-        else if (dom.viewDialer.classList.contains('active') && dom.dialInput.value) dom.btnDial.click();
-    } else if (key === 'Escape') {
-        if (incomingSession && !dom.incomingModal.classList.contains('hidden')) dom.btnReject.click();
-        else if (dom.viewDialer.classList.contains('active')) dom.dialInput.value = '';
-    }
-});
-
-window.dialNumber = function(num) {
-    // allowed to add call
-    dom.dialInput.value = num;
-    dom.btnDial.click();
-};
-
-// SIP Initialization & Settings
-dom.btnShowSettings.onclick = () => { dom.settingsModal.classList.remove('hidden'); };
-dom.btnCloseSettings.onclick = () => { dom.settingsModal.classList.add('hidden'); };
-dom.btnSaveSettings.onclick = () => {
-    localStorage.setItem('dexter_ext', dom.settingsModal.querySelector('#sip-ext').value);
-    localStorage.setItem('dexter_pwd', dom.settingsModal.querySelector('#sip-pwd').value);
-    dom.settingsModal.classList.add('hidden');
-    initSIP();
-};
-document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('dexter_ext')) {
-        dom.settingsModal.querySelector('#sip-ext').value = localStorage.getItem('dexter_ext');
-        dom.settingsModal.querySelector('#sip-pwd').value = localStorage.getItem('dexter_pwd');
-        initSIP();
-    } else {
-        dom.settingsModal.classList.remove('hidden');
-    }
-});
 
 function initSIP() {
-    if (userAgent) userAgent.stop();
+    const ext = document.getElementById('sip-ext').value;
+    const pwd = document.getElementById('sip-pwd').value;
+    if (!ext || !pwd) return;
     
-    const ext = dom.settingsModal.querySelector('#sip-ext').value;
-    const pwd = dom.settingsModal.querySelector('#sip-pwd').value;
+    if (userAgent) userAgent.stop();
     const domain = window.location.hostname;
     
-    dom.uriDisplay.innerText = `Ext. ${ext}`;
-    dom.statusPill.className = 'status-pill';
-    dom.statusText.innerText = 'Connecting...';
-    
-    const uri = SIP.UserAgent.makeURI(`sip:${ext}_webrtc@${domain}`);
     userAgent = new SIP.UserAgent({
-        uri: uri,
-        transportOptions: { server: `wss://${domain}/ws` },
-        authorizationUsername: `${ext}_webrtc`,
+        uri: SIP.UserAgent.makeURI(`sip:${ext}@${domain}`),
+        authorizationUsername: ext,
         authorizationPassword: pwd,
-        delegate: {
-            onInvite: handleInvite
+        transportOptions: { server: `wss://${domain}/ws` },
+        sessionDescriptionHandlerFactoryOptions: {
+            peerConnectionOptions: { rtcConfiguration: { sdpSemantics: 'unified-plan' } }
         }
     });
-    
     
     userAgent.transport.onConnect = () => {
         dom.statusPill.style.color = 'var(--go)';
-        dom.statusText.innerText = 'Connected';
+        dom.statusText.innerText = 'Registered';
+        dom.uriDisplay.innerText = `sip:${ext}@${domain}`;
+        dom.settingsModal.classList.add('hidden');
     };
+    
     userAgent.transport.onDisconnect = () => {
         dom.statusPill.style.color = 'var(--stop)';
-        dom.statusText.innerText = 'Reconnecting...';
-        
-        // Cleanup orphaned sessions on sudden network drop
-        const oldAct = activeSession; const oldHeld = heldSession; activeSession = null; heldSession = null; if(oldAct) cleanupSession(oldAct); if(oldHeld) cleanupSession(oldHeld);
+        dom.statusText.innerText = 'Offline';
+        const oldAct = activeSession; const oldHeld = heldSession;
+        activeSession = null; heldSession = null;
+        if(oldAct) cleanupSession(oldAct);
+        if(oldHeld) cleanupSession(oldHeld);
         if (incomingSession) { incomingSession = null; dom.incomingModal.classList.add('hidden'); document.getElementById('ringing-audio').pause(); }
-        
-        stopCallTimer();
         updateStageView();
     };
     
-    const registerer = new SIP.Registerer(userAgent);
-    
-    userAgent.start().then(() => registerer.register())
-    .then(() => {
-        dom.statusPill.className = 'status-pill registered';
-        dom.statusText.innerText = 'Registered ✔';
-    })
-    .catch(err => {
-        dom.statusPill.className = 'status-pill offline';
-        dom.statusText.innerText = 'Offline ✖';
-        console.error(err);
-    });
-}
-
-
-function updateStageView() {
-    if (activeSession || heldSession) {
-        dom.btnBackToCall.classList.remove('hidden');
-    } else {
-        dom.btnBackToCall.classList.add('hidden');
-    }
-
-    if (activeSession || heldSession) {
-        dom.viewDialer.classList.remove('active');
-        dom.viewCalls.classList.add('active');
-        
-        if (activeSession) {
-            dom.activeCallerName.innerText = activeSession.remoteIdentity.displayName || activeSession.remoteIdentity.uri.user;
-            const state = activeSession.state;
-            if (state === SIP.SessionState.Establishing) dom.activeCallStatus.innerText = 'Ringing...';
-            else if (state === SIP.SessionState.Established) {
-                if (dom.btnHold.classList.contains('active')) {
-                    dom.activeCallStatus.innerText = 'Held (by you)';
-                    dom.activeCallStatus.style.color = 'var(--wait)';
-                } else {
-                    dom.activeCallStatus.innerText = 'Connected';
-                    dom.activeCallStatus.style.color = 'var(--go)';
+    userAgent.delegate = {
+        onInvite: (invitation) => {
+            document.getElementById('ringing-audio').play();
+            incomingSession = invitation;
+            dom.incomingInfo.innerText = invitation.remoteIdentity.displayName || invitation.remoteIdentity.uri.user;
+            dom.incomingModal.classList.remove('hidden');
+            invitation.stateChange.addListener((state) => {
+                if (state === SIP.SessionState.Terminated) {
+                    document.getElementById('ringing-audio').pause();
+                    dom.incomingModal.classList.add('hidden');
+                    incomingSession = null;
                 }
-            }
+            });
         }
-        
-        if (heldSession) {
-            dom.multiCallIsland.classList.remove('hidden');
-            dom.islandHeldName.innerText = heldSession.remoteIdentity.displayName || heldSession.remoteIdentity.uri.user;
+    };
+    registerer = new SIP.Registerer(userAgent);
+    userAgent.start().then(() => registerer.register());
+}
+
+document.querySelectorAll('.dial-key').forEach(btn => {
+    btn.onclick = () => {
+        const num = btn.getAttribute('data-key');
+        if (dom.viewDialer.classList.contains('active')) {
+            dom.dialInput.value += num;
         } else {
-            dom.multiCallIsland.classList.add('hidden');
+            sendDTMF(num);
         }
-        
-    } else {
-        dom.viewCalls.classList.remove('active');
-        dom.viewDialer.classList.add('active');
-        stopCallTimer();
-    }
-}
+    };
+});
+dom.btnClear.onclick = () => dom.dialInput.value = dom.dialInput.value.slice(0, -1);
 
-// Timer Logic
-function startCallTimer() {
-    if (activeCallTimerId) return;
-    activeCallSeconds = 0;
-    activeCallTimerId = setInterval(() => {
-        activeCallSeconds++;
-        const m = String(Math.floor(activeCallSeconds/60)).padStart(2,'0');
-        const s = String(activeCallSeconds%60).padStart(2,'0');
-        dom.activeCallTimer.innerText = `${m}:${s}`;
-    }, 1000);
-}
-function stopCallTimer() {
-    clearInterval(activeCallTimerId);
-    activeCallTimerId = null;
-    dom.activeCallTimer.innerText = '00:00';
-}
-
-function getAudioElement(session) {
-    if (!remoteAudios.has(session)) {
-        const audio = new Audio();
-        audio.autoplay = true;
-        document.body.appendChild(audio);
-        remoteAudios.set(session, audio);
-        if (dom.audioOutput.value && audio.setSinkId) audio.setSinkId(dom.audioOutput.value);
-    }
-    return remoteAudios.get(session);
-}
-function cleanupSession(session) {
-    if (remoteAudios.has(session)) {
-        const a = remoteAudios.get(session);
-        a.pause();
-        a.remove();
-        remoteAudios.delete(session);
-    }
-    if (activeSession === session) activeSession = null;
-    if (heldSession === session) heldSession = null;
-    
-    // Auto-unhold logic
-    if (!activeSession && heldSession) {
-        activeSession = heldSession;
-        heldSession = null;
-        toggleHold(activeSession, false); // Resume
-    }
-    updateStageView();
-}
-
-function bindSessionEvents(session) {
-    session.stateChange.addListener((state) => {
-        updateStageView();
-        if (state === SIP.SessionState.Established) {
-            document.getElementById('ringback-audio').pause();
-            document.getElementById('ringing-audio').pause();
-            startCallTimer();
-        const pc = session.sessionDescriptionHandler.peerConnection;
-        const remoteStream = new MediaStream();
-        pc.getReceivers().forEach(r => { if(r.track) remoteStream.addTrack(r.track); });
-        getAudioElement(session).srcObject = remoteStream;
-        }
-        if (state === SIP.SessionState.Terminated) {
-            document.getElementById('ringback-audio').pause();
-            document.getElementById('ringing-audio').pause();
-            cleanupSession(session);
-        }
-    });
-}
-
-// Making a Call
-dom.btnDial.onclick = async () => {
+dom.btnDial.onclick = () => {
     const target = dom.dialInput.value;
     if (!target) return;
-    
-    if (activeSession) {
-        // We have an active call, put it on hold first!
-        await toggleHold(activeSession, true);
-        heldSession = activeSession;
-        activeSession = null;
-    }
-    
     const uri = SIP.UserAgent.makeURI(`sip:${target}@${window.location.hostname}`);
-    
-    const inputId = dom.audioInput.value;
-    const constraints = inputId ? { audio: { deviceId: { exact: inputId } } } : { audio: true };
-    try { await navigator.mediaDevices.getUserMedia(constraints); } catch(e) { alert("Microphone access failed. Please allow microphone permissions or connect a microphone."); return; }
-    
-    const inviter = new SIP.Inviter(userAgent, uri, {
-        sessionDescriptionHandlerOptions: { constraints: constraints }
-    });
+    const inviter = new SIP.Inviter(userAgent, uri);
     activeSession = inviter;
-    bindSessionEvents(inviter);
-    inviter.invite().catch(e => alert("SIP Invite failed: " + e.message));
+    bindSessionEvents(activeSession);
+    const constraints = dom.audioInput.value ? { audio: { deviceId: { exact: dom.audioInput.value } } } : { audio: true };
+    inviter.invite({ sessionDescriptionHandlerOptions: { constraints: constraints } });
     document.getElementById('ringback-audio').play();
+    dom.dialInput.value = '';
     updateStageView();
 };
-
-// Receiving a Call
-function handleInvite(invitation) {
-    document.getElementById('ringing-audio').play();
-    incomingSession = invitation;
-    dom.incomingInfo.innerText = invitation.remoteIdentity.displayName || invitation.remoteIdentity.uri.user;
-    dom.incomingModal.classList.remove('hidden');
-    
-    invitation.stateChange.addListener((state) => {
-        if (state === SIP.SessionState.Terminated) {
-            document.getElementById('ringing-audio').pause();
-            dom.incomingModal.classList.add('hidden');
-            incomingSession = null;
-        }
-    });
-}
 
 dom.btnAccept.onclick = async () => {
     document.getElementById('ringing-audio').pause();
     dom.incomingModal.classList.add('hidden');
-    
-    if (activeSession) {
-        await toggleHold(activeSession, true);
-        heldSession = activeSession;
-    }
-    
-    const inputId = dom.audioInput.value;
-    const constraints = inputId ? { audio: { deviceId: { exact: inputId } } } : { audio: true };
-    
-    activeSession = incomingSession;
+    if (activeSession) { await toggleHold(activeSession, true); heldSession = activeSession; }
+    activeSession = incomingSession; incomingSession = null;
     bindSessionEvents(activeSession);
-    activeSession.accept({
-        sessionDescriptionHandlerOptions: { constraints: constraints }
-    }).catch(e => alert("Accept failed: " + e.message));
+    const constraints = dom.audioInput.value ? { audio: { deviceId: { exact: dom.audioInput.value } } } : { audio: true };
+    activeSession.accept({ sessionDescriptionHandlerOptions: { constraints: constraints } });
+    updateStageView();
 };
 
 dom.btnReject.onclick = () => {
     document.getElementById('ringing-audio').pause();
     dom.incomingModal.classList.add('hidden');
-    if (incomingSession) {
-        incomingSession.reject();
-        incomingSession = null;
-    }
+    if (incomingSession) { incomingSession.reject(); incomingSession = null; }
 };
 
-// In-Call Controls
 dom.btnEnd.onclick = () => {
     if (activeSession) {
         if (activeSession.state === SIP.SessionState.Established) activeSession.bye();
@@ -465,158 +193,129 @@ dom.btnEnd.onclick = () => {
     }
 };
 
-
-dom.btnBackToCall.onclick = () => {
-    updateStageView(); // this will automatically show view-calls if activeSession or heldSession exists
-};
-
-dom.btnAddCall.onclick = () => {
-
-    dom.viewCalls.classList.remove('active');
-    dom.viewDialer.classList.add('active');
-    dom.dialInput.style.display = 'block';
-};
-
-dom.btnIslandEnd.onclick = () => {
-    if (heldSession) heldSession.bye();
-};
-
+dom.btnIslandEnd.onclick = () => { if (heldSession) heldSession.bye(); };
 dom.btnMute.onclick = () => {
     if (!activeSession) return;
-    const pc = activeSession.sessionDescriptionHandler.peerConnection;
-    const senders = pc.getSenders().filter(s => s.track && s.track.kind === 'audio');
     const isMuted = dom.btnMute.classList.contains('active');
-    senders.forEach(s => s.track.enabled = isMuted); // Flip
+    activeSession.sessionDescriptionHandler.peerConnection.getSenders().filter(s => s.track && s.track.kind === 'audio').forEach(s => s.track.enabled = isMuted);
     dom.btnMute.classList.toggle('active');
 };
+dom.btnHold.onclick = () => toggleHold(activeSession);
+dom.btnKeypad.onclick = () => { dom.inCallKeypad.classList.toggle('hidden'); dom.btnKeypad.classList.toggle('active'); };
+dom.btnAddCall.onclick = () => { dom.viewCalls.classList.add('hidden'); dom.viewDialer.classList.add('active'); };
+
+function bindSessionEvents(session) {
+    session.stateChange.addListener((state) => {
+        updateStageView();
+        if (state === SIP.SessionState.Established) {
+            document.getElementById('ringback-audio').pause();
+            const pc = session.sessionDescriptionHandler.peerConnection;
+            const rs = new MediaStream();
+            pc.getReceivers().forEach(r => { if(r.track) rs.addTrack(r.track); });
+            const ae = document.createElement('audio'); ae.autoplay = true; ae.srcObject = rs;
+            if(dom.audioOutput.value && typeof ae.setSinkId !== 'undefined') ae.setSinkId(dom.audioOutput.value);
+            remoteAudios.set(session, ae);
+            if (session === activeSession) startCallTimer();
+        }
+        if (state === SIP.SessionState.Terminated) {
+            document.getElementById('ringback-audio').pause();
+            cleanupSession(session);
+        }
+    });
+}
+
+function cleanupSession(session) {
+    if (remoteAudios.has(session)) { remoteAudios.get(session).pause(); remoteAudios.get(session).remove(); remoteAudios.delete(session); }
+    if (activeSession === session) { activeSession = null; stopCallTimer(); }
+    if (heldSession === session) heldSession = null;
+    if (!activeSession && heldSession) { activeSession = heldSession; heldSession = null; toggleHold(activeSession, false); }
+    updateStageView();
+}
 
 async function toggleHold(session, forceHold) {
-    if (!session) return;
+    if(!session) return;
     const isCurrentlyHeld = dom.btnHold.classList.contains('active');
     const shouldHold = forceHold !== undefined ? forceHold : !isCurrentlyHeld;
-    
     if (shouldHold) {
         dom.btnHold.classList.add('active');
-        await session.invite({
-            sessionDescriptionHandlerModifiers: [
-                (desc) => { desc.sdp = desc.sdp.replace(/a=sendrecv/g, 'a=sendonly'); return Promise.resolve(desc); }
-            ]
-        });
+        await session.invite({ sessionDescriptionHandlerModifiers: [(desc) => { desc.sdp = desc.sdp.replace(/a=sendrecv/g, 'a=sendonly'); return Promise.resolve(desc); }]});
     } else {
         dom.btnHold.classList.remove('active');
-        await session.invite({
-            sessionDescriptionHandlerModifiers: [
-                (desc) => { desc.sdp = desc.sdp.replace(/a=sendonly/g, 'a=sendrecv'); return Promise.resolve(desc); }
-            ]
-        });
+        await session.invite({ sessionDescriptionHandlerModifiers: [(desc) => { desc.sdp = desc.sdp.replace(/a=sendonly/g, 'a=sendrecv'); return Promise.resolve(desc); }]});
     }
     updateStageView();
 }
-dom.btnHold.onclick = () => toggleHold(activeSession);
 
 dom.btnIslandSwap.onclick = async () => {
-    const oldActive = activeSession;
-    const oldHeld = heldSession;
-    
-    // Put current on hold
-    await toggleHold(oldActive, true);
-    
-    // Make held active
-    activeSession = oldHeld;
-    heldSession = oldActive;
-    
-    // Resume new active
-    await toggleHold(activeSession, false);
-    updateStageView();
+    const oA = activeSession; const oH = heldSession;
+    await toggleHold(oA, true); activeSession = oH; heldSession = oA;
+    await toggleHold(activeSession, false); updateStageView();
 };
 
 dom.btnIslandMerge.onclick = async () => {
-    if (!activeSession || !heldSession) return;
-    
-    dom.btnIslandMerge.innerText = "Merging...";
+    if(!activeSession || !heldSession) return;
     dom.btnIslandMerge.disabled = true;
-    
     try {
-        await heldSession.invite({
-            sessionDescriptionHandlerModifiers: [ (desc) => { desc.sdp = desc.sdp.replace(/a=sendonly/g, 'a=sendrecv'); return Promise.resolve(desc); } ]
-        });
-        
-        const actStream = getAudioElement(activeSession).srcObject;
-        const heldStream = getAudioElement(heldSession).srcObject;
-        
-        const inputId = dom.audioInput.value;
-        const constraints = inputId ? { audio: { deviceId: { exact: inputId } } } : { audio: true };
-        const localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        
+        await heldSession.invite({ sessionDescriptionHandlerModifiers: [(desc) => { desc.sdp = desc.sdp.replace(/a=sendonly/g, 'a=sendrecv'); return Promise.resolve(desc); }]});
         const ac = new (window.AudioContext || window.webkitAudioContext)();
-        const srcAct = ac.createMediaStreamSource(actStream);
-        const srcHeld = ac.createMediaStreamSource(heldStream);
-        const srcLocal = ac.createMediaStreamSource(localStream);
-        
-        const destAct = ac.createMediaStreamDestination();
-        const destHeld = ac.createMediaStreamDestination();
-        
-        srcLocal.connect(destAct);
-        srcHeld.connect(destAct);
-        
-        srcLocal.connect(destHeld);
-        srcAct.connect(destHeld);
-        
-        const actSender = activeSession.sessionDescriptionHandler.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-        if (actSender) actSender.replaceTrack(destAct.stream.getAudioTracks()[0]);
-        
-        const heldSender = heldSession.sessionDescriptionHandler.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-        if (heldSender) heldSender.replaceTrack(destHeld.stream.getAudioTracks()[0]);
-        
+        const s1 = ac.createMediaStreamSource(remoteAudios.get(activeSession).srcObject);
+        const s2 = ac.createMediaStreamSource(remoteAudios.get(heldSession).srcObject);
+        const ls = await navigator.mediaDevices.getUserMedia(dom.audioInput.value ? { audio: { deviceId: { exact: dom.audioInput.value } } } : { audio: true });
+        const sl = ac.createMediaStreamSource(ls);
+        const d1 = ac.createMediaStreamDestination(); const d2 = ac.createMediaStreamDestination();
+        sl.connect(d1); s2.connect(d1); sl.connect(d2); s1.connect(d2);
+        activeSession.sessionDescriptionHandler.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='audio').replaceTrack(d1.stream.getAudioTracks()[0]);
+        heldSession.sessionDescriptionHandler.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='audio').replaceTrack(d2.stream.getAudioTracks()[0]);
         dom.btnHold.classList.remove('active');
-        dom.islandHeldName.innerText = dom.activeCallerName.innerText + " & " + dom.islandHeldName.innerText;
         dom.activeCallStatus.innerText = "3-Way Conference";
-        dom.btnIslandMerge.innerHTML = '<i class="fa-solid fa-check"></i> Merged';
-        dom.islandBadge.innerText = "👥 CONF";
-        dom.islandBadge.style.background = "rgba(16,185,129,0.15)";
-        dom.islandBadge.style.color = "var(--go)";
-        
-    } catch(e) {
-        alert("Merge failed: " + e.message);
-        dom.btnIslandMerge.innerHTML = '<i class="fa-solid fa-users"></i> Merge 3-Way';
-        dom.btnIslandMerge.disabled = false;
-    }
+    } catch(e) { alert("Merge failed"); }
+    dom.btnIslandMerge.disabled = false;
 };
 
-dom.btnTransfer.onclick = () => { dom.transferSheet.classList.remove('hidden'); };
-dom.btnCancelTransfer.onclick = () => { dom.transferSheet.classList.add('hidden'); };
-
+dom.btnTransfer.onclick = () => dom.transferSheet.classList.remove('hidden');
+dom.btnCancelTransfer.onclick = () => dom.transferSheet.classList.add('hidden');
 dom.btnBlindTransfer.onclick = () => {
-    const target = dom.transferTarget.value;
-    if (!target || !activeSession) return;
-    const uri = SIP.UserAgent.makeURI(`sip:${target}@${window.location.hostname}`);
-    activeSession.refer(uri);
+    if(!activeSession || !dom.transferTarget.value) return;
+    activeSession.refer(SIP.UserAgent.makeURI(`sip:${dom.transferTarget.value}@${window.location.hostname}`));
     dom.transferSheet.classList.add('hidden');
-    // Let Asterisk send BYE after successful REFER
 };
-
 dom.btnAttendedTransfer.onclick = () => {
-    if (!heldSession || !activeSession) {
-        alert("You must have a held call to perform attended transfer.");
-        return;
-    }
+    if(!activeSession || !heldSession) return;
     activeSession.refer(heldSession);
     dom.transferSheet.classList.add('hidden');
-    // Let Asterisk send BYE after successful REFER
 };
 
-function playDTMF(digit) {
-    // Optional client side beep
-}
-function sendDTMF(session, digit) {
-    const pc = session.sessionDescriptionHandler.peerConnection;
-    const senders = pc.getSenders();
-    const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-    if (audioSender && audioSender.dtmf) {
-        audioSender.dtmf.insertDTMF(digit);
+function sendDTMF(d) {
+    if(activeSession) {
+        const s = activeSession.sessionDescriptionHandler.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='audio');
+        if(s && s.dtmf) s.dtmf.insertDTMF(d);
     }
 }
-dom.btnKeypad.onclick = () => {
-    dom.inCallKeypad.classList.toggle('hidden');
-    dom.btnKeypad.classList.toggle('active');
-};
+
+function updateStageView() {
+    if (!activeSession && !heldSession) {
+        dom.viewCalls.classList.add('hidden'); dom.viewDialer.classList.add('active');
+    } else {
+        dom.viewDialer.classList.remove('active'); dom.viewCalls.classList.remove('hidden');
+        if (activeSession) {
+            dom.activeCallerName.innerText = activeSession.remoteIdentity.displayName || activeSession.remoteIdentity.uri.user;
+            dom.activeCallStatus.innerText = activeSession.state === SIP.SessionState.Establishing ? "Connecting..." : "Active Call";
+        }
+        if (heldSession) {
+            dom.multiCallIsland.classList.remove('hidden');
+            dom.islandHeldName.innerText = heldSession.remoteIdentity.displayName || heldSession.remoteIdentity.uri.user;
+        } else {
+            dom.multiCallIsland.classList.add('hidden');
+        }
+    }
+}
+
+function startCallTimer() {
+    callStartTime = Date.now();
+    clearInterval(callTimer);
+    callTimer = setInterval(() => {
+        const d = Math.floor((Date.now() - callStartTime)/1000);
+        dom.activeCallTimer.innerText = String(Math.floor(d/60)).padStart(2,'0')+":"+String(d%60).padStart(2,'0');
+    }, 1000);
+}
+function stopCallTimer() { clearInterval(callTimer); dom.activeCallTimer.innerText = "00:00"; }
