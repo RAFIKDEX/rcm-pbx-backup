@@ -482,14 +482,14 @@ async function toggleHold(session, forceHold) {
         dom.btnHold.classList.add('active');
         await session.invite({
             sessionDescriptionHandlerModifiers: [
-                (sdp) => sdp.replace(/a=sendrecv/g, 'a=sendonly')
+                (desc) => { desc.sdp = desc.sdp.replace(/a=sendrecv/g, 'a=sendonly'); return Promise.resolve(desc); }
             ]
         });
     } else {
         dom.btnHold.classList.remove('active');
         await session.invite({
             sessionDescriptionHandlerModifiers: [
-                (sdp) => sdp.replace(/a=sendonly/g, 'a=sendrecv')
+                (desc) => { desc.sdp = desc.sdp.replace(/a=sendonly/g, 'a=sendrecv'); return Promise.resolve(desc); }
             ]
         });
     }
@@ -526,6 +526,7 @@ dom.btnBlindTransfer.onclick = () => {
     const uri = SIP.UserAgent.makeURI(`sip:${target}@${window.location.hostname}`);
     activeSession.refer(uri);
     dom.transferSheet.classList.add('hidden');
+    setTimeout(() => { if(activeSession) activeSession.bye(); }, 500);
 };
 
 dom.btnAttendedTransfer.onclick = () => {
@@ -535,6 +536,7 @@ dom.btnAttendedTransfer.onclick = () => {
     }
     activeSession.refer(heldSession);
     dom.transferSheet.classList.add('hidden');
+    setTimeout(() => { if(activeSession) activeSession.bye(); if(heldSession) heldSession.bye(); }, 500);
 };
 
 function playDTMF(digit) {
