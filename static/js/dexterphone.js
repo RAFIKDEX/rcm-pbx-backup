@@ -30,6 +30,9 @@ const dom = {
     btnMute: document.getElementById('btn-ctrl-mute'),
     btnKeypad: document.getElementById('btn-ctrl-keypad'),
     btnHold: document.getElementById('btn-ctrl-hold'),
+    btnAddCall: document.getElementById('btn-ctrl-add-call'),
+    inCallKeypad: document.getElementById('in-call-keypad'),
+    btnBackToCall: document.getElementById('btn-back-to-call'),
     btnTransfer: document.getElementById('btn-ctrl-transfer'),
     btnEnd: document.getElementById('btn-ctrl-end'),
     
@@ -165,8 +168,40 @@ dom.blfSearch.onkeyup = updateBLF;
 updateBLF();
 
 // Helper to dial a number
+
+document.querySelectorAll('.incall-key').forEach(btn => {
+    btn.onclick = () => {
+        const key = btn.getAttribute('data-key');
+        if (activeSession) { playDTMF(key); sendDTMF(activeSession, key); }
+    };
+});
+
+// Keyboard Listener
+document.addEventListener('keydown', (e) => {
+    // Prevent if typing in an input field (unless it's the dial input which is readonly anyway)
+    if (e.target.tagName === 'INPUT' && e.target.id !== 'dial-input' && e.target.id !== 'blf-search') return;
+    
+    const key = e.key;
+    const validDtmf = /^[0-9*#a-d]$/i;
+    
+    if (activeSession && validDtmf.test(key)) {
+        playDTMF(key.toUpperCase());
+        sendDTMF(activeSession, key.toUpperCase());
+    } else if (!activeSession && dom.viewDialer.classList.contains('active') && validDtmf.test(key)) {
+        dom.dialInput.value += key.toUpperCase();
+    } else if (key === 'Backspace' && !activeSession && dom.viewDialer.classList.contains('active')) {
+        dom.dialInput.value = dom.dialInput.value.slice(0, -1);
+    } else if (key === 'Enter') {
+        if (incomingSession && !dom.incomingModal.classList.contains('hidden')) dom.btnAccept.click();
+        else if (dom.viewDialer.classList.contains('active') && dom.dialInput.value) dom.btnDial.click();
+    } else if (key === 'Escape') {
+        if (incomingSession && !dom.incomingModal.classList.contains('hidden')) dom.btnReject.click();
+        else if (dom.viewDialer.classList.contains('active')) dom.dialInput.value = '';
+    }
+});
+
 window.dialNumber = function(num) {
-    if (activeSession) return; // Block if in call
+    // allowed to add call
     dom.dialInput.value = num;
     dom.btnDial.click();
 };
@@ -226,7 +261,14 @@ function initSIP() {
     });
 }
 
+
 function updateStageView() {
+    if (activeSession || heldSession) {
+        dom.btnBackToCall.classList.remove('hidden');
+    } else {
+        dom.btnBackToCall.classList.add('hidden');
+    }
+
     if (activeSession || heldSession) {
         dom.viewDialer.classList.remove('active');
         dom.viewCalls.classList.add('active');
@@ -405,6 +447,19 @@ dom.btnEnd.onclick = () => {
         else if (activeSession.state === SIP.SessionState.Establishing) activeSession.cancel();
     }
 };
+
+
+dom.btnBackToCall.onclick = () => {
+    updateStageView(); // this will automatically show view-calls if activeSession or heldSession exists
+};
+
+dom.btnAddCall.onclick = () => {
+
+    dom.viewCalls.classList.remove('active');
+    dom.viewDialer.classList.add('active');
+    dom.dialInput.style.display = 'block';
+};
+
 dom.btnIslandEnd.onclick = () => {
     if (heldSession) heldSession.bye();
 };
@@ -494,9 +549,6 @@ function sendDTMF(session, digit) {
     }
 }
 dom.btnKeypad.onclick = () => {
-    // Toggles between keypad overlay
-    dom.viewDialer.classList.add('active');
-    dom.viewCalls.classList.remove('active');
-    // Hide dial input, just show keypad
-    dom.dialInput.style.display = 'none';
+    dom.inCallKeypad.classList.toggle('hidden');
+    dom.btnKeypad.classList.toggle('active');
 };

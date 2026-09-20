@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--text); overflow: hidden; height: 100v
 @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
 .call-status { color: var(--go); font-weight: bold; font-size: 14px; }
 .call-timer { font-size: 32px; font-weight: 300; font-variant-numeric: tabular-nums; }
-.in-call-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; width: 100%; margin-top: 20px; }
+.in-call-controls { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; width: 100%; margin-top: 20px; }
 .ctrl-btn { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--text); font-size: 20px; cursor: pointer; transition: 0.2s; margin: 0 auto; }
 .ctrl-btn:hover { background: rgba(255,255,255,0.15); }
 .ctrl-btn.active { background: rgba(255,255,255,0.25); color: var(--primary); border-color: var(--primary); }

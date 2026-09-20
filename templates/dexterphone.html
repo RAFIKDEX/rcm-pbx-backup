@@ -80,6 +80,7 @@
                <button class="keypad-btn" data-key="#">#<span></span></button>
              </div>
              <div class="dialer-actions">
+               <button id="btn-back-to-call" class="pill-btn sky hidden" style="margin-top: 15px; width: 100%;"><i class="fa-solid fa-arrow-left"></i> Back to Active Call</button>
                <button id="btn-dial-call" class="call-btn"><i class="fa-solid fa-phone"></i> CALL</button>
                <button id="btn-dial-clear" class="clear-btn"><i class="fa-solid fa-delete-left"></i></button>
              </div>
@@ -115,10 +116,27 @@
               <div class="call-timer" id="active-call-timer">00:00</div>
               
               <!-- Bottom Controls -->
+              <!-- In-Call Keypad (Hidden by default) -->
+              <div id="in-call-keypad" class="dialpad hidden" style="margin-top: 15px; transform: scale(0.8);">
+                 <button class="keypad-btn incall-key" data-key="1">1</button>
+                 <button class="keypad-btn incall-key" data-key="2">2</button>
+                 <button class="keypad-btn incall-key" data-key="3">3</button>
+                 <button class="keypad-btn incall-key" data-key="4">4</button>
+                 <button class="keypad-btn incall-key" data-key="5">5</button>
+                 <button class="keypad-btn incall-key" data-key="6">6</button>
+                 <button class="keypad-btn incall-key" data-key="7">7</button>
+                 <button class="keypad-btn incall-key" data-key="8">8</button>
+                 <button class="keypad-btn incall-key" data-key="9">9</button>
+                 <button class="keypad-btn incall-key" data-key="*">*</button>
+                 <button class="keypad-btn incall-key" data-key="0">0</button>
+                 <button class="keypad-btn incall-key" data-key="#">#</button>
+              </div>
               <div class="in-call-controls" id="in-call-controls">
+              
                  <button class="ctrl-btn" id="btn-ctrl-mute" title="Mute"><i class="fa-solid fa-microphone-slash"></i></button>
                  <button class="ctrl-btn" id="btn-ctrl-keypad" title="Keypad"><i class="fa-solid fa-th"></i></button>
                  <button class="ctrl-btn" id="btn-ctrl-hold" title="Hold"><i class="fa-solid fa-pause"></i></button>
+                 <button class="ctrl-btn" id="btn-ctrl-add-call" title="Add Call"><i class="fa-solid fa-user-plus"></i></button>
                  <button class="ctrl-btn" id="btn-ctrl-transfer" title="Transfer"><i class="fa-solid fa-share-nodes"></i></button>
               </div>
               <button class="end-call-btn" id="btn-ctrl-end"><i class="fa-solid fa-phone-slash"></i> END CALL</button>
@@ -127,7 +145,7 @@
            <!-- Transfer Sheet -->
            <div id="transfer-sheet" class="transfer-sheet hidden">
               <h3>Transfer Call</h3>
-              <input type="text" id="transfer-target" class="form-control" placeholder="Target Number">
+              <input type="text" id="transfer-target" class="form-control" placeholder="Number (For Blind Transfer)"><p style="font-size:10px; color:var(--text2); margin-top:5px;">* For Attended, use Add Call first, then click Attended Transfer.</p>
               <div class="transfer-actions">
                  <button id="btn-blind-transfer" class="pill-btn purple">Blind Transfer</button>
                  <button id="btn-attended-transfer" class="pill-btn sky">Attended Transfer</button>
