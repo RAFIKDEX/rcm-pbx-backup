@@ -42,6 +42,7 @@ const dom = {
     btnIslandMerge: document.getElementById('btn-island-merge'),
     btnIslandTransfer: document.getElementById('btn-island-transfer'),
     btnIslandEnd: document.getElementById('btn-island-end'),
+    islandBadge: document.getElementById('island-badge'),
     
     transferSheet: document.getElementById('transfer-sheet'),
     transferTarget: document.getElementById('transfer-target'),
@@ -513,11 +514,61 @@ dom.btnIslandSwap.onclick = async () => {
     updateStageView();
 };
 
-dom.btnIslandMerge.onclick = () => {
-    alert('3-Way Conference via WebRTC Mix-Minus requires AudioContext processing which is not implemented in this demo. Ask the engineer to write the Audio Bridge!');
+dom.btnIslandMerge.onclick = async () => {
+    if (!activeSession || !heldSession) return;
+    
+    dom.btnIslandMerge.innerText = "Merging...";
+    dom.btnIslandMerge.disabled = true;
+    
+    try {
+        await heldSession.invite({
+            sessionDescriptionHandlerModifiers: [ (desc) => { desc.sdp = desc.sdp.replace(/a=sendonly/g, 'a=sendrecv'); return Promise.resolve(desc); } ]
+        });
+        
+        const actStream = getAudioElement(activeSession).srcObject;
+        const heldStream = getAudioElement(heldSession).srcObject;
+        
+        const inputId = dom.audioInput.value;
+        const constraints = inputId ? { audio: { deviceId: { exact: inputId } } } : { audio: true };
+        const localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const srcAct = ac.createMediaStreamSource(actStream);
+        const srcHeld = ac.createMediaStreamSource(heldStream);
+        const srcLocal = ac.createMediaStreamSource(localStream);
+        
+        const destAct = ac.createMediaStreamDestination();
+        const destHeld = ac.createMediaStreamDestination();
+        
+        srcLocal.connect(destAct);
+        srcHeld.connect(destAct);
+        
+        srcLocal.connect(destHeld);
+        srcAct.connect(destHeld);
+        
+        const actSender = activeSession.sessionDescriptionHandler.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+        if (actSender) actSender.replaceTrack(destAct.stream.getAudioTracks()[0]);
+        
+        const heldSender = heldSession.sessionDescriptionHandler.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+        if (heldSender) heldSender.replaceTrack(destHeld.stream.getAudioTracks()[0]);
+        
+        dom.btnHold.classList.remove('active');
+        dom.islandHeldName.innerText = dom.activeCallerName.innerText + " & " + dom.islandHeldName.innerText;
+        dom.activeCallStatus.innerText = "3-Way Conference";
+        dom.btnIslandMerge.innerHTML = '<i class="fa-solid fa-check"></i> Merged';
+        dom.islandBadge.innerText = "👥 CONF";
+        dom.islandBadge.style.background = "rgba(16,185,129,0.15)";
+        dom.islandBadge.style.color = "var(--go)";
+        
+    } catch(e) {
+        alert("Merge failed: " + e.message);
+        dom.btnIslandMerge.innerHTML = '<i class="fa-solid fa-users"></i> Merge 3-Way';
+        dom.btnIslandMerge.disabled = false;
+    }
 };
 
 dom.btnTransfer.onclick = () => { dom.transferSheet.classList.remove('hidden'); };
+dom.btnIslandTransfer.onclick = () => { dom.transferSheet.classList.remove('hidden'); };
 dom.btnCancelTransfer.onclick = () => { dom.transferSheet.classList.add('hidden'); };
 
 dom.btnBlindTransfer.onclick = () => {
