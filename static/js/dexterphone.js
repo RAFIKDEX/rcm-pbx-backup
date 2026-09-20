@@ -247,6 +247,23 @@ function initSIP() {
         }
     });
     
+    
+    userAgent.transport.onConnect = () => {
+        dom.statusPill.style.color = 'var(--go)';
+        dom.statusText.innerText = 'Connected';
+    };
+    userAgent.transport.onDisconnect = () => {
+        dom.statusPill.style.color = 'var(--stop)';
+        dom.statusText.innerText = 'Reconnecting...';
+        
+        // Cleanup orphaned sessions on sudden network drop
+        const oldAct = activeSession; const oldHeld = heldSession; activeSession = null; heldSession = null; if(oldAct) cleanupSession(oldAct); if(oldHeld) cleanupSession(oldHeld);
+        if (incomingSession) { incomingSession = null; dom.incomingModal.classList.add('hidden'); document.getElementById('ringing-audio').pause(); }
+        
+        stopCallTimer();
+        updateStageView();
+    };
+    
     const registerer = new SIP.Registerer(userAgent);
     
     userAgent.start().then(() => registerer.register())
