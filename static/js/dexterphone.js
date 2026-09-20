@@ -384,14 +384,14 @@ dom.btnDial.onclick = async () => {
     
     const inputId = dom.audioInput.value;
     const constraints = inputId ? { audio: { deviceId: { exact: inputId } } } : { audio: true };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    try { await navigator.mediaDevices.getUserMedia(constraints); } catch(e) { alert("Microphone access failed. Please allow microphone permissions or connect a microphone."); return; }
     
     const inviter = new SIP.Inviter(userAgent, uri, {
         sessionDescriptionHandlerOptions: { constraints: constraints }
     });
     activeSession = inviter;
     bindSessionEvents(inviter);
-    inviter.invite();
+    inviter.invite().catch(e => alert("SIP Invite failed: " + e.message));
     document.getElementById('ringback-audio').play();
     updateStageView();
 };
@@ -428,7 +428,7 @@ dom.btnAccept.onclick = async () => {
     bindSessionEvents(activeSession);
     activeSession.accept({
         sessionDescriptionHandlerOptions: { constraints: constraints }
-    });
+    }).catch(e => alert("Accept failed: " + e.message));
 };
 
 dom.btnReject.onclick = () => {
