@@ -82,7 +82,7 @@ document.querySelectorAll('.keypad-btn').forEach(btn => {
 dom.btnClear.onclick = () => { dom.dialInput.value = dom.dialInput.value.slice(0, -1); };
 
 // Hardware Audio Enumeration & Hot-Swapping
-async function enumerateDevices() {
+async function enumerateDevices() { if (!navigator.mediaDevices) return;
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -99,7 +99,7 @@ async function enumerateDevices() {
         console.error('Failed to enumerate devices', err);
     }
 }
-navigator.mediaDevices.ondevicechange = enumerateDevices;
+if(navigator.mediaDevices) { navigator.mediaDevices.ondevicechange = enumerateDevices; } else { alert("WebRTC requires HTTPS! Please access this page using https:// to enable microphone and calling."); console.warn("mediaDevices API not available."); }
 dom.audioInput.onchange = applyAudioDevices;
 dom.audioOutput.onchange = applyAudioDevices;
 
