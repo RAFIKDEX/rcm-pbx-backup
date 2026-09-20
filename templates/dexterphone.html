@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>DEXTER Phone Professional</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/static/css/dexterphone.css?v=9">
+  <link rel="stylesheet" href="/static/css/dexterphone.css?v=10">
 </head>
 <body data-theme="dark">
 
@@ -17,6 +17,7 @@
     </div>
   </div>
   <div class="header-actions">
+    <button id="btn-sip-logout" style="background:none; border:none; color:var(--stop); font-size:16px; cursor:pointer; margin-right:15px;" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
     <div class="status-pill" id="conn-status-pill"><i class="fa-solid fa-circle"></i> <span id="conn-status-text">Offline</span></div>
   </div>
 </div>
@@ -167,7 +168,7 @@
 <audio id="ringing-audio" src="/static/sounds/ring.wav" loop></audio>
 
 <script src="/static/js/sip.min.js"></script>
-<script src="/static/js/dexterphone.js?v=9"></script>
+<script src="/static/js/dexterphone.js?v=10"></script>
 
 </body>
 </html>

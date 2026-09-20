@@ -110,8 +110,21 @@ function initSIP() {
         dom.statusPill.style.color = 'var(--go)';
         dom.statusText.innerText = 'Registered';
         dom.uriDisplay.innerText = `sip:${ext}@${domain}`;
-        dom.settingsModal.classList.add('hidden');
+        
+dom.settingsModal.classList.add('hidden');
     };
+    
+    // Add logout logic
+    const btnLogout = document.getElementById('btn-sip-logout');
+    if (btnLogout) {
+        btnLogout.onclick = () => {
+            localStorage.removeItem('dxt_ext');
+            localStorage.removeItem('dxt_pwd');
+            if (userAgent) userAgent.stop();
+            dom.settingsModal.classList.remove('hidden');
+        };
+    }
+
     
     userAgent.transport.onDisconnect = () => {
         dom.statusPill.style.color = 'var(--stop)';
