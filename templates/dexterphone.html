@@ -1,203 +1,153 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>DEXTER Phone Professional</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/static/css/dexterphone.css?v=5">
-</head>
-<body data-theme="dark">
-  <div class="app-container">
-    
-    <!-- Top Status Bar -->
-    <header class="top-status-bar">
-      <a href="/dashboard" class="icon-btn" title="Back to PBX Dashboard" style="margin-right: 15px; color: var(--sky);"><i class="fa-solid fa-arrow-left"></i></a>
-      <div class="brand">
-        <div class="brand-logo"><i class="fa-solid fa-phone-flip"></i></div>
-        <div>
-          <h1 style="font-family: 'Orbitron', sans-serif; font-weight: 900; letter-spacing: 1.5px; color: var(--primary);">DEXTER PHONE</h1>
-          <span id="sip-uri-display">Not Configured</span>
-        </div>
-      </div>
-      <div class="top-actions">
-        <div class="status-pill" id="conn-status-pill"><i class="fa-solid fa-circle"></i> <span id="conn-status-text">Offline</span></div>
-        <button id="btn-theme-toggle" class="icon-btn"><i class="fa-solid fa-moon"></i></button>
-      </div>
-    </header>
+{% extends 'base.html' %}
+{% block title %}DEXTER Phone Professional{% endblock %}
 
-    <div class="main-workspace">
-      <!-- Left Sidebar: BLF & Speed Dials -->
-      <aside class="sidebar">
-        <div class="sidebar-section">
-          <h3>SPEED DIALS</h3>
-          <div id="speed-dial-list" class="contact-list">
-             <!-- User requested programmable buttons -->
-             <button class="speed-dial-btn" onclick="dialNumber('*10')"><i class="fa-solid fa-bolt"></i> Break Code (*10)</button>
-             <button class="speed-dial-btn" onclick="dialNumber('*20')"><i class="fa-solid fa-bolt"></i> Lunch (*20)</button>
-             <button class="speed-dial-btn" onclick="dialNumber('*99')"><i class="fa-solid fa-voicemail"></i> Voicemail</button>
-          </div>
-        </div>
-        
-        <div class="sidebar-section" style="flex:1;">
-          <h3>COMPANY DIRECTORY (BLF)</h3>
-          <div class="search-box">
-             <i class="fa-solid fa-search"></i>
-             <input type="text" id="blf-search" placeholder="Search colleagues...">
-          </div>
-          <div id="blf-list" class="contact-list">
-            <!-- Populated via API -->
-          </div>
-        </div>
-        
-        <!-- Audio Hot-Swap / Settings -->
-        <div class="sidebar-section audio-settings">
-          <h3>HARDWARE AUDIO</h3>
-          <select id="audio-input-select" class="hardware-select" title="Microphone"></select>
-          <select id="audio-output-select" class="hardware-select" title="Speaker"></select>
-          <button id="btn-show-settings" class="icon-btn" style="width:100%; margin-top:8px;"><i class="fa-solid fa-gear"></i> SIP Settings</button>
-        </div>
-      </aside>
+{% block content %}
+<link rel="stylesheet" href="/static/css/dexterphone_desktop.css?v=1">
+<div class="header-panel">
+    <h1><i class="fa-solid fa-headset text-primary"></i> DEXTER WebRTC Softphone</h1>
+    <div class="top-status-indicator" id="main-status-indicator">
+        <div class="pulse-dot bg-danger" id="status-dot"></div>
+        <span id="status-text" class="text-muted">Offline</span>
+    </div>
+</div>
 
-      <!-- Center Stage Area -->
-      <main class="center-stage" id="center-stage">
-        
-        <!-- Dialer View -->
-        <div id="view-dialer" class="stage-view active">
-          <div class="dialer-wrapper">
-             <input type="text" id="dial-input" placeholder="Enter number..." readonly>
-             <div class="dialpad">
-               <button class="keypad-btn" data-key="1">1<span></span></button>
-               <button class="keypad-btn" data-key="2">2<span>ABC</span></button>
-               <button class="keypad-btn" data-key="3">3<span>DEF</span></button>
-               <button class="keypad-btn" data-key="4">4<span>GHI</span></button>
-               <button class="keypad-btn" data-key="5">5<span>JKL</span></button>
-               <button class="keypad-btn" data-key="6">6<span>MNO</span></button>
-               <button class="keypad-btn" data-key="7">7<span>PQRS</span></button>
-               <button class="keypad-btn" data-key="8">8<span>TUV</span></button>
-               <button class="keypad-btn" data-key="9">9<span>WXYZ</span></button>
-               <button class="keypad-btn" data-key="*">*<span></span></button>
-               <button class="keypad-btn" data-key="0">0<span>+</span></button>
-               <button class="keypad-btn" data-key="#">#<span></span></button>
-             </div>
-             <div class="dialer-actions">
-               <button id="btn-back-to-call" class="pill-btn sky hidden" style="margin-top: 15px; width: 100%;"><i class="fa-solid fa-arrow-left"></i> Back to Active Call</button>
-               <button id="btn-dial-call" class="call-btn"><i class="fa-solid fa-phone"></i> CALL</button>
-               <button id="btn-dial-clear" class="clear-btn"><i class="fa-solid fa-delete-left"></i></button>
-             </div>
-          </div>
+<div class="desktop-phone-grid">
+    <!-- Left Column: Dialer, Settings & BLF -->
+    <div class="phone-col-left">
+        <!-- Settings Panel -->
+        <div class="panel" id="auth-panel">
+            <div class="panel-header"><h2><i class="fa-solid fa-user-lock"></i> SIP Authentication</h2></div>
+            <div class="form-group">
+                <label>Extension</label>
+                <input type="text" id="sip-ext" class="form-control" placeholder="e.g. 2121">
+            </div>
+            <div class="form-group">
+                <label>Secret</label>
+                <input type="password" id="sip-pwd" class="form-control" placeholder="SIP Password">
+            </div>
+            <button class="btn btn-info w-100" id="btn-save-settings"><i class="fa-solid fa-satellite-dish"></i> Register</button>
         </div>
 
-        <!-- In-Call Views Container -->
-        <div id="view-calls" class="stage-view">
-           <!-- Multi-Call Island -->
-           <div id="multi-call-island" class="multi-call-island hidden">
-              <div class="island-header">
-                 <span class="amber-badge" id="island-badge">⏸️ ON HOLD</span>
-                 <span id="island-held-name">Ext. 2121</span>
-                 <button id="btn-island-end" class="pill-btn red"><i class="fa-solid fa-xmark"></i></button>
-              </div>
-              <div class="island-actions">
-                 <button id="btn-island-swap" class="pill-btn sky"><i class="fa-solid fa-arrow-right-arrow-left"></i> Swap Calls</button>
-                 <button id="btn-island-merge" class="pill-btn green"><i class="fa-solid fa-users"></i> Merge 3-Way</button>
-              </div>
-           </div>
-           
-           <!-- Active Call Stage -->
-           <div id="active-call-stage" class="active-call-stage">
-              <div class="codec-pill" id="codec-pill"><i class="fa-solid fa-wave-square"></i> HD VOICE</div>
-              <div class="caller-avatar">
-                 <div class="pulse-ring"></div>
-                 <div class="pulse-ring delay"></div>
-                 <i class="fa-solid fa-user"></i>
-              </div>
-              <h2 id="active-caller-name">Unknown</h2>
-              <div class="call-status" id="active-call-status">Connecting...</div>
-              <div class="call-timer" id="active-call-timer">00:00</div>
-              
-              <!-- Bottom Controls -->
-              <!-- In-Call Keypad (Hidden by default) -->
-              <div id="in-call-keypad" class="dialpad hidden" style="margin-top: 15px; transform: scale(0.8);">
-                 <button class="keypad-btn incall-key" data-key="1">1</button>
-                 <button class="keypad-btn incall-key" data-key="2">2</button>
-                 <button class="keypad-btn incall-key" data-key="3">3</button>
-                 <button class="keypad-btn incall-key" data-key="4">4</button>
-                 <button class="keypad-btn incall-key" data-key="5">5</button>
-                 <button class="keypad-btn incall-key" data-key="6">6</button>
-                 <button class="keypad-btn incall-key" data-key="7">7</button>
-                 <button class="keypad-btn incall-key" data-key="8">8</button>
-                 <button class="keypad-btn incall-key" data-key="9">9</button>
-                 <button class="keypad-btn incall-key" data-key="*">*</button>
-                 <button class="keypad-btn incall-key" data-key="0">0</button>
-                 <button class="keypad-btn incall-key" data-key="#">#</button>
-              </div>
-              <div class="in-call-controls" id="in-call-controls">
-              
-                 <button class="ctrl-btn" id="btn-ctrl-mute" title="Mute"><i class="fa-solid fa-microphone-slash"></i></button>
-                 <button class="ctrl-btn" id="btn-ctrl-keypad" title="Keypad"><i class="fa-solid fa-th"></i></button>
-                 <button class="ctrl-btn" id="btn-ctrl-hold" title="Hold"><i class="fa-solid fa-pause"></i></button>
-                 <button class="ctrl-btn" id="btn-ctrl-add-call" title="Add Call"><i class="fa-solid fa-user-plus"></i></button>
-                 <button class="ctrl-btn" id="btn-ctrl-transfer" title="Transfer"><i class="fa-solid fa-share-nodes"></i></button>
-              </div>
-              <button class="end-call-btn" id="btn-ctrl-end"><i class="fa-solid fa-phone-slash"></i> END CALL</button>
-           </div>
-           
-           <!-- Transfer Sheet -->
-           <div id="transfer-sheet" class="transfer-sheet hidden">
-              <h3>Transfer Call</h3>
-              <input type="text" id="transfer-target" class="form-control" placeholder="Number (For Blind Transfer)"><p style="font-size:10px; color:var(--text2); margin-top:5px;">* For Attended, use Add Call first, then click Attended Transfer.</p>
-              <div class="transfer-actions">
-                 <button id="btn-blind-transfer" class="pill-btn purple">Blind Transfer</button>
-                 <button id="btn-attended-transfer" class="pill-btn sky">Attended Transfer</button>
-                 <button id="btn-cancel-transfer" class="pill-btn">Cancel</button>
-              </div>
-           </div>
+        <!-- Dialer Panel -->
+        <div class="panel hidden" id="dialer-panel">
+            <div class="panel-header" style="padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 style="font-size: 1rem;"><i class="fa-solid fa-phone-flip"></i> Dialer</h2>
+                <div class="audio-meters-row" title="Microphone Level">
+                    <div class="vu-bar-wrap" id="mic-vu">
+                        <div class="vu-seg"></div><div class="vu-seg"></div><div class="vu-seg"></div>
+                        <div class="vu-seg"></div><div class="vu-seg"></div><div class="vu-seg"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="dialer-display">
+                <input type="text" id="dial-input" class="form-control text-center" style="font-size: 1.5rem; letter-spacing: 2px; font-weight: bold; background: var(--bg-dark);" placeholder="Enter Number">
+            </div>
+            <div class="dialpad-grid mt-3">
+                <button class="dial-key" data-key="1"><span class="num">1</span><span class="sub">&nbsp;</span></button>
+                <button class="dial-key" data-key="2"><span class="num">2</span><span class="sub">ABC</span></button>
+                <button class="dial-key" data-key="3"><span class="num">3</span><span class="sub">DEF</span></button>
+                <button class="dial-key" data-key="4"><span class="num">4</span><span class="sub">GHI</span></button>
+                <button class="dial-key" data-key="5"><span class="num">5</span><span class="sub">JKL</span></button>
+                <button class="dial-key" data-key="6"><span class="num">6</span><span class="sub">MNO</span></button>
+                <button class="dial-key" data-key="7"><span class="num">7</span><span class="sub">PQRS</span></button>
+                <button class="dial-key" data-key="8"><span class="num">8</span><span class="sub">TUV</span></button>
+                <button class="dial-key" data-key="9"><span class="num">9</span><span class="sub">WXYZ</span></button>
+                <button class="dial-key" data-key="*"><span class="num">*</span></button>
+                <button class="dial-key" data-key="0"><span class="num">0</span><span class="sub">+</span></button>
+                <button class="dial-key" data-key="#"><span class="num">#</span></button>
+            </div>
+            <div class="dialer-actions mt-3" style="display: flex; gap: 10px;">
+                <button class="btn btn-success" id="btn-dial-call" style="flex: 1; padding: 12px; font-size: 1.1rem;"><i class="fa-solid fa-phone"></i> CALL</button>
+                <button class="btn btn-secondary" id="btn-dial-clear" style="padding: 12px;"><i class="fa-solid fa-delete-left"></i></button>
+            </div>
         </div>
 
-      </main>
+        <!-- Audio Devices -->
+        <div class="panel hidden" id="hardware-panel" style="padding: 1rem 1.5rem;">
+            <h2 style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);"><i class="fa-solid fa-sliders"></i> Hardware</h2>
+            <select id="audio-input-select" class="form-control mb-2" style="font-size: 0.8rem; padding: 5px;"></select>
+            <select id="audio-output-select" class="form-control" style="font-size: 0.8rem; padding: 5px;"></select>
+        </div>
     </div>
 
-    <!-- Incoming Call Modal -->
-    <div id="incoming-modal" class="incoming-modal hidden">
-       <div class="incoming-card">
-          <div class="incoming-avatar"><i class="fa-solid fa-phone-volume fa-shake"></i></div>
-          <h3>Incoming Call</h3>
-          <div id="incoming-caller-info" class="incoming-info">Ext. 200</div>
-          <div class="incoming-actions">
-             <button id="btn-incoming-accept" class="accept-btn"><i class="fa-solid fa-check"></i> Accept</button>
-             <button id="btn-incoming-reject" class="reject-btn"><i class="fa-solid fa-xmark"></i> Decline</button>
-          </div>
-       </div>
+    <!-- Right Column: Active Calls & WebRTC Dashboard -->
+    <div class="phone-col-right">
+        <!-- Calls Container -->
+        <div id="calls-container" class="calls-container">
+            <!-- Empty State -->
+            <div class="empty-calls-state" id="empty-state">
+                <i class="fa-solid fa-phone-slash" style="font-size: 3rem; color: rgba(255,255,255,0.05); margin-bottom: 15px;"></i>
+                <h3 style="color: var(--text-dark);">No Active Calls</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">Dial a number or wait for an incoming call.</p>
+            </div>
+            <!-- Call cards will be injected here by JS -->
+        </div>
+
+        <!-- Incoming Call Modal (Overlay inside Right Col) -->
+        <div id="incoming-modal" class="incoming-modal hidden">
+            <div class="incoming-card">
+                <div class="pulse-ring"></div>
+                <div class="incoming-avatar"><i class="fa-solid fa-user"></i></div>
+                <h2 id="incoming-name">Unknown</h2>
+                <p>Incoming Call...</p>
+                <div class="incoming-actions">
+                    <button class="btn btn-success" id="btn-accept"><i class="fa-solid fa-phone"></i> Accept</button>
+                    <button class="btn btn-danger" id="btn-reject"><i class="fa-solid fa-phone-slash"></i> Reject</button>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
 
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal-overlay hidden">
-       <div class="modal-content">
-          <h2><i class="fa-solid fa-gear"></i> SIP Configuration</h2>
-          <div class="form-group">
-            <label>Extension / Username</label>
-            <input type="text" id="sip-ext" class="form-control" placeholder="1001">
-          </div>
-          <div class="form-group">
-            <label>Password / Secret</label>
-            <input type="password" id="sip-pwd" class="form-control">
-          </div>
-          <div class="form-group" style="display:none;">
-            <label>Server IP</label>
-            <input type="text" id="sip-server" class="form-control">
-          </div>
-          <div class="modal-actions">
-             <button id="btn-save-settings" class="save-btn">Save & Register</button>
-             <button id="btn-close-settings" class="cancel-btn">Close</button>
-          </div>
-       </div>
+<audio id="ringback-audio" src="/static/sounds/ringback.wav" loop></audio>
+<audio id="ringing-audio" src="/static/sounds/ring.wav" loop></audio>
+
+<!-- Templates for JS -->
+<template id="tpl-call-card">
+    <div class="panel call-card" data-session-id="">
+        <div class="call-card-header">
+            <div class="call-info">
+                <div class="call-avatar"><i class="fa-solid fa-user-astronaut"></i></div>
+                <div>
+                    <h3 class="caller-name">Unknown</h3>
+                    <div class="call-meta">
+                        <span class="call-status badge bg-primary">Connecting...</span>
+                        <span class="call-timer text-muted"><i class="fa-regular fa-clock"></i> 00:00</span>
+                        <span class="call-codec badge bg-dark"><i class="fa-solid fa-wave-square"></i> N/A</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transfer Sheet -->
+        <div class="transfer-sheet hidden mt-3 p-3" style="background: var(--bg-dark); border-radius: 10px; border: 1px solid var(--border-color);">
+            <h4 style="font-size: 0.9rem; margin-bottom: 10px;">Transfer Call</h4>
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control transfer-target" placeholder="Extension">
+                <button class="btn btn-info btn-sm btn-blind-transfer">Blind</button>
+                <button class="btn btn-success btn-sm btn-attended-transfer" title="Requires another active/held call">Attended</button>
+                <button class="btn btn-secondary btn-sm btn-cancel-transfer">Cancel</button>
+            </div>
+        </div>
+
+        <div class="call-card-actions mt-3" style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm btn-mute" title="Mute Mic"><i class="fa-solid fa-microphone"></i> Mute</button>
+            <button class="btn btn-secondary btn-sm btn-hold" title="Hold Call"><i class="fa-solid fa-pause"></i> Hold</button>
+            <button class="btn btn-secondary btn-sm btn-transfer-toggle" title="Transfer"><i class="fa-solid fa-share"></i> Transfer</button>
+            <button class="btn btn-secondary btn-sm btn-merge hidden" title="Merge 3-Way Conference"><i class="fa-solid fa-users"></i> Merge</button>
+            <button class="btn btn-danger btn-sm btn-end" style="margin-left: auto;"><i class="fa-solid fa-phone-slash"></i> End</button>
+        </div>
+        
+        <!-- Diagnostics Dropdown -->
+        <div class="webrtc-stats mt-3 pt-3" style="border-top: 1px dashed var(--border-color); font-size: 0.75rem; color: var(--text-dark); display: flex; justify-content: space-between;">
+            <span class="stat-jitter">Jitter: 0ms</span>
+            <span class="stat-loss">Loss: 0%</span>
+            <span class="stat-rtt">RTT: 0ms</span>
+            <span class="stat-ice">ICE: New</span>
+        </div>
     </div>
+</template>
 
-  </div>
-
-  <audio id="ringback-audio" src="/static/sounds/ringback.wav" loop></audio>
-  <audio id="ringing-audio" src="/static/sounds/ring.wav" loop></audio>
-
-  <script src="/static/js/sip.min.js"></script>
-  <script src="/static/js/dexterphone.js?v=4"></script>
-</body>
-</html>
+<script src="/static/js/sip.min.js"></script>
+<script src="/static/js/dexterphone_desktop.js?v=1"></script>
+{% endblock %}
