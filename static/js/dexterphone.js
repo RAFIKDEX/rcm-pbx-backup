@@ -52,6 +52,9 @@ let userAgent = null;
 let registerer = null;
 let activeSession = null;
 let heldSession = null;
+
+let activeAudioContext = null;
+let isMerged = false;
 let incomingSession = null;
 let callTimer = null;
 let callStartTime = null;
@@ -72,6 +75,23 @@ dom.btnSaveSettings.onclick = () => {
     localStorage.setItem('dxt_ext', document.getElementById('sip-ext').value);
     localStorage.setItem('dxt_pwd', document.getElementById('sip-pwd').value);
     initSIP();
+};
+
+
+dom.audioInput.onchange = async () => {
+    if (activeSession) {
+        const constraints = dom.audioInput.value ? { audio: { deviceId: { exact: dom.audioInput.value } } } : { audio: true };
+        const localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const sender = activeSession.sessionDescriptionHandler.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+        if (sender) sender.replaceTrack(localStream.getAudioTracks()[0]);
+    }
+};
+
+dom.audioOutput.onchange = () => {
+    const sinkId = dom.audioOutput.value;
+    if (sinkId && typeof HTMLMediaElement.prototype.setSinkId !== 'undefined') {
+        remoteAudios.forEach(audioEl => audioEl.setSinkId(sinkId));
+    }
 };
 
 async function loadAudioDevices() {
@@ -237,13 +257,29 @@ function bindSessionEvents(session) {
     });
 }
 
+
 function cleanupSession(session) {
+    if (isMerged && activeAudioContext) {
+        isMerged = false;
+        activeAudioContext.close();
+        activeAudioContext = null;
+        // Restore local mic for remaining session
+        const remainingSession = session === activeSession ? heldSession : activeSession;
+        if (remainingSession) {
+            navigator.mediaDevices.getUserMedia(dom.audioInput.value ? { audio: { deviceId: { exact: dom.audioInput.value } } } : { audio: true }).then(ls => {
+                const s = remainingSession.sessionDescriptionHandler.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='audio');
+                if (s) s.replaceTrack(ls.getAudioTracks()[0]);
+            });
+        }
+    }
+    
     if (remoteAudios.has(session)) { remoteAudios.get(session).pause(); remoteAudios.get(session).remove(); remoteAudios.delete(session); }
     if (activeSession === session) { activeSession = null; stopCallTimer(); }
     if (heldSession === session) heldSession = null;
     if (!activeSession && heldSession) { activeSession = heldSession; heldSession = null; toggleHold(activeSession, false); }
     updateStageView();
 }
+
 
 async function toggleHold(session, forceHold) {
     if(!session) return;
@@ -267,22 +303,23 @@ dom.btnIslandSwap.onclick = async () => {
 
 dom.btnIslandMerge.onclick = async () => {
     if(!activeSession || !heldSession) return;
-    dom.btnIslandMerge.disabled = true;
-    try {
+
+        dom.btnIslandMerge.disabled = true;
         await heldSession.invite({ sessionDescriptionHandlerModifiers: [(desc) => { desc.sdp = desc.sdp.replace(/a=sendonly/g, 'a=sendrecv'); return Promise.resolve(desc); }]});
-        const ac = new (window.AudioContext || window.webkitAudioContext)();
-        const s1 = ac.createMediaStreamSource(remoteAudios.get(activeSession).srcObject);
-        const s2 = ac.createMediaStreamSource(remoteAudios.get(heldSession).srcObject);
+        activeAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const s1 = activeAudioContext.createMediaStreamSource(remoteAudios.get(activeSession).srcObject);
+        const s2 = activeAudioContext.createMediaStreamSource(remoteAudios.get(heldSession).srcObject);
         const ls = await navigator.mediaDevices.getUserMedia(dom.audioInput.value ? { audio: { deviceId: { exact: dom.audioInput.value } } } : { audio: true });
-        const sl = ac.createMediaStreamSource(ls);
-        const d1 = ac.createMediaStreamDestination(); const d2 = ac.createMediaStreamDestination();
+        const sl = activeAudioContext.createMediaStreamSource(ls);
+        const d1 = activeAudioContext.createMediaStreamDestination(); const d2 = activeAudioContext.createMediaStreamDestination();
         sl.connect(d1); s2.connect(d1); sl.connect(d2); s1.connect(d2);
         activeSession.sessionDescriptionHandler.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='audio').replaceTrack(d1.stream.getAudioTracks()[0]);
         heldSession.sessionDescriptionHandler.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='audio').replaceTrack(d2.stream.getAudioTracks()[0]);
         dom.btnHold.classList.remove('active');
         dom.activeCallStatus.innerText = "3-Way Conference";
-    } catch(e) { alert("Merge failed"); }
-    dom.btnIslandMerge.disabled = false;
+        isMerged = true;
+        dom.btnIslandMerge.disabled = false;
+
 };
 
 dom.btnTransfer.onclick = () => dom.transferSheet.classList.remove('hidden');
@@ -332,3 +369,67 @@ function startCallTimer() {
     }, 1000);
 }
 function stopCallTimer() { clearInterval(callTimer); dom.activeCallTimer.innerText = "00:00"; }
+
+
+document.addEventListener('keydown', (e) => {
+    if (dom.settingsModal && !dom.settingsModal.classList.contains('hidden')) return;
+    const key = e.key;
+    if (/^[0-9*#]$/.test(key)) {
+        if (dom.viewDialer.classList.contains('active')) {
+            dom.dialInput.value += key;
+        } else if (activeSession) {
+            sendDTMF(key);
+        }
+    } else if (key === 'Enter') {
+        if (dom.viewDialer.classList.contains('active')) {
+            dom.btnDial.click();
+        } else if (incomingSession && !dom.incomingModal.classList.contains('hidden')) {
+            dom.btnAccept.click();
+        }
+    } else if (key === 'Backspace' && dom.viewDialer.classList.contains('active')) {
+        dom.btnClear.click();
+    }
+});
+
+
+let micStream = null;
+let audioContextVU = null;
+let analyserVU = null;
+let vuInterval = null;
+
+async function startVUMeter() {
+    if (vuInterval) clearInterval(vuInterval);
+    try {
+        const constraints = dom.audioInput.value ? { audio: { deviceId: { exact: dom.audioInput.value } } } : { audio: true };
+        micStream = await navigator.mediaDevices.getUserMedia(constraints);
+        audioContextVU = new (window.AudioContext || window.webkitAudioContext)();
+        analyserVU = audioContextVU.createAnalyser();
+        analyserVU.fftSize = 32;
+        const source = audioContextVU.createMediaStreamSource(micStream);
+        source.connect(analyserVU);
+        
+        const segments = document.querySelectorAll('.vu-seg');
+        const dataArray = new Uint8Array(analyserVU.frequencyBinCount);
+        
+        vuInterval = setInterval(() => {
+            if (!dom.viewDialer.classList.contains('active')) return; // Save CPU
+            analyserVU.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
+            const avg = sum / dataArray.length;
+            const activeSegs = Math.min(segments.length, Math.floor(avg / 15));
+            
+            segments.forEach((seg, i) => {
+                seg.className = 'vu-seg';
+                if (i < activeSegs) {
+                    if (i < 3) seg.classList.add('lit-green');
+                    else if (i < 5) seg.classList.add('lit-yellow');
+                    else seg.classList.add('lit-red');
+                }
+            });
+        }, 100);
+    } catch(e) {}
+}
+
+dom.audioInput.addEventListener('change', startVUMeter);
+document.addEventListener('DOMContentLoaded', () => { setTimeout(startVUMeter, 1000); });
