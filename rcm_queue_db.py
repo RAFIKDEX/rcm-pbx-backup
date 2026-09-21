@@ -2980,8 +2980,8 @@ def _sync_queue_log_to_db_locked():
             
             c.execute("SELECT COUNT(*) FROM queue_agent_events WHERE agent = ? AND queue = ? AND event_type = 'RINGNOANSWER' AND timestamp = ?", (agent_ext, queuename, dt_str))
             if c.fetchone()[0] == 0:
-                c.execute("""
                 ring_ms = args[0] if len(args) > 0 and args[0].isdigit() else "0"
+                c.execute("""
                 INSERT INTO queue_agent_events (agent, queue, event_type, uniqueid, timestamp, reason)
                 VALUES (?, ?, 'RINGNOANSWER', ?, ?, ?)
                 """, (agent_ext, queuename, callid, dt_str, ring_ms))
