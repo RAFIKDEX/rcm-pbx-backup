@@ -14,7 +14,7 @@
         <div class="dex-config-title"><div><h2>Localization</h2><p>Phone date, time, and NTP settings.</p></div><i class="fa-solid fa-globe dex-muted-icon"></i></div>
         <div class="dex-grid dex-config-fields">
           <label class="dex-switch dex-config-wide"><input type="checkbox" name="sntp_enabled" {% if config.sntp_enabled %}checked{% endif %}><span></span>Enable NTP</label>
-          <div class="dex-config-wide"><label class="dex-label" for="dex-primary-ntp">NTP Server</label><input id="dex-primary-ntp" class="form-control" name="primary_ntp" value="{{ config.primary_ntp or '192.168.99.223' }}"></div>
+          <div class="dex-config-wide"><label class="dex-label" for="dex-primary-ntp">NTP Server</label><input id="dex-primary-ntp" class="form-control" name="primary_ntp" value="{{ config.primary_ntp }}" placeholder="Auto (Current PBX IP)"></div>
           <div><label class="dex-label" for="dex-timezone">Time Zone</label><input id="dex-timezone" class="form-control" name="timezone" value="{{ config.timezone or '12' }}" inputmode="numeric"></div>
           <div><label class="dex-label" for="dex-time-format">Time Format</label><select id="dex-time-format" class="form-control" name="time_format">
             <option value="0" {% if (config.time_format or '0')|string == '0' %}selected{% endif %}>0 - 24-hour</option>

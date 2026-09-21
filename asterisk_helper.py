@@ -1810,7 +1810,7 @@ def write_extension_configs(data, reload=True):
             final_dp_lines.append(f"VM_{ext}={'On' if vm_enabled else 'Off'}")
             final_dp_lines.append(f"RING_{ext}={ring_time}")
             final_dp_lines.append(f"FM_{ext}={followme_enabled}")
-            call_waiting_enabled = "On" if extension_data.get("call_waiting", 0) else "Off"
+            call_waiting_enabled = "On" if data.get("call_waiting", 0) else "Off"
             final_dp_lines.append(f"CW_{ext}={call_waiting_enabled}")
             globals_inserted = True
         if line.strip() == "[internal]" and not internal_inserted:
@@ -1818,7 +1818,7 @@ def write_extension_configs(data, reload=True):
             internal_inserted = True
 
     if not globals_inserted:
-        call_waiting_enabled = "On" if extension_data.get("call_waiting", 0) else "Off"
+        call_waiting_enabled = "On" if data.get("call_waiting", 0) else "Off"
         final_dp_lines.extend(["", "[globals]", f"RECORD_{ext}={record_mode}", f"VM_{ext}={'On' if vm_enabled else 'Off'}", f"RING_{ext}={ring_time}", f"FM_{ext}={followme_enabled}", f"CW_{ext}={call_waiting_enabled}"])
     if not internal_inserted:
         final_dp_lines.extend(["", "[internal]", f"exten => {ext},1,Goto(dexter,${{EXTEN}},1)"])
