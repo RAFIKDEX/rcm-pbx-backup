@@ -4878,7 +4878,7 @@ def get_call_events_by_id(callid):
             "queue": row["queue"],
             "position": None,
             "duration": None,
-            "reason": None
+            "reason": row["reason"] if "reason" in row.keys() else None
         })
         
     # Sort raw events chronologically
@@ -4992,18 +4992,20 @@ def get_call_events_by_id(callid):
 
         elif evt_type == "RINGNOANSWER":
             display_event = "RINGNOANSWER"
-            ring_ms = 0
+            ring_ms = int(ev.get("reason")) if ev.get("reason") and str(ev.get("reason")).isdigit() else 0
             if not agent:
                 for a_ev in agent_evts:
                     if a_ev["event_type"] == "RINGNOANSWER" and a_ev["agent"] and a_ev["timestamp"] == ts:
                         agent = a_ev["agent"]
-                        ring_ms = int(a_ev["reason"]) if a_ev["reason"] and a_ev["reason"].isdigit() else 0
+                        if ring_ms == 0:
+                            ring_ms = int(a_ev["reason"]) if a_ev["reason"] and a_ev["reason"].isdigit() else 0
                         break
             if not agent:
                 for a_ev in agent_evts:
                     if a_ev["event_type"] == "RINGNOANSWER" and a_ev["agent"]:
                         agent = a_ev["agent"]
-                        ring_ms = int(a_ev["reason"]) if a_ev["reason"] and a_ev["reason"].isdigit() else 0
+                        if ring_ms == 0:
+                            ring_ms = int(a_ev["reason"]) if a_ev["reason"] and a_ev["reason"].isdigit() else 0
                         break
             
             # Smart Detection: If the ring duration was extremely short (< 5000 ms), the agent actively Rejected/Cancelled it.
