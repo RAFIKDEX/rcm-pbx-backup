@@ -421,7 +421,7 @@ def db_call_enter(uniqueid, linkedid, caller, queue_num, channel=None, position=
     c.execute("""
     INSERT INTO queue_calls (uniqueid, linkedid, caller_number, queue_id, queue_name, entry_time, status, source_trunk, position, initial_position, last_position)
     VALUES (?, ?, ?, ?, ?, ?, 'ENTERED', ?, ?, ?, ?)
-    ON CONFLICT(uniqueid, queue_id) DO UPDATE SET
+    ON CONFLICT(uniqueid) DO UPDATE SET
         caller_number=excluded.caller_number,
         entry_time=excluded.entry_time,
         status=CASE WHEN queue_calls.status IN ('ANSWERED', 'ABANDONED', 'CANCELLED', 'NO ANSWER', 'TIMEOUT') THEN queue_calls.status ELSE 'ENTERED' END,
@@ -2777,7 +2777,7 @@ def _sync_queue_log_to_db_locked():
             c.execute("""
             INSERT INTO queue_calls (uniqueid, linkedid, caller_number, queue_id, queue_name, entry_time, status, initial_position, last_position)
             VALUES (?, ?, ?, ?, ?, ?, 'ENTERED', ?, ?)
-            ON CONFLICT(uniqueid, queue_id) DO UPDATE SET
+            ON CONFLICT(uniqueid) DO UPDATE SET
                 caller_number=excluded.caller_number,
                 entry_time=excluded.entry_time,
                 status='ENTERED',
