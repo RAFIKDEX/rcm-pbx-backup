@@ -672,8 +672,9 @@ def db_call_hangup(uniqueid, reason="Hangup", event_time=None):
         c.execute("""
             SELECT event_type, timestamp FROM queue_agent_events
             WHERE uniqueid = ? AND event_type IN ('HOLD', 'UNHOLD')
+            AND timestamp >= (SELECT answer_time FROM queue_calls WHERE uniqueid = ? ORDER BY entry_time DESC LIMIT 1)
             ORDER BY timestamp DESC LIMIT 1
-        """, (uniqueid,))
+        """, (uniqueid, uniqueid))
         last_hold_evt = c.fetchone()
         if last_hold_evt and last_hold_evt["event_type"] == "HOLD":
             try:
@@ -4293,11 +4294,16 @@ def db_call_hold_event(uniqueid, is_hold, event_time=None):
     conn = get_db_connection()
     c = conn.cursor()
     
-    c.execute("SELECT agent, queue_id FROM queue_calls WHERE uniqueid = ? ORDER BY entry_time DESC LIMIT 1", (uniqueid,))
+    c.execute("SELECT agent, queue_id, answer_time FROM queue_calls WHERE uniqueid = ? ORDER BY entry_time DESC LIMIT 1", (uniqueid,))
     row = c.fetchone()
     if row:
         agent = row["agent"]
         qnum = row["queue_id"]
+        # Ignore Music on Hold that happens before the call is answered
+        if not row["answer_time"]:
+            conn.close()
+            return
+            
         event = "HOLD" if is_hold else "UNHOLD"
         now_str = _event_time_string(event_time)
         
@@ -4311,8 +4317,9 @@ def db_call_hold_event(uniqueid, is_hold, event_time=None):
             c.execute("""
                 SELECT timestamp FROM queue_agent_events 
                 WHERE uniqueid = ? AND event_type = 'HOLD' 
+                AND timestamp >= (SELECT answer_time FROM queue_calls WHERE uniqueid = ? ORDER BY entry_time DESC LIMIT 1)
                 ORDER BY timestamp DESC LIMIT 1
-            """, (uniqueid,))
+            """, (uniqueid, uniqueid))
             hold_row = c.fetchone()
             if hold_row:
                 try:

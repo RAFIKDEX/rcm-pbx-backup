@@ -2769,9 +2769,11 @@ def dashboard():
             status = call_states[ext_num]
         elif "ring" in ep_state:
             status = "Ringing"
-        elif "busy" in ep_state or "in use" in ep_state:
+        elif "not in use" in ep_state:
+            status = "Registered"
+        elif "busy" in ep_state or ("in use" in ep_state and "not in use" not in ep_state) or "inuse" in ep_state:
             status = "Busy"
-        elif "not in use" in ep_state or reg_count > 0:
+        elif reg_count > 0:
             status = "Registered"
         else:
             status = "Offline"
@@ -2930,9 +2932,11 @@ def api_dashboard_status():
             status = call_states[ext_num]
         elif "ring" in ep_state:
             status = "Ringing"
-        elif "busy" in ep_state or "in use" in ep_state:
+        elif "not in use" in ep_state:
+            status = "Registered"
+        elif "busy" in ep_state or ("in use" in ep_state and "not in use" not in ep_state) or "inuse" in ep_state:
             status = "Busy"
-        elif "not in use" in ep_state or reg_count > 0:
+        elif reg_count > 0:
             status = "Registered"
         else:
             status = "Offline"
@@ -3086,16 +3090,22 @@ def api_extensions_status():
         exts = [e for e in all_exts if str(e["ext"]) in req_set]
     else:
         exts = all_exts
+    call_states = asterisk_helper.get_active_channel_states() if hasattr(asterisk_helper, 'get_active_channel_states') else {}
     live_calls = asterisk_helper.get_live_calls_list()
-    call_states = {}
     for call in live_calls:
-        c_status = call["state"]
-        caller_num = call["caller"]
-        callee_num = call["callee"]
-        if caller_num.isdigit():
-            call_states[caller_num] = "Busy" if c_status == "Answered" else "Ringing"
-        if callee_num.isdigit():
-            call_states[callee_num] = "Busy" if c_status == "Answered" else "Ringing"
+        c_status = call.get("state", "")
+        call_st = "Busy" if c_status == "Answered" else "Ringing"
+        caller_num = str(call.get("caller", "")).strip()
+        callee_num = str(call.get("callee", "")).strip()
+        for num in [caller_num, callee_num]:
+            if num:
+                clean_num = re.sub(r'[^a-zA-Z0-9_]', '', num)
+                if clean_num:
+                    if clean_num not in call_states or call_states[clean_num] != "Busy":
+                        call_states[clean_num] = call_st
+                    w_num = f"{clean_num}_webrtc" if not clean_num.endswith('_webrtc') else clean_num
+                    if w_num not in call_states or call_states[w_num] != "Busy":
+                        call_states[w_num] = call_st
             
     contacts_map = asterisk_helper.get_pjsip_contacts()
     endpoint_states = asterisk_helper.get_pjsip_endpoint_states()
@@ -3113,9 +3123,11 @@ def api_extensions_status():
             status = call_states[ext_num]
         elif "ring" in ep_state:
             status = "Ringing"
-        elif "busy" in ep_state or "in use" in ep_state:
+        elif "not in use" in ep_state:
+            status = "Registered"
+        elif "busy" in ep_state or ("in use" in ep_state and "not in use" not in ep_state) or "inuse" in ep_state:
             status = "Busy"
-        elif "not in use" in ep_state or reg_count > 0:
+        elif reg_count > 0:
             status = "Registered"
         else:
             status = "Offline"
@@ -3134,11 +3146,15 @@ def api_extensions_status():
         
         if webrtc_ext in call_states:
             webrtc_status = call_states[webrtc_ext]
+        elif ext_num in call_states and webrtc_reg_count > 0:
+            webrtc_status = call_states[ext_num]
         elif "ring" in webrtc_ep_state:
             webrtc_status = "Ringing"
-        elif "busy" in webrtc_ep_state or "in use" in webrtc_ep_state:
+        elif "not in use" in webrtc_ep_state:
+            webrtc_status = "Registered"
+        elif "busy" in webrtc_ep_state or ("in use" in webrtc_ep_state and "not in use" not in webrtc_ep_state) or "inuse" in webrtc_ep_state:
             webrtc_status = "Busy"
-        elif "not in use" in webrtc_ep_state or webrtc_reg_count > 0:
+        elif webrtc_reg_count > 0:
             webrtc_status = "Registered"
         else:
             webrtc_status = "Offline"
@@ -3508,16 +3524,39 @@ def extensions_info(ext):
     webrtc_ext = f"{ext}_webrtc"
     webrtc_contacts = []
     webrtc_status = "Offline"
+    sip_status = "Offline"
     try:
+        call_states = asterisk_helper.get_active_channel_states() if hasattr(asterisk_helper, 'get_active_channel_states') else {}
         webrtc_map = asterisk_helper.get_registered_contacts(target_ext=webrtc_ext)
         webrtc_contacts = webrtc_map.get(webrtc_ext, [])
         ep_states = asterisk_helper.get_pjsip_endpoint_states()
+        
+        # SIP status
+        ep_state = str(ep_states.get(ext, "unavailable")).lower()
+        if ext in call_states:
+            sip_status = call_states[ext]
+        elif "ring" in ep_state:
+            sip_status = "Ringing"
+        elif "not in use" in ep_state:
+            sip_status = "Registered"
+        elif "busy" in ep_state or ("in use" in ep_state and "not in use" not in ep_state) or "inuse" in ep_state:
+            sip_status = "Busy"
+        elif len(ext_contacts) > 0:
+            sip_status = "Registered"
+            
+        # WebRTC status
         w_state = str(ep_states.get(webrtc_ext, "unavailable")).lower()
-        if "ring" in w_state:
+        if webrtc_ext in call_states:
+            webrtc_status = call_states[webrtc_ext]
+        elif ext in call_states and len(webrtc_contacts) > 0:
+            webrtc_status = call_states[ext]
+        elif "ring" in w_state:
             webrtc_status = "Ringing"
-        elif "busy" in w_state or "in use" in w_state:
+        elif "not in use" in w_state:
+            webrtc_status = "Registered"
+        elif "busy" in w_state or ("in use" in w_state and "not in use" not in w_state) or "inuse" in w_state:
             webrtc_status = "Busy"
-        elif "not in use" in w_state or len(webrtc_contacts) > 0:
+        elif len(webrtc_contacts) > 0:
             webrtc_status = "Registered"
     except Exception as exc:
         print(f"[extensions_info] Failed to get WebRTC contacts for {webrtc_ext}: {exc}")
@@ -3529,6 +3568,7 @@ def extensions_info(ext):
         "mobile": e.get("mobile", "") or "",
         "contacts": ext_contacts,
         "contact_error": contact_error,
+        "status": sip_status,
         "webrtc_endpoint": webrtc_ext,
         "webrtc_contacts": webrtc_contacts,
         "webrtc_reg_count": len(webrtc_contacts),
@@ -12669,10 +12709,12 @@ def api_call_events(callid):
     conn.close()
     totals = {"wait": 0, "talk": 0, "hold": 0}
     if call_row:
+        talk = call_row["talk_time"] or 0
+        hold = call_row["hold_time"] or 0
         totals = {
             "wait": call_row["wait_time"] or 0,
-            "talk": call_row["talk_time"] or 0,
-            "hold": call_row["hold_time"] or 0
+            "talk": max(0, talk - hold),
+            "hold": hold
         }
     return jsonify({"events": events, "agent_attempts": agent_attempts, "totals": totals})
 
@@ -13399,16 +13441,22 @@ def api_extensions_list():
         spy_counts = {str(row["target_ext"]): int(row["allowed_count"]) for row in cursor.fetchall()}
     conn.close()
     
+    call_states = asterisk_helper.get_active_channel_states() if hasattr(asterisk_helper, 'get_active_channel_states') else {}
     live_calls = asterisk_helper.get_live_calls_list()
-    call_states = {}
     for call in live_calls:
-        c_status = call["state"]
-        caller_num = call["caller"]
-        callee_num = call["callee"]
-        if caller_num.isdigit():
-            call_states[caller_num] = "Busy" if c_status == "Answered" else "Ringing"
-        if callee_num.isdigit():
-            call_states[callee_num] = "Busy" if c_status == "Answered" else "Ringing"
+        c_status = call.get("state", "")
+        call_st = "Busy" if c_status == "Answered" else "Ringing"
+        caller_num = str(call.get("caller", "")).strip()
+        callee_num = str(call.get("callee", "")).strip()
+        for num in [caller_num, callee_num]:
+            if num:
+                clean_num = re.sub(r'[^a-zA-Z0-9_]', '', num)
+                if clean_num:
+                    if clean_num not in call_states or call_states[clean_num] != "Busy":
+                        call_states[clean_num] = call_st
+                    w_num = f"{clean_num}_webrtc" if not clean_num.endswith('_webrtc') else clean_num
+                    if w_num not in call_states or call_states[w_num] != "Busy":
+                        call_states[w_num] = call_st
             
     contacts_map = asterisk_helper.get_pjsip_contacts()
     endpoint_states = asterisk_helper.get_pjsip_endpoint_states()
@@ -13426,9 +13474,11 @@ def api_extensions_list():
             status = call_states[ext_num]
         elif "ring" in ep_state:
             status = "Ringing"
-        elif "busy" in ep_state or "in use" in ep_state:
+        elif "not in use" in ep_state:
+            status = "Registered"
+        elif "busy" in ep_state or ("in use" in ep_state and "not in use" not in ep_state) or "inuse" in ep_state:
             status = "Busy"
-        elif "not in use" in ep_state or reg_count > 0:
+        elif reg_count > 0:
             status = "Registered"
         else:
             status = "Offline"
@@ -13447,11 +13497,15 @@ def api_extensions_list():
         
         if webrtc_ext in call_states:
             webrtc_status = call_states[webrtc_ext]
+        elif ext_num in call_states and webrtc_reg_count > 0:
+            webrtc_status = call_states[ext_num]
         elif "ring" in webrtc_ep_state:
             webrtc_status = "Ringing"
-        elif "busy" in webrtc_ep_state or "in use" in webrtc_ep_state:
+        elif "not in use" in webrtc_ep_state:
+            webrtc_status = "Registered"
+        elif "busy" in webrtc_ep_state or ("in use" in webrtc_ep_state and "not in use" not in webrtc_ep_state) or "inuse" in webrtc_ep_state:
             webrtc_status = "Busy"
-        elif "not in use" in webrtc_ep_state or webrtc_reg_count > 0:
+        elif webrtc_reg_count > 0:
             webrtc_status = "Registered"
         else:
             webrtc_status = "Offline"
