@@ -2981,9 +2981,10 @@ def _sync_queue_log_to_db_locked():
             c.execute("SELECT COUNT(*) FROM queue_agent_events WHERE agent = ? AND queue = ? AND event_type = 'RINGNOANSWER' AND timestamp = ?", (agent_ext, queuename, dt_str))
             if c.fetchone()[0] == 0:
                 c.execute("""
-                INSERT INTO queue_agent_events (agent, queue, event_type, uniqueid, timestamp)
-                VALUES (?, ?, 'RINGNOANSWER', ?, ?)
-                """, (agent_ext, queuename, callid, dt_str))
+                ring_ms = args[0] if len(args) > 0 and args[0].isdigit() else "0"
+                INSERT INTO queue_agent_events (agent, queue, event_type, uniqueid, timestamp, reason)
+                VALUES (?, ?, 'RINGNOANSWER', ?, ?, ?)
+                """, (agent_ext, queuename, callid, dt_str, ring_ms))
                 
             # Store in queue_call_positions
             c.execute("SELECT COUNT(*) FROM queue_call_positions WHERE uniqueid = ? AND event = 'RINGNOANSWER' AND timestamp = ?", (callid, dt_str))
@@ -4991,17 +4992,26 @@ def get_call_events_by_id(callid):
 
         elif evt_type == "RINGNOANSWER":
             display_event = "RINGNOANSWER"
+            ring_ms = 0
             if not agent:
                 for a_ev in agent_evts:
                     if a_ev["event_type"] == "RINGNOANSWER" and a_ev["agent"] and a_ev["timestamp"] == ts:
                         agent = a_ev["agent"]
+                        ring_ms = int(a_ev["reason"]) if a_ev["reason"] and a_ev["reason"].isdigit() else 0
                         break
             if not agent:
                 for a_ev in agent_evts:
                     if a_ev["event_type"] == "RINGNOANSWER" and a_ev["agent"]:
                         agent = a_ev["agent"]
+                        ring_ms = int(a_ev["reason"]) if a_ev["reason"] and a_ev["reason"].isdigit() else 0
                         break
-            reason = "Missed Ring"
+            
+            # Smart Detection: If the ring duration was extremely short (< 5000 ms), the agent actively Rejected/Cancelled it.
+            if ring_ms > 0 and ring_ms < 5000:
+                display_event = "AGENT REJECTED"
+                reason = f"Agent Rejected (Rang for {ring_ms/1000}s)"
+            else:
+                reason = "Missed Ring"
             
         elif evt_type == "RINGCANCELED":
             display_event = "RINGCANCELED"
