@@ -1,16 +1,53 @@
 # RCM 7021 - Call Center & PBX Management System
 
-Welcome to the **RCM 7021** project. This is a comprehensive, web-based Private Branch Exchange (PBX) and Call Center management dashboard built on top of Asterisk. It provides a modern interface for configuring extensions, trunks, inbound/outbound routes, queues, and provides deep analytics for call center operations.
+Welcome to the **RCM 7021** project. This is a highly advanced, web-based Private Branch Exchange (PBX) and Call Center management dashboard built on top of Asterisk. It provides a modern interface for configuring everything from basic extensions to complex call center queues and post-call surveys, alongside deep, real-time analytics.
 
 ## 📌 Project Overview
-RCM 7021 bridges the gap between Asterisk's powerful (but complex) configuration files and a user-friendly graphical interface. It handles live monitoring of queues, agent performance metrics, call journey timelines, and system configuration generation.
+RCM 7021 bridges the gap between Asterisk's powerful (but complex) configuration files and a user-friendly graphical interface. It handles live monitoring of queues, agent performance metrics, call journey timelines, and system configuration generation—all without requiring the user to touch a terminal.
+
+## 🌟 Comprehensive Feature List
+This system manages the entire lifecycle of a PBX. Every module includes its own UI, database/JSON storage, and Asterisk dialplan generator:
+
+### Core PBX Features
+*   **Extensions Management:** Create, edit, and delete SIP/PJSIP extensions. Supports dynamic/static assignments and voicemail.
+*   **Trunks:** SIP trunk configurations for connecting to external VoIP providers or gateways.
+*   **Inbound Routes:** Direct incoming calls (DIDs) to specific destinations (Extensions, Queues, IVRs, etc.).
+*   **Outbound Routes:** Manage outbound dialing rules and patterns (powered by external generator script).
+*   **Ring Groups:** Group multiple extensions to ring simultaneously or sequentially.
+*   **IVR (Interactive Voice Response):** Build complex automated attendants with multi-level menus and digit timeouts.
+*   **Time Conditions & Office Hours:** Route calls differently based on business hours, holidays, and custom schedules.
+*   **Music on Hold (MoH):** Upload, convert, and manage hold music tracks.
+*   **System Recordings (Media Center):** Manage custom voice prompts and announcements.
+*   **Paging & Intercom:** Broadcast live audio to specific groups of desk phones.
+*   **Pickup Groups:** Allow users to intercept ringing calls on other extensions.
+*   **Speed Dials:** System-wide short codes for quick dialing.
+
+### Call Center & Advanced Routing
+*   **Queues:** Advanced call center queues with customizable strategies (ringall, rrmemory, leastrecent), SLAs, and timeouts.
+*   **Live Queue Dashboard:** Real-time visibility into callers waiting, active agents, queue lengths, and SLA adherence.
+*   **Agent Management:** Track agent logins, logouts, pauses, and breaks dynamically.
+*   **Post-Call Surveys:** Automated surveys played to the caller after the agent hangs up to measure CSAT, integrated with its own reporting engine.
+
+### Analytics & Reporting
+*   **Queue Statistics:** Deep historical analytics for queue performance (Ans Rate, Abandon Rate, SLA %).
+*   **Agent Performance (Occupancy):** Precise tracking of Agent Productivity, Total Answered, and true "Speaking Time" (where Hold time is correctly isolated).
+*   **Call Flow Details (Timeline):** A forensic, second-by-second timeline of every call's journey from `ENTERQUEUE` to `COMPLETE`, including precise Wait, Talk, and Hold times.
+*   **Advanced CDRs:** Detailed Call Detail Records for all PBX activity.
+
+### Security & System Administration
+*   **SIP Security & Firewall:** Integrated SIP attack detection, firewall rules management, and Fail2ban configurations.
+*   **User & Privilege Management:** Role-based access control for the web interface.
+*   **LDAP Integration:** Synchronize users/extensions with Active Directory.
+*   **Network & PBX Settings:** Modify core system parameters and network interfaces.
+
+---
 
 ## 🛠️ Tech Stack
 *   **Backend:** Python 3, Flask (Web Framework)
 *   **Database:** SQLite3 (Dual-database architecture)
 *   **Frontend:** HTML5, CSS3, Vanilla JavaScript, Jinja2 Templates (No heavy frontend frameworks like React/Vue).
 *   **Telephony Engine:** Asterisk (PJSIP channel driver)
-*   **Background Services:** Systemd-managed Python daemons (e.g., `rcm-queue-collector`)
+*   **Background Services:** Systemd-managed Python daemons (e.g., `rcm-queue-collector.service`)
 
 ---
 
@@ -48,7 +85,7 @@ The generation of dialplans for outbound routes is managed by an external shell 
 ## 🔄 Background Daemons
 The system relies on background services to bridge real-time Asterisk events with the web UI:
 
-*   **`rcm-queue-collector` (`/root/RCM_7021/rcm-queue-collector.py`)**
+*   **`rcm-queue-collector` (`/root/RCM_7021/rcm_queue_collector.py`)**
     *   Tails the Asterisk `/var/log/asterisk/queue_log`.
     *   Translates events (ENTERQUEUE, RINGNOANSWER, COMPLETEAGENT, HOLD, UNHOLD) into SQLite records in `rcm_queue.db`.
     *   Implements "Smart Detection" for Agent Rejections vs. Missed Rings.
@@ -56,7 +93,7 @@ The system relies on background services to bridge real-time Asterisk events wit
 
 ---
 
-## 📁 Directory Structure
+## 📁 Directory Structure Overview
 
 ```text
 /root/RCM_7021/
@@ -65,11 +102,12 @@ The system relies on background services to bridge real-time Asterisk events wit
 ├── rcm_queue_db.py            # Queue & Call Center Database Helper (rcm_queue.db)
 ├── asterisk_helper.py         # Utilities for writing to Asterisk .conf files
 ├── cdr_journey.py             # Logic for building the Call Details Timeline
-├── FEATURE_INDEX.md           # Master index of where specific features are stored (JSON/DB)
+├── survey_routes.py           # Logic for Post-Call Surveys
+├── sip_security_manager.py    # SIP Intrusion detection and Fail2ban integration
 ├── static/
 │   ├── css/style.css          # Main UI Styling (Dark PBX Dashboard Theme)
 │   └── js/                    # Client-side logic
-├── templates/                 # Jinja2 HTML Templates (e.g., queue_stats.html)
+├── templates/                 # Jinja2 HTML Templates (e.g., queue_stats.html, ivr_form.html, etc.)
 └── ...
 ```
 
@@ -79,11 +117,3 @@ The system relies on background services to bridge real-time Asterisk events wit
 *   **Consistent UI:** Adheres strictly to the established Dark PBX Dashboard theme defined in `style.css`.
 *   **No "AI-Template" feel:** Avoids excessive gradients, unnecessary emojis, or exaggerated shadows.
 *   **Functional Animations:** CSS transitions (150-300ms) are used functionally (modals, active call highlights) rather than decoratively.
-
----
-
-## 🚀 Key Features
-*   **Live Queue Dashboard:** Real-time visibility into callers waiting, agent statuses, and live SLA tracking.
-*   **Agent Performance Analytics:** Deep insights into Occupancy, Productivity, Total Answered, and "Speaking Time" (Hold time is explicitly decoupled from productive talk time).
-*   **Call Journey Timelines:** A forensic step-by-step breakdown of every call's lifecycle from entering the PBX to the final hangup.
-*   **PBX Configuration:** GUI management of Extensions, Trunks, Ring Groups, IVRs, Announcements, and Paging.
